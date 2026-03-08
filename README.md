@@ -38,7 +38,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 ### Prerequisites
 * **macOS** with Xcode 15.0 or later.
-* **iOS Device or Simulator** running iOS 16.0+.
+* **iOS Device or Simulator** running iOS 17.0+.
 * A running **Jellyfin Server** (v10.8.0 or newer) reachable from your network.
 
 ### Installation
