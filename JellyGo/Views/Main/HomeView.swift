@@ -9,7 +9,6 @@ struct HomeView: View {
     @State private var downloadBanner: PausedDownload?
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedTab: Int = 0
-    @State private var bannerNavItem: JellyfinItem? = nil
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -35,13 +34,6 @@ struct HomeView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: downloadBanner?.id)
-        .sheet(item: $bannerNavItem) { item in
-            NavigationStack {
-                ItemDetailView(item: item)
-                    .environmentObject(appState)
-                    .environmentObject(dm)
-            }
-        }
         .task(id: appState.sessionId) { await vm.load(appState: appState) }
         .onReceive(dm.downloadStarted) { started in
             bannerTask?.cancel()
@@ -58,7 +50,7 @@ struct HomeView: View {
         Button {
             withAnimation { downloadBanner = nil }
             bannerTask?.cancel()
-            bannerNavItem = entry.meta.toJellyfinItem()
+            selectedTab = 2
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "arrow.down.circle.fill")
