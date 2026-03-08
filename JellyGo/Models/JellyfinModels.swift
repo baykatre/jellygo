@@ -99,6 +99,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
     let people: [JellyfinPerson]?
     let premiereDate: String?
     let mediaStreams: [JellyfinMediaStream]?
+    let mediaSources: [JellyfinMediaSource]?
     let childCount: Int?
 
     enum CodingKeys: String, CodingKey {
@@ -124,6 +125,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
         case people = "People"
         case premiereDate = "PremiereDate"
         case mediaStreams = "MediaStreams"
+        case mediaSources = "MediaSources"
         case childCount = "ChildCount"
     }
 
@@ -206,7 +208,7 @@ struct JellyfinPlaybackInfo: Codable {
     }
 }
 
-struct JellyfinMediaSource: Codable, Identifiable {
+struct JellyfinMediaSource: Codable, Identifiable, Hashable {
     let id: String
     let name: String?
     let path: String?
@@ -238,8 +240,11 @@ struct JellyfinMediaStream: Codable, Hashable {
     let codec: String?
     let isDefault: Bool?
     let isExternal: Bool?
+    let supportsExternalStream: Bool?
+    let deliveryMethod: String?
     let height: Int?
     let width: Int?
+    let bitRate: Int?
 
     enum CodingKeys: String, CodingKey {
         case type = "Type"
@@ -249,13 +254,27 @@ struct JellyfinMediaStream: Codable, Hashable {
         case codec = "Codec"
         case isDefault = "IsDefault"
         case isExternal = "IsExternal"
+        case supportsExternalStream = "SupportsExternalStream"
+        case deliveryMethod = "DeliveryMethod"
         case height = "Height"
         case width = "Width"
+        case bitRate = "BitRate"
     }
 
     var isAudio: Bool { type == "Audio" }
     var isSubtitle: Bool { type == "Subtitle" }
     var isVideo: Bool { type == "Video" }
+
+    /// True if Jellyfin can serve this subtitle as an external SRT file.
+    var canDownloadAsSRT: Bool {
+        guard isSubtitle else { return false }
+        // If the server explicitly says it supports external stream, trust that.
+        if let sup = supportsExternalStream { return sup }
+        // Otherwise exclude known image-based codecs that can't be converted to SRT.
+        let imageBased = ["hdmv_pgs_subtitle", "pgs", "vobsub", "dvd_subtitle", "dvbsub"]
+        if let codec = codec?.lowercased(), imageBased.contains(codec) { return false }
+        return true
+    }
 }
 
 // MARK: - Search
@@ -312,6 +331,7 @@ extension JellyfinItem {
         self.people = nil
         self.premiereDate = nil
         self.mediaStreams = nil
+        self.mediaSources = nil
         self.childCount = nil
     }
 }

@@ -77,6 +77,40 @@
 "Photos" = "Fotoğraflar";
 "Playlists" = "Oynatma Listeleri";
 
+/* Accounts */
+"Accounts" = "Hesaplar";
+"Add" = "Ekle";
+"Tap to switch · Long press to remove" = "Geçiş için dokun · Kaldırmak için uzun bas";
+"Switch to %@" = "%@ hesabına geç";
+"Edit Label" = "Etiket Düzenle";
+"Remove Account" = "Hesabı Kaldır";
+"Remove %@ from this device?" = "%@ bu cihazdan kaldırılsın mı?";
+"Account Already Added" = "Hesap Zaten Ekli";
+"e.g. Home, Remote, VPN…" = "ör. Ev, Uzak, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Ana ekran rozeti ve hesap balonlarında gösterilen etiket. Sunucu adresini kullanmak için boş bırak.";
+
+/* Settings */
+"Settings" = "Ayarlar";
+"Playback" = "Oynatma";
+"Player Engine" = "Oynatıcı";
+"Default Quality" = "Varsayılan Kalite";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Otomatik (WiFi → Direkt, Hücresel → 720p)";
+"Audio" = "Ses";
+"Preferred Language" = "Tercih Edilen Dil";
+"Subtitles" = "Altyazılar";
+"Enable by Default" = "Varsayılan Olarak Etkin";
+"About" = "Hakkında";
+"Version" = "Sürüm";
+"Jellyfin Project" = "Jellyfin Projesi";
+"Sign out of %@?" = "%@ hesabından çıkılsın mı?";
+"Remove" = "Kaldır";
+"Save" = "Kaydet";
+
+/* Downloads */
+"Downloads" = "İndirilenler";
+"No Downloads" = "İndirilen Yok";
+"Downloaded content will appear here." = "İndirilen içerikler burada görünecek.";
+
 /* Errors */
 "Invalid server address" = "Geçersiz sunucu adresi";
 "Invalid username or password" = "Kullanıcı adı veya şifre hatalı";

@@ -79,6 +79,35 @@
 
 /* Settings */
 "Dil Ayarları" = "Language Settings";
+"Ayarlar" = "Settings";
+"Oynatma" = "Playback";
+"Oynatıcı" = "Player Engine";
+"Varsayılan Kalite" = "Default Quality";
+"Otomatik (WiFi → Direkt, Hücresel → 720p)" = "Auto (WiFi → Direct, Cellular → 720p)";
+"Ses" = "Audio";
+"Tercih Edilen Dil" = "Preferred Language";
+"Altyazılar" = "Subtitles";
+"Varsayılan Olarak Etkin" = "Enable by Default";
+"Hakkında" = "About";
+"Sürüm" = "Version";
+"Jellyfin Projesi" = "Jellyfin Project";
+
+/* Accounts */
+"Hesaplar" = "Accounts";
+"Ekle" = "Add";
+"Geçiş için dokun · Kaldırmak için uzun bas" = "Tap to switch · Long press to remove";
+"%@ hesabına geç" = "Switch to %@";
+"Etiket Düzenle" = "Edit Label";
+"Hesabı Kaldır" = "Remove Account";
+"%@ bu cihazdan kaldırılsın mı?" = "Remove %@ from this device?";
+"Hesap Zaten Ekli" = "Account Already Added";
+"Kaydet" = "Save";
+"Kaldır" = "Remove";
+
+/* Downloads */
+"İndirilenler" = "Downloads";
+"İndirilen Yok" = "No Downloads";
+"İndirilen içerikler burada görünecek." = "Downloaded content will appear here.";
 
 /* Errors */
 "Geçersiz sunucu adresi" = "Invalid server address";

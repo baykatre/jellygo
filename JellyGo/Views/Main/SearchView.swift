@@ -4,39 +4,37 @@ struct SearchView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = SearchViewModel()
     @State private var query = ""
+    @State private var isSearchFocused = false
 
     private let columns = [GridItem(.adaptive(minimum: 110, maximum: 140), spacing: 14)]
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                filterChips
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-
-                Divider()
-
-                Group {
-                    if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                        if vm.recentItems.isEmpty {
-                            emptyPrompt
-                        } else {
-                            recentGrid
-                        }
-                    } else if vm.isSearching {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if vm.filteredResults.isEmpty {
-                        ContentUnavailableView.search(text: query)
+            Group {
+                if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                    if vm.recentItems.isEmpty {
+                        emptyPrompt
                     } else {
-                        resultsGrid
+                        recentGrid
                     }
+                } else if vm.isSearching {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if vm.filteredResults.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                } else {
+                    resultsGrid
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .navigationTitle("Search")
             .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Movies, series...")
+            .searchable(text: $query, isPresented: $isSearchFocused, placement: .navigationBarDrawer(displayMode: .always), prompt: "Movies, series...")
+            .onAppear { isSearchFocused = true }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    filterMenu
+                }
+            }
             .onChange(of: query) { _, new in
                 vm.search(query: new, appState: appState)
             }
@@ -46,31 +44,23 @@ struct SearchView: View {
         }
     }
 
-    // MARK: - Filter Chips
+    // MARK: - Filter Menu
 
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(SearchViewModel.SearchFilter.allCases, id: \.self) { filter in
-                    Button {
-                        vm.filter = filter
-                    } label: {
-                        Label(LocalizedStringKey(filter.rawValue), systemImage: filter.icon)
-                            .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(
-                                vm.filter == filter
-                                    ? Color.accentColor
-                                    : Color(.secondarySystemBackground),
-                                in: Capsule()
-                            )
-                            .foregroundStyle(vm.filter == filter ? .white : .primary)
+    private var filterMenu: some View {
+        Menu {
+            ForEach(SearchViewModel.SearchFilter.allCases, id: \.self) { filter in
+                Button {
+                    vm.filter = filter
+                } label: {
+                    Label(LocalizedStringKey(filter.rawValue), systemImage: filter.icon)
+                    if vm.filter == filter {
+                        Image(systemName: "checkmark")
                     }
-                    .buttonStyle(.plain)
-                    .animation(.easeInOut(duration: 0.15), value: vm.filter)
                 }
             }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .symbolVariant(vm.filter == .all ? .none : .fill)
         }
     }
 
@@ -137,12 +127,13 @@ struct SearchView: View {
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
 // MARK: - Search Result Card
 
-private struct SearchResultCard: View {
+struct SearchResultCard: View {
     let hint: JellyfinSearchHint
     let serverURL: String
 
@@ -155,18 +146,12 @@ private struct SearchResultCard: View {
                 case .failure:
                     fallbackPoster
                 default:
-                    Color(.secondarySystemBackground)
+                    Color.secondary.opacity(0.2)
                 }
             }
             .frame(width: 120, height: 180)
             .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
-            )
-            .overlay(alignment: .topTrailing) {
-                typeTag
-            }
+            .overlay(alignment: .topTrailing) { typeTag }
 
             Text(hint.name)
                 .font(.caption.weight(.medium))
@@ -196,7 +181,7 @@ private struct SearchResultCard: View {
 
     private var fallbackPoster: some View {
         ZStack {
-            Color(.secondarySystemBackground)
+            Color.secondary.opacity(0.15)
             VStack(spacing: 8) {
                 Image(systemName: typeIcon)
                     .font(.system(size: 28))

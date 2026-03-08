@@ -26,7 +26,7 @@ final class LibraryViewModel: ObservableObject {
     }
 
     func loadMore() async {
-        guard !isLoadingMore, hasMore, let appState else { return }
+        guard !isLoadingMore, hasMore, appState != nil else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
         await fetchPage(startIndex: items.count)

@@ -121,7 +121,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items/\(itemId)"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
-            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,MediaStreams,ChildCount")
+            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,MediaStreams,MediaSources,ChildCount")
         ]
         let req = baseRequest(url: components.url!, token: token)
         let data = try await perform(req)
@@ -179,7 +179,8 @@ final class JellyfinAPI {
         sortOrder: String = "Ascending",
         startIndex: Int = 0,
         limit: Int = 50,
-        recursive: Bool = false
+        recursive: Bool = false,
+        filters: String? = nil
     ) async throws -> JellyfinItemsResponse {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items"), resolvingAgainstBaseURL: false)!
@@ -193,6 +194,7 @@ final class JellyfinAPI {
         ]
         if let parentId { queryItems.append(URLQueryItem(name: "ParentId", value: parentId)) }
         if let types = itemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
+        if let filters { queryItems.append(URLQueryItem(name: "Filters", value: filters)) }
         components.queryItems = queryItems
         let req = baseRequest(url: components.url!, token: token)
         let data = try await perform(req)
@@ -225,7 +227,7 @@ final class JellyfinAPI {
         return try decode(JellyfinItemsResponse.self, from: data).items
     }
 
-    func getLatestMedia(serverURL: String, userId: String, token: String, libraryId: String? = nil) async throws -> [JellyfinItem] {
+    func getLatestMedia(serverURL: String, userId: String, token: String, libraryId: String? = nil, includeItemTypes: [String]? = nil) async throws -> [JellyfinItem] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items/Latest"), resolvingAgainstBaseURL: false)!
         var queryItems: [URLQueryItem] = [
@@ -233,6 +235,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks")
         ]
         if let libraryId { queryItems.append(URLQueryItem(name: "ParentId", value: libraryId)) }
+        if let types = includeItemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
         components.queryItems = queryItems
         let req = baseRequest(url: components.url!, token: token)
         let data = try await perform(req)
@@ -257,7 +260,7 @@ final class JellyfinAPI {
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/PlaybackInfo"), resolvingAgainstBaseURL: false)!
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
@@ -273,7 +276,7 @@ final class JellyfinAPI {
             "UserId": userId,
             "DeviceProfile": [
                 "MaxStaticBitrate": 100_000_000,
-                "MaxStreamingBitrate": 120_000_000,
+                "MaxStreamingBitrate": maxBitrate ?? 120_000_000,
                 "DirectPlayProfiles": [
                     [
                         "Container": "mp4,m4v,mov,m2ts,ts",

@@ -9,4 +9,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> UIInterfaceOrientationMask {
         AppDelegate.orientationLock
     }
+
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
+        DownloadManager.shared.backgroundCompletionHandler = completionHandler
+    }
 }

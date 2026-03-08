@@ -16,6 +16,8 @@ struct JellyGoApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(DownloadManager.shared)
+                .environmentObject(NetworkMonitor.shared)
         }
     }
 }

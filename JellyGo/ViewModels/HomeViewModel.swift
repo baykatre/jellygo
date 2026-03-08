@@ -12,6 +12,8 @@ final class HomeViewModel: ObservableObject {
     @Published var error: String?
 
     @Published var featuredItems: [JellyfinItem] = []
+    /// Server URL captured at load time — used for image URLs so they don't flicker on same-user server switch.
+    @Published var serverURL: String = ""
 
     private func buildFeatured() {
         let pool = Array(latestMovies.prefix(8)) + Array(latestShows.prefix(8))
@@ -23,37 +25,46 @@ final class HomeViewModel: ObservableObject {
         error = nil
         defer { isLoading = false }
 
+        // One-time migration: populate serverId and share token across URL variants
+        await appState.migrateServerIdIfNeeded()
+
+        let url   = appState.serverURL
+        serverURL = url
+        let uid   = appState.userId
+        let token = appState.token
+
+        async let cwTask   = JellyfinAPI.shared.getContinueWatching(serverURL: url, userId: uid, token: token)
+        async let nuTask   = JellyfinAPI.shared.getNextUp(serverURL: url, userId: uid, token: token)
+        async let lmTask   = JellyfinAPI.shared.getItems(
+            serverURL: url, userId: uid, token: token,
+            itemTypes: ["Movie"], sortBy: "DateCreated", sortOrder: "Descending",
+            limit: 16, recursive: true)
+        async let lsTask   = JellyfinAPI.shared.getItems(
+            serverURL: url, userId: uid, token: token,
+            itemTypes: ["Series"], sortBy: "DateCreated", sortOrder: "Descending",
+            limit: 16, recursive: true)
+        async let libsTask = JellyfinAPI.shared.getLibraries(serverURL: url, userId: uid, token: token)
+
+        continueWatching = (try? await cwTask)  ?? []
+        nextUp           = (try? await nuTask)  ?? []
+
         do {
-            async let continueTask = JellyfinAPI.shared.getContinueWatching(
-                serverURL: appState.serverURL, userId: appState.userId, token: appState.token)
-            async let nextUpTask = JellyfinAPI.shared.getNextUp(
-                serverURL: appState.serverURL, userId: appState.userId, token: appState.token)
-            async let latestMoviesTask = JellyfinAPI.shared.getLatestMedia(
-                serverURL: appState.serverURL, userId: appState.userId, token: appState.token)
-            async let librariesTask = JellyfinAPI.shared.getLibraries(
-                serverURL: appState.serverURL, userId: appState.userId, token: appState.token)
-
-            let (cw, nu, lm, libs) = try await (continueTask, nextUpTask, latestMoviesTask, librariesTask)
-
-            continueWatching = cw
-            nextUp = nu
-            latestMovies = lm.filter { $0.isMovie }
-
-            // Jellyfin Latest returns Episodes for TV, not Series.
-            // Deduplicate by seriesId so each show appears only once.
-            var seenSeries = Set<String>()
-            latestShows = lm
-                .filter { $0.isSeries || $0.isEpisode }
-                .filter { item in
-                    let key = item.isEpisode ? (item.seriesId ?? item.id) : item.id
-                    return seenSeries.insert(key).inserted
-                }
-            libraries = libs
-            buildFeatured()
+            latestMovies = try await lmTask.items
+        } catch JellyfinAPIError.unauthorized {
+            error = NSLocalizedString("Oturum süresi dolmuş. Hesabı ayarlardan yeniden ekleyin.", comment: "")
         } catch let err as JellyfinAPIError {
             error = err.errorDescription
-        } catch {
-            self.error = error.localizedDescription
-        }
+        } catch {}
+
+        do {
+            latestShows = try await lsTask.items
+        } catch JellyfinAPIError.unauthorized {
+            if error == nil { error = NSLocalizedString("Oturum süresi dolmuş. Hesabı ayarlardan yeniden ekleyin.", comment: "") }
+        } catch let err as JellyfinAPIError {
+            if error == nil { error = err.errorDescription }
+        } catch {}
+
+        libraries = (try? await libsTask) ?? []
+        buildFeatured()
     }
 }

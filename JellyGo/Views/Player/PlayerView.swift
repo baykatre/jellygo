@@ -5,10 +5,12 @@ import AVKit
 
 struct PlayerView: View {
     let item: JellyfinItem
+    var localURL: URL? = nil
 
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = PlayerViewModel()
     @Environment(\.dismiss) private var dismiss
+    @State private var showQualityPicker = false
 
     var body: some View {
         ZStack {
@@ -19,7 +21,12 @@ struct PlayerView: View {
             } else if let error = vm.error {
                 errorView(message: error)
             } else if let player = vm.player {
-                NativePlayerView(player: player) {
+                NativePlayerView(
+                    player: player,
+                    selectedQuality: vm.selectedQuality,
+                    showQualityButton: localURL == nil,
+                    onQualityTap: { showQualityPicker = true }
+                ) {
                     dismiss()
                 }
                 .ignoresSafeArea()
@@ -27,10 +34,25 @@ struct PlayerView: View {
         }
         .statusBarHidden(true)
         .task {
-            await vm.load(item: item, appState: appState)
+            if let url = localURL {
+                await vm.loadLocal(url: url, item: item, appState: appState)
+            } else {
+                await vm.load(item: item, appState: appState)
+            }
         }
-        .onDisappear {
-            vm.stop()
+        .onDisappear { vm.stop() }
+        .confirmationDialog("Quality", isPresented: $showQualityPicker, titleVisibility: .visible) {
+            ForEach(VideoQuality.allCases) { quality in
+                Button {
+                    Task { await vm.changeQuality(to: quality) }
+                } label: {
+                    HStack {
+                        Text(quality.rawValue)
+                        if vm.selectedQuality == quality { Text("✓") }
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -75,10 +97,15 @@ struct PlayerView: View {
 
 struct NativePlayerView: UIViewControllerRepresentable {
     let player: AVPlayer
+    let selectedQuality: VideoQuality
+    var showQualityButton: Bool = true
+    var onQualityTap: () -> Void
     var onDone: () -> Void
 
+    private static let qualityButtonTag = 8001
+
     func makeCoordinator() -> Coordinator {
-        Coordinator(onDone: onDone)
+        Coordinator(onDone: onDone, onQualityTap: onQualityTap)
     }
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
@@ -92,24 +119,57 @@ struct NativePlayerView: UIViewControllerRepresentable {
         vc.exitsFullScreenWhenPlaybackEnds = false
         vc.delegate = context.coordinator
 
-        // Force landscape as soon as the VC is created
         DispatchQueue.main.async {
             AppDelegate.orientationLock = .allButUpsideDown
             PlayerView.rotate(to: .landscapeRight)
         }
 
+        if showQualityButton, let overlay = vc.contentOverlayView {
+            var config = UIButton.Configuration.plain()
+            config.title = selectedQuality.rawValue
+            config.baseForegroundColor = .white
+            config.background.backgroundColor = UIColor.white.withAlphaComponent(0.18)
+            config.background.cornerRadius = 8
+            config.contentInsets = NSDirectionalEdgeInsets(top: 5, leading: 12, bottom: 5, trailing: 12)
+            config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attrs in
+                var a = attrs; a.font = .systemFont(ofSize: 13, weight: .semibold); return a
+            }
+            let btn = UIButton(configuration: config)
+            btn.tag = Self.qualityButtonTag
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            btn.addTarget(context.coordinator, action: #selector(Coordinator.qualityTapped), for: .touchUpInside)
+            overlay.addSubview(btn)
+            NSLayoutConstraint.activate([
+                btn.topAnchor.constraint(equalTo: overlay.safeAreaLayoutGuide.topAnchor, constant: 12),
+                btn.trailingAnchor.constraint(equalTo: overlay.safeAreaLayoutGuide.trailingAnchor, constant: -16)
+            ])
+        }
+
         return vc
     }
 
-    func updateUIViewController(_ vc: AVPlayerViewController, context: Context) {}
+    func updateUIViewController(_ vc: AVPlayerViewController, context: Context) {
+        context.coordinator.onQualityTap = onQualityTap
+        if let btn = vc.contentOverlayView?.viewWithTag(Self.qualityButtonTag) as? UIButton,
+           var config = btn.configuration {
+            config.title = selectedQuality.rawValue
+            btn.configuration = config
+        }
+    }
 
-    // MARK: - Coordinator / Delegate
+    // MARK: - Coordinator
 
     class Coordinator: NSObject, AVPlayerViewControllerDelegate {
         var onDone: () -> Void
-        init(onDone: @escaping () -> Void) { self.onDone = onDone }
+        var onQualityTap: () -> Void
 
-        // User tapped "Done" to exit fullscreen
+        init(onDone: @escaping () -> Void, onQualityTap: @escaping () -> Void) {
+            self.onDone = onDone
+            self.onQualityTap = onQualityTap
+        }
+
+        @objc func qualityTapped() { onQualityTap() }
+
         func playerViewController(
             _ playerViewController: AVPlayerViewController,
             willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator

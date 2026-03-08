@@ -40,7 +40,7 @@ struct FallbackAsyncImage<Placeholder: View>: View {
 
 // MARK: - Hero Banner
 
-private var bannerSize: CGSize {
+var bannerSize: CGSize {
     let screen = UIApplication.shared.connectedScenes
         .compactMap { $0 as? UIWindowScene }
         .first?.screen.bounds.size ?? CGSize(width: 390, height: 844)
@@ -182,24 +182,26 @@ private struct BannerPageView: View {
     let size: CGSize
     let onPlay: (JellyfinItem) -> Void
 
-    private var statusBarHeight: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.statusBarManager?.statusBarFrame.height ?? 50
-    }
-
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Background + gradients — tapping navigates to detail
+            // Background image + gradients — tapping navigates to detail
             NavigationLink(value: item) {
                 ZStack {
-                    AsyncImage(url: backdropURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        default:
-                            Rectangle().fill(Color(white: 0.12))
+                    // Backdrop image: stretches on pull-down, scrolls normally otherwise
+                    GeometryReader { geo in
+                        let minY = geo.frame(in: .named("homeScroll")).minY
+                        let imageH = max(size.height, size.height + minY)
+                        AsyncImage(url: backdropURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().aspectRatio(contentMode: .fill)
+                                    .frame(width: size.width, height: imageH, alignment: .top)
+                                    .offset(y: minY > 0 ? -minY : 0)
+                            default:
+                                Color(white: 0.12).frame(width: size.width, height: imageH)
+                            }
                         }
+                        .clipped()
                     }
                     .frame(width: size.width, height: size.height)
                     .clipped()
@@ -221,7 +223,7 @@ private struct BannerPageView: View {
                     // Placeholder for button area so NavigationLink doesn't cover buttons
                     VStack {
                         Spacer()
-                        Color.clear.frame(height: 82) // buttons height + padding
+                        Color.clear.frame(height: 82)
                     }
                 }
                 .frame(width: size.width, height: size.height)
@@ -283,24 +285,6 @@ private struct BannerPageView: View {
             .padding(.bottom, 38)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Status bar layered fade
-            VStack {
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.92), location: 0),
-                        .init(color: .black.opacity(0.75), location: 0.2),
-                        .init(color: .black.opacity(0.45), location: 0.45),
-                        .init(color: .black.opacity(0.15), location: 0.7),
-                        .init(color: .clear,               location: 1.0),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: statusBarHeight + 100)
-                Spacer()
-            }
-            .frame(width: size.width, height: size.height)
-            .allowsHitTesting(false)
         }
         .frame(width: size.width, height: size.height)
     }
@@ -314,7 +298,7 @@ private struct BannerPageView: View {
     }
 
     private var backdropURL: URL? {
-        JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1000)
+        JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
     }
 }
 

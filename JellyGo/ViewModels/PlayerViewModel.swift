@@ -15,6 +15,7 @@ final class PlayerViewModel: ObservableObject {
     @Published var subtitleStreams: [JellyfinMediaStream] = []
     @Published var audioStreams: [JellyfinMediaStream] = []
     @Published var selectedSubtitleIndex: Int? = nil   // nil = off
+    @Published var selectedQuality: VideoQuality = .auto
 
     private var item: JellyfinItem?
     private var appState: AppState?
@@ -22,6 +23,35 @@ final class PlayerViewModel: ObservableObject {
     private var mediaSourceId: String?
     private var progressTimer: Task<Void, Never>?
     private var lastReportedTicks: Int64 = 0
+
+    /// Play a locally downloaded file — skips Jellyfin API, uses existing player UI.
+    func loadLocal(url: URL, item: JellyfinItem, appState: AppState) async {
+        self.item = item
+        self.appState = appState
+        isLoading = true
+        error = nil
+
+        let playerItem = AVPlayerItem(url: url)
+        let avPlayer = AVPlayer(playerItem: playerItem)
+        player = avPlayer
+        isLoading = false
+
+        let (_, nowPlayingTitle, nowPlayingArtist) = playerTitles(for: item)
+        setNowPlayingInfo(item: item, title: nowPlayingTitle, artist: nowPlayingArtist)
+
+        await JellyfinAPI.shared.reportPlaybackStart(
+            serverURL: appState.serverURL, itemId: item.id, token: appState.token
+        )
+        startProgressReporting()
+        avPlayer.play()
+
+        // Resume from saved local position
+        let savedSecs = LocalPlaybackStore.position(for: item.id)
+        if savedSecs > 2 {
+            let target = CMTime(seconds: savedSecs, preferredTimescale: 600)
+            await avPlayer.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        }
+    }
 
     func load(item: JellyfinItem, appState: AppState) async {
         self.item = item
@@ -39,7 +69,10 @@ final class PlayerViewModel: ObservableObject {
 
         do {
             let resumeTicks = item.userData?.playbackPositionTicks ?? 0
+            let effective = selectedQuality.resolved
 
+            // Always use PlaybackInfo so Jellyfin decides direct play vs transcode
+            // based on format compatibility (e.g. MKV → transcode, MP4 → direct).
             // Pass startTimeTicks so Jellyfin generates the transcoding URL
             // starting from the resume position — avoids the StartTimeTicks-in-segment bug
             let info = try await JellyfinAPI.shared.getPlaybackInfo(
@@ -47,7 +80,8 @@ final class PlayerViewModel: ObservableObject {
                 itemId: item.id,
                 userId: appState.userId,
                 token: appState.token,
-                startTimeTicks: resumeTicks
+                startTimeTicks: resumeTicks,
+                maxBitrate: effective.maxBitrate
             )
 
             guard let source = info.mediaSources.first else {
@@ -68,7 +102,7 @@ final class PlayerViewModel: ObservableObject {
                 ?? subtitleStreams.first
             selectedSubtitleIndex = defaultSub?.index
 
-            let (streamURL, isHLS) = resolveStreamURL(
+            let (streamURL, _) = resolveStreamURL(
                 source: source,
                 item: item,
                 appState: appState,
@@ -132,6 +166,46 @@ final class PlayerViewModel: ObservableObject {
             token: appState.token
         ) ?? URL(string: appState.serverURL)!
         return (url, false)
+    }
+
+    func changeQuality(to quality: VideoQuality) async {
+        guard let item, let appState else { return }
+        selectedQuality = quality
+
+        let currentSecs = player?.currentTime().seconds ?? 0
+        let resumeTicks = Int64(max(0, currentSecs) * 10_000_000)
+
+        player?.pause()
+        isLoading = true
+
+        do {
+            let info = try await JellyfinAPI.shared.getPlaybackInfo(
+                serverURL: appState.serverURL,
+                itemId: item.id,
+                userId: appState.userId,
+                token: appState.token,
+                startTimeTicks: resumeTicks,
+                maxBitrate: quality.maxBitrate
+            )
+            guard let source = info.mediaSources.first else { isLoading = false; return }
+            mediaSource = source
+            subtitleStreams = source.mediaStreams?.filter { $0.isSubtitle } ?? []
+            audioStreams = source.mediaStreams?.filter { $0.isAudio } ?? []
+
+            let (streamURL, _) = resolveStreamURL(source: source, item: item, appState: appState, subtitleIndex: selectedSubtitleIndex)
+            let playerItem = buildPlayerItem(url: streamURL, source: source, item: item, appState: appState)
+            player?.replaceCurrentItem(with: playerItem)
+            isLoading = false
+
+            if currentSecs > 0 {
+                let target = CMTime(seconds: currentSecs, preferredTimescale: 600)
+                await player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+            }
+            player?.play()
+        } catch {
+            isLoading = false
+            self.error = error.localizedDescription
+        }
     }
 
     func selectSubtitle(index: Int?) async {
@@ -239,13 +313,15 @@ final class PlayerViewModel: ObservableObject {
         progressTimer = nil
         player?.pause()
 
-        // Only report if we actually started playing (player was created successfully)
         guard let item, let appState, player != nil,
               !item.isSeries, !item.isSeason else { return }
 
         let rawSeconds = player?.currentTime().seconds ?? 0
         let seconds = rawSeconds.isFinite && rawSeconds > 0 ? rawSeconds : 0
         let ticks = seconds > 0 ? Int64(seconds * 10_000_000) : lastReportedTicks
+
+        // Save local position for downloaded files
+        if seconds > 0 { LocalPlaybackStore.savePosition(seconds, for: item.id) }
 
         Task {
             await JellyfinAPI.shared.reportPlaybackStopped(
@@ -254,7 +330,6 @@ final class PlayerViewModel: ObservableObject {
                 positionTicks: ticks,
                 token: appState.token
             )
-            // Notify listeners (e.g. HomeView) to refresh continue-watching data
             await MainActor.run {
                 NotificationCenter.default.post(name: .playbackStopped, object: nil)
             }
