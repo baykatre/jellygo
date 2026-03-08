@@ -38,7 +38,16 @@ final class HomeViewModel: ObservableObject {
             continueWatching = cw
             nextUp = nu
             latestMovies = lm.filter { $0.isMovie }
-            latestShows = lm.filter { $0.isSeries || $0.isEpisode }
+
+            // Jellyfin Latest returns Episodes for TV, not Series.
+            // Deduplicate by seriesId so each show appears only once.
+            var seenSeries = Set<String>()
+            latestShows = lm
+                .filter { $0.isSeries || $0.isEpisode }
+                .filter { item in
+                    let key = item.isEpisode ? (item.seriesId ?? item.id) : item.id
+                    return seenSeries.insert(key).inserted
+                }
             libraries = libs
             buildFeatured()
         } catch let err as JellyfinAPIError {

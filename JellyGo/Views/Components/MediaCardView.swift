@@ -351,7 +351,7 @@ struct PosterCardView: View {
                             .frame(maxWidth: .infinity, alignment: .trailing)
                             .padding(.horizontal, 6)
                     }
-                    Text(item.name)
+                    Text(displayName)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.white)
                         .lineLimit(2)
@@ -371,10 +371,14 @@ struct PosterCardView: View {
         .frame(width: width)
     }
 
+    // For episodes in Latest Shows, show the parent series poster + name
+    private var displayId: String { item.isEpisode ? (item.seriesId ?? item.id) : item.id }
+    private var displayName: String { item.isEpisode ? (item.seriesName ?? item.name) : item.name }
+
     @ViewBuilder
     private var posterImage: some View {
         FallbackAsyncImage(
-            primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: Int(width * 2)),
+            primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: displayId, imageType: "Primary", maxWidth: Int(width * 2)),
             fallbackURL: nil,
             placeholder: RoundedRectangle(cornerRadius: 10)
                 .fill(.quaternary)
