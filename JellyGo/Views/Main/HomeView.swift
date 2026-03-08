@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var downloadBanner: PausedDownload?
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedTab: Int = 0
+    @State private var bannerNavItem: JellyfinItem? = nil
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -34,12 +35,19 @@ struct HomeView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: downloadBanner?.id)
+        .sheet(item: $bannerNavItem) { item in
+            NavigationStack {
+                ItemDetailView(item: item)
+                    .environmentObject(appState)
+                    .environmentObject(dm)
+            }
+        }
         .task(id: appState.sessionId) { await vm.load(appState: appState) }
         .onReceive(dm.downloadStarted) { started in
             bannerTask?.cancel()
             withAnimation { downloadBanner = started }
             bannerTask = Task {
-                try? await Task.sleep(for: .seconds(4))
+                try? await Task.sleep(for: .seconds(6))
                 guard !Task.isCancelled else { return }
                 withAnimation { downloadBanner = nil }
             }
@@ -50,18 +58,18 @@ struct HomeView: View {
         Button {
             withAnimation { downloadBanner = nil }
             bannerTask?.cancel()
-            selectedTab = 2
+            bannerNavItem = entry.meta.toJellyfinItem()
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Image(systemName: "arrow.down.circle.fill")
-                    .font(.title3)
+                    .font(.title2)
                     .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("İndirme Başladı")
-                        .font(.caption.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                     Text(entry.seriesName.map { "\($0) · " + entry.name } ?? entry.name)
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -70,10 +78,10 @@ struct HomeView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
             .padding(.horizontal, 16)
             .padding(.top, 8)
         }
