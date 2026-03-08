@@ -26,11 +26,9 @@
 
 JellyGo is designed with scalability and maintainability in mind:
 * **Language:** Swift 5.x
-* **Framework:** SwiftUI [and/or UIKit]
-* **Architecture:** [MVVM / Clean Architecture / VIPER]
-* **Networking:** `URLSession` with `async/await` concurrency [or Alamofire]
+* **Framework:** SwiftUI
 * **Media Parsing:** Native `Codable` implementations tailored for the Jellyfin REST API.
-* **Dependency Management:** Swift Package Manager (SPM) [or CocoaPods/Carthage]
+* **Dependency Management:** Swift Package Manager (SPM)
 
 ## 🚀 Getting Started
 
