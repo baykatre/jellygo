@@ -1,0 +1,82 @@
+/* Tabs */
+"Ana Sayfa" = "Home";
+"Kütüphane" = "Library";
+"Ara" = "Search";
+"Profil" = "Profile";
+
+/* Home */
+"Devam Et" = "Continue Watching";
+"Sıradaki Bölüm" = "Next Up";
+"Son Eklenen Filmler" = "Latest Movies";
+"Son Eklenen Diziler" = "Latest TV Shows";
+"Kütüphaneler" = "Libraries";
+"İçerik bulunamadı" = "No Content Found";
+"İçerik Bulunamadı" = "No Content Found";
+
+/* Profile */
+"Sunucu" = "Server";
+"Adres" = "Address";
+"Çıkış Yap" = "Sign Out";
+"Hesabınızdan çıkmak istediğinize emin misiniz?" = "Are you sure you want to sign out?";
+"İptal" = "Cancel";
+
+/* Search */
+"Son Arananlar" = "Recent Searches";
+"Temizle" = "Clear";
+"Film, dizi, bölüm..." = "Movies, series...";
+"Film veya dizi ara" = "Search for movies or series";
+"Adını yazmaya başla" = "Start typing the name";
+"Tümü" = "All";
+
+/* Actions */
+"Oynat" = "Play";
+"Bilgi Al" = "More Info";
+"Favorilere Ekle" = "Add to Favorites";
+"Favorilerden Çıkar" = "Remove from Favorites";
+"İzlendi İşaretle" = "Mark as Watched";
+"İzlenmedi İşaretle" = "Mark as Unwatched";
+"İzlendi" = "Watched";
+"Listele" = "Save";
+"Puan" = "Rate";
+"Favori" = "Favorite";
+"İndir" = "Download";
+
+/* Detail */
+"Sezon Seç" = "Select Season";
+"Sezon" = "Season";
+"Kast ve Ekip" = "Cast & Crew";
+
+/* Item Types */
+"Film" = "Movie";
+"Dizi" = "Series";
+"Bölüm" = "Episode";
+
+/* Auth */
+"Jellyfin sunucunuza bağlanın" = "Connect to your Jellyfin server";
+"Sunucu Adresi" = "Server Address";
+"Bağlan" = "Connect";
+"Giriş yapın" = "Sign in";
+"Kullanıcı adı" = "Username";
+"Şifre" = "Password";
+"Giriş Yap" = "Sign In";
+"Giriş" = "Login";
+
+/* Library */
+"Kütüphane Bulunamadı" = "No Libraries Found";
+"Filmler" = "Movies";
+"Diziler" = "TV Shows";
+"Müzik" = "Music";
+"Kitaplar" = "Books";
+"Fotoğraflar" = "Photos";
+"Oynatma Listeleri" = "Playlists";
+
+/* Settings */
+"Dil Ayarları" = "Language Settings";
+
+/* Errors */
+"Geçersiz sunucu adresi" = "Invalid server address";
+"Kullanıcı adı veya şifre hatalı" = "Invalid username or password";
+"Bu adres bir Jellyfin sunucusu değil" = "This is not a Jellyfin server";
+"Sunucu yanıtı okunamadı" = "Could not read server response";
+"Bağlantı hatası: %@" = "Connection error: %@";
+"Sunucu hatası: %d" = "Server error: %d";
