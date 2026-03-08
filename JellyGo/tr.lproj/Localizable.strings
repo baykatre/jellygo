@@ -1,82 +1,86 @@
 /* Tabs */
-"Ana Sayfa" = "Ana Sayfa";
-"Kütüphane" = "Kütüphane";
-"Ara" = "Ara";
-"Profil" = "Profil";
+"Home" = "Ana Sayfa";
+"Library" = "Kütüphane";
+"Search" = "Ara";
+"Profile" = "Profil";
 
 /* Home */
-"Devam Et" = "Devam Et";
-"Sıradaki Bölüm" = "Sıradaki Bölüm";
-"Son Eklenen Filmler" = "Son Eklenen Filmler";
-"Son Eklenen Diziler" = "Son Eklenen Diziler";
-"Kütüphaneler" = "Kütüphaneler";
-"İçerik bulunamadı" = "İçerik bulunamadı";
-"İçerik Bulunamadı" = "İçerik Bulunamadı";
+"Continue Watching" = "Devam Et";
+"Next Up" = "Sıradaki Bölüm";
+"Latest Movies" = "Son Eklenen Filmler";
+"Latest TV Shows" = "Son Eklenen Diziler";
+"Libraries" = "Kütüphaneler";
+"No Content Found" = "İçerik bulunamadı";
 
 /* Profile */
-"Sunucu" = "Sunucu";
-"Adres" = "Adres";
-"Çıkış Yap" = "Çıkış Yap";
-"Hesabınızdan çıkmak istediğinize emin misiniz?" = "Hesabınızdan çıkmak istediğinize emin misiniz?";
-"İptal" = "İptal";
+"Server" = "Sunucu";
+"Address" = "Adres";
+"Language Settings" = "Dil Ayarları";
+"Sign Out" = "Çıkış Yap";
+"Are you sure you want to sign out?" = "Hesabınızdan çıkmak istediğinize emin misiniz?";
+"Cancel" = "İptal";
 
 /* Search */
-"Son Arananlar" = "Son Arananlar";
-"Temizle" = "Temizle";
-"Film, dizi, bölüm..." = "Film, dizi, bölüm...";
-"Film veya dizi ara" = "Film veya dizi ara";
-"Adını yazmaya başla" = "Adını yazmaya başla";
-"Tümü" = "Tümü";
+"Recent Searches" = "Son Arananlar";
+"Clear" = "Temizle";
+"Movies, series..." = "Film, dizi...";
+"Search for movies or series" = "Film veya dizi ara";
+"Start typing the name" = "Adını yazmaya başla";
+"All" = "Tümü";
 
 /* Actions */
-"Oynat" = "Oynat";
-"Bilgi Al" = "Bilgi Al";
-"Favorilere Ekle" = "Favorilere Ekle";
-"Favorilerden Çıkar" = "Favorilerden Çıkar";
-"İzlendi İşaretle" = "İzlendi İşaretle";
-"İzlenmedi İşaretle" = "İzlenmedi İşaretle";
-"İzlendi" = "İzlendi";
-"Listele" = "Listele";
-"Puan" = "Puan";
-"Favori" = "Favori";
-"İndir" = "İndir";
+"Play" = "Oynat";
+"More Info" = "Bilgi Al";
+"Continue  %@" = "Devam Et  %@";
+"Play  S%lldE%lld" = "Oynat  S%lldB%lld";
+"Continue  S%lldE%lld" = "Devam Et  S%lldB%lld";
+"Add to Favorites" = "Favorilere Ekle";
+"Remove from Favorites" = "Favorilerden Çıkar";
+"Mark as Watched" = "İzlendi İşaretle";
+"Mark as Unwatched" = "İzlenmedi İşaretle";
+"Watched" = "İzlendi";
+"Save" = "Listele";
+"Rate" = "Puan";
+"Favorite" = "Favori";
+"Download" = "İndir";
 
 /* Detail */
-"Sezon Seç" = "Sezon Seç";
-"Sezon" = "Sezon";
-"Kast ve Ekip" = "Kast ve Ekip";
+"Select Season" = "Sezon Seç";
+"Season" = "Sezon";
+"Cast & Crew" = "Kast ve Ekip";
 
 /* Item Types */
-"Film" = "Film";
-"Dizi" = "Dizi";
-"Bölüm" = "Bölüm";
+"Movie" = "Film";
+"Series" = "Dizi";
+"Episode" = "Bölüm";
+
+/* Runtime */
+"%lld min." = "%lld dk.";
+"%lld min" = "%lld dk";
 
 /* Auth */
-"Jellyfin sunucunuza bağlanın" = "Jellyfin sunucunuza bağlanın";
-"Sunucu Adresi" = "Sunucu Adresi";
-"Bağlan" = "Bağlan";
-"Giriş yapın" = "Giriş yapın";
-"Kullanıcı adı" = "Kullanıcı adı";
-"Şifre" = "Şifre";
-"Giriş Yap" = "Giriş Yap";
-"Giriş" = "Giriş";
+"Connect to your Jellyfin server" = "Jellyfin sunucunuza bağlanın";
+"Server Address" = "Sunucu Adresi";
+"Connect" = "Bağlan";
+"Sign in" = "Giriş yapın";
+"Username" = "Kullanıcı adı";
+"Password" = "Şifre";
+"Sign In" = "Giriş Yap";
+"Login" = "Giriş";
 
 /* Library */
-"Kütüphane Bulunamadı" = "Kütüphane Bulunamadı";
-"Filmler" = "Filmler";
-"Diziler" = "Diziler";
-"Müzik" = "Müzik";
-"Kitaplar" = "Kitaplar";
-"Fotoğraflar" = "Fotoğraflar";
-"Oynatma Listeleri" = "Oynatma Listeleri";
-
-/* Settings */
-"Dil Ayarları" = "Dil Ayarları";
+"No Libraries Found" = "Kütüphane Bulunamadı";
+"Movies" = "Filmler";
+"TV Shows" = "Diziler";
+"Music" = "Müzik";
+"Books" = "Kitaplar";
+"Photos" = "Fotoğraflar";
+"Playlists" = "Oynatma Listeleri";
 
 /* Errors */
-"Geçersiz sunucu adresi" = "Geçersiz sunucu adresi";
-"Kullanıcı adı veya şifre hatalı" = "Kullanıcı adı veya şifre hatalı";
-"Bu adres bir Jellyfin sunucusu değil" = "Bu adres bir Jellyfin sunucusu değil";
-"Sunucu yanıtı okunamadı" = "Sunucu yanıtı okunamadı";
-"Bağlantı hatası: %@" = "Bağlantı hatası: %@";
-"Sunucu hatası: %d" = "Sunucu hatası: %d";
+"Invalid server address" = "Geçersiz sunucu adresi";
+"Invalid username or password" = "Kullanıcı adı veya şifre hatalı";
+"This is not a Jellyfin server" = "Bu adres bir Jellyfin sunucusu değil";
+"Could not read server response" = "Sunucu yanıtı okunamadı";
+"Connection error: %@" = "Bağlantı hatası: %@";
+"Server error: %d" = "Sunucu hatası: %d";

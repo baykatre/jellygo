@@ -64,7 +64,7 @@ struct PlayerView: View {
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-            Button("Geri Dön") { dismiss() }
+            Button("Dismiss") { dismiss() }
                 .buttonStyle(.bordered)
                 .tint(.white)
         }

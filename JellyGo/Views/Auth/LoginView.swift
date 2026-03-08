@@ -38,7 +38,7 @@ struct LoginView: View {
                             .lineLimit(1)
                     }
 
-                    Text("Giriş yapın")
+                    Text("Sign in")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -47,7 +47,7 @@ struct LoginView: View {
                 // Form
                 VStack(spacing: 12) {
                     VStack(spacing: 8) {
-                        TextField("Kullanıcı adı", text: $username)
+                        TextField("Username", text: $username)
                             .textFieldStyle(.plain)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
@@ -57,7 +57,7 @@ struct LoginView: View {
                             .background(.background, in: RoundedRectangle(cornerRadius: 12))
                             .onSubmit { focusedField = .password }
 
-                        SecureField("Şifre", text: $password)
+                        SecureField("Password", text: $password)
                             .textFieldStyle(.plain)
                             .submitLabel(.go)
                             .focused($focusedField, equals: .password)
@@ -88,7 +88,7 @@ struct LoginView: View {
                             if isLoading {
                                 ProgressView().tint(.white)
                             } else {
-                                Text("Giriş Yap")
+                                Text("Sign In")
                                     .fontWeight(.semibold)
                             }
                         }
@@ -105,7 +105,7 @@ struct LoginView: View {
                 Spacer()
             }
         }
-        .navigationTitle("Giriş")
+        .navigationTitle("Login")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { focusedField = .username }
     }

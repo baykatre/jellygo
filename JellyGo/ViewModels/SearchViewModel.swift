@@ -8,9 +8,9 @@ final class SearchViewModel: ObservableObject {
     @Published var filter: SearchFilter = .all
 
     enum SearchFilter: String, CaseIterable {
-        case all = "Tümü"
-        case movie = "Film"
-        case series = "Dizi"
+        case all = "All"
+        case movie = "Movie"
+        case series = "Series"
 
         var itemType: String? {
             switch self {

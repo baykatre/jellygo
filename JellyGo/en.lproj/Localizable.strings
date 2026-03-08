@@ -28,9 +28,16 @@
 "Adını yazmaya başla" = "Start typing the name";
 "Tümü" = "All";
 
+/* Runtime */
+"%lld dk." = "%lld min.";
+"%lld dk" = "%lld min";
+
 /* Actions */
 "Oynat" = "Play";
 "Bilgi Al" = "More Info";
+"Devam Et  %@" = "Continue  %@";
+"Oynat  S%lldB%lld" = "Play  S%lldE%lld";
+"Devam Et  S%lldB%lld" = "Continue  S%lldE%lld";
 "Favorilere Ekle" = "Add to Favorites";
 "Favorilerden Çıkar" = "Remove from Favorites";
 "İzlendi İşaretle" = "Mark as Watched";

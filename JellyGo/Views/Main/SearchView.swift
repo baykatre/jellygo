@@ -34,9 +34,9 @@ struct SearchView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationTitle("Ara")
+            .navigationTitle("Search")
             .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Film, dizi, bölüm...")
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Movies, series...")
             .onChange(of: query) { _, new in
                 vm.search(query: new, appState: appState)
             }
@@ -80,10 +80,10 @@ struct SearchView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Text("Son Arananlar")
+                    Text("Recent Searches")
                         .font(.title3.bold())
                     Spacer()
-                    Button("Temizle") { vm.clearRecent() }
+                    Button("Clear") { vm.clearRecent() }
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -130,10 +130,10 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 52))
                 .foregroundStyle(.tertiary)
-            Text("Film veya dizi ara")
+            Text("Search for movies or series")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("Adını yazmaya başla")
+            Text("Start typing the name")
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
         }
@@ -222,9 +222,9 @@ private struct SearchResultCard: View {
 
     private var typeLabel: LocalizedStringKey {
         switch hint.type {
-        case "Movie":   return "Film"
-        case "Series":  return "Dizi"
-        case "Episode": return "Bölüm"
+        case "Movie":   return "Movie"
+        case "Series":  return "Series"
+        case "Episode": return "Episode"
         default:        return LocalizedStringKey(hint.type)
         }
     }

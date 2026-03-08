@@ -1,6 +1,11 @@
 import AVKit
 import SwiftUI
 import Combine
+import MediaPlayer
+
+extension Notification.Name {
+    static let playbackStopped = Notification.Name("jellygo.playbackStopped")
+}
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
@@ -24,7 +29,7 @@ final class PlayerViewModel: ObservableObject {
 
         // Series items have no media source — must play an episode
         guard !item.isSeries && !item.isSeason else {
-            error = "Oynatmak için bir bölüm seçin"
+            error = "Select an episode to play"
             isLoading = false
             return
         }
@@ -33,15 +38,20 @@ final class PlayerViewModel: ObservableObject {
         error = nil
 
         do {
+            let resumeTicks = item.userData?.playbackPositionTicks ?? 0
+
+            // Pass startTimeTicks so Jellyfin generates the transcoding URL
+            // starting from the resume position — avoids the StartTimeTicks-in-segment bug
             let info = try await JellyfinAPI.shared.getPlaybackInfo(
                 serverURL: appState.serverURL,
                 itemId: item.id,
                 userId: appState.userId,
-                token: appState.token
+                token: appState.token,
+                startTimeTicks: resumeTicks
             )
 
             guard let source = info.mediaSources.first else {
-                error = "Oynatılabilir kaynak bulunamadı"
+                error = "No playable source found"
                 isLoading = false
                 return
             }
@@ -68,12 +78,6 @@ final class PlayerViewModel: ObservableObject {
             let playerItem = buildPlayerItem(url: streamURL, source: source, item: item, appState: appState)
             let avPlayer = AVPlayer(playerItem: playerItem)
 
-            // For direct play only: seek via HTTP Range (HLS starts from StartTimeTicks already)
-            if !isHLS, let resumeTicks = item.userData?.playbackPositionTicks, resumeTicks > 0 {
-                let seconds = Double(resumeTicks) / 10_000_000
-                await avPlayer.seek(to: CMTime(seconds: seconds, preferredTimescale: 1))
-            }
-
             player = avPlayer
             isLoading = false
 
@@ -86,6 +90,18 @@ final class PlayerViewModel: ObservableObject {
             startProgressReporting()
             avPlayer.play()
 
+            // Seek to resume position for both HLS and direct play.
+            // Called after play() so AVPlayer has started loading the playlist/file.
+            // Generous tolerance allows HLS to snap to the nearest segment boundary quickly.
+            if resumeTicks > 0 {
+                let secs = Double(resumeTicks) / 10_000_000
+                let target = CMTime(seconds: secs, preferredTimescale: 600)
+                let tolerance = CMTime(seconds: 5, preferredTimescale: 1)
+                Task {
+                    await avPlayer.seek(to: target, toleranceBefore: tolerance, toleranceAfter: tolerance)
+                }
+            }
+
         } catch let err as JellyfinAPIError {
             error = err.errorDescription
             isLoading = false
@@ -97,13 +113,8 @@ final class PlayerViewModel: ObservableObject {
 
     private func resolveStreamURL(source: JellyfinMediaSource, item: JellyfinItem, appState: AppState, subtitleIndex: Int?) -> (url: URL, isHLS: Bool) {
         if var transcodingPath = source.transcodingUrl {
-            // Start transcoding from resume position — avoids waiting for Jellyfin
-            // to encode from 0:00 before reaching the seek point
-            if let ticks = item.userData?.playbackPositionTicks, ticks > 0,
-               !transcodingPath.contains("StartTimeTicks") {
-                transcodingPath += "&StartTimeTicks=\(ticks)"
-            }
-            // Subtitle embedding
+            // startTimeTicks already embedded by PlaybackInfo — do NOT add it here
+            // (Jellyfin rejects StartTimeTicks in segment requests)
             if let idx = subtitleIndex, !transcodingPath.contains("SubtitleStreamIndex") {
                 transcodingPath += "&SubtitleStreamIndex=\(idx)&SubtitleMethod=Hls"
             } else if subtitleIndex == nil, !transcodingPath.contains("SubtitleStreamIndex") {
@@ -113,7 +124,7 @@ final class PlayerViewModel: ObservableObject {
                 return (url, true)
             }
         }
-        // Direct play — AVPlayer will seek via HTTP Range requests
+        // Direct play — AVPlayer seeks to resume position after load
         let url = JellyfinAPI.shared.streamURL(
             serverURL: appState.serverURL,
             itemId: item.id,
@@ -143,39 +154,58 @@ final class PlayerViewModel: ObservableObject {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
 
-        guard let streams = source.mediaStreams else { return playerItem }
+        var metadata: [AVMetadataItem] = []
 
-        // Add external WebVTT subtitles as external metadata
-        let subtitleStreams = streams.filter { $0.isSubtitle && $0.isExternal == true }
-        var externalMetadata: [AVMetadataItem] = []
+        // Build display strings
+        let (overlayTitle, nowPlayingTitle, nowPlayingArtist) = playerTitles(for: item)
 
-        for sub in subtitleStreams {
-            guard let vttURL = JellyfinAPI.shared.subtitleURL(
-                serverURL: appState.serverURL,
-                itemId: item.id,
-                mediaSourceId: source.id,
-                subtitleIndex: sub.index,
-                format: "vtt"
-            ) else { continue }
-
-            let titleItem = AVMutableMetadataItem()
-            titleItem.identifier = .commonIdentifierTitle
-            titleItem.value = (sub.displayTitle ?? sub.language ?? "Subtitle") as NSString
-            titleItem.extendedLanguageTag = sub.language ?? "und"
-
-            let localeItem = AVMutableMetadataItem()
-            localeItem.identifier = .commonIdentifierLanguage
-            localeItem.value = (sub.language ?? "und") as NSString
-
-            _ = vttURL // used in stream construction above
-            externalMetadata.append(titleItem)
-        }
-
-        if !externalMetadata.isEmpty {
-            playerItem.externalMetadata = externalMetadata
-        }
+        metadata.append(metadataItem(.commonIdentifierTitle, value: overlayTitle))
+        playerItem.externalMetadata = metadata
+        setNowPlayingInfo(item: item, title: nowPlayingTitle, artist: nowPlayingArtist)
 
         return playerItem
+    }
+
+    /// Returns (overlayTitle, nowPlayingTitle, nowPlayingArtist)
+    private func playerTitles(for item: JellyfinItem) -> (String, String, String) {
+        if item.isEpisode {
+            let s = item.parentIndexNumber.map { "S\($0)" } ?? ""
+            let e = item.indexNumber.map { "E\($0)" } ?? ""
+            let epCode = s + e  // e.g. "S1E3"
+            let seriesName = item.seriesName ?? item.name
+            // Overlay (single line): "Series Name  S1E3 — Episode Title"
+            let overlay = epCode.isEmpty
+                ? seriesName
+                : "\(seriesName)  \(epCode) — \(item.name)"
+            // Lock screen: title = episode name, artist = "Series S1E3"
+            let artist = epCode.isEmpty ? seriesName : "\(seriesName)  \(epCode)"
+            return (overlay, item.name, artist)
+        } else {
+            let year = item.productionYear.map { " (\($0))" } ?? ""
+            return (item.name + year, item.name, "")
+        }
+    }
+
+    private func metadataItem(_ identifier: AVMetadataIdentifier, value: String) -> AVMetadataItem {
+        let mi = AVMutableMetadataItem()
+        mi.identifier = identifier
+        mi.value = value as NSString
+        mi.extendedLanguageTag = "und"
+        return mi
+    }
+
+    private func setNowPlayingInfo(item: JellyfinItem, title: String, artist: String) {
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: title,
+            MPMediaItemPropertyMediaType: MPMediaType.movie.rawValue
+        ]
+        if !artist.isEmpty {
+            info[MPMediaItemPropertyArtist] = artist
+        }
+        if let ticks = item.runTimeTicks {
+            info[MPMediaItemPropertyPlaybackDuration] = Double(ticks) / 10_000_000
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
     private func startProgressReporting() {
@@ -213,7 +243,8 @@ final class PlayerViewModel: ObservableObject {
         guard let item, let appState, player != nil,
               !item.isSeries, !item.isSeason else { return }
 
-        let seconds = player?.currentTime().seconds ?? 0
+        let rawSeconds = player?.currentTime().seconds ?? 0
+        let seconds = rawSeconds.isFinite && rawSeconds > 0 ? rawSeconds : 0
         let ticks = seconds > 0 ? Int64(seconds * 10_000_000) : lastReportedTicks
 
         Task {
@@ -223,6 +254,10 @@ final class PlayerViewModel: ObservableObject {
                 positionTicks: ticks,
                 token: appState.token
             )
+            // Notify listeners (e.g. HomeView) to refresh continue-watching data
+            await MainActor.run {
+                NotificationCenter.default.post(name: .playbackStopped, object: nil)
+            }
         }
     }
 }

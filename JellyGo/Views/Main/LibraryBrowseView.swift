@@ -12,7 +12,7 @@ struct LibraryBrowseView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if libraries.isEmpty {
-                    ContentUnavailableView("Kütüphane Bulunamadı", systemImage: "square.grid.2x2")
+                    ContentUnavailableView("No Libraries Found", systemImage: "square.grid.2x2")
                 } else {
                     List {
                         ForEach(libraries) { library in
@@ -24,7 +24,7 @@ struct LibraryBrowseView: View {
                     .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("Kütüphane")
+            .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: JellyfinLibrary.self) { library in
                 LibraryView(library: library)
@@ -90,15 +90,15 @@ private struct LibraryRowView: View {
         }
     }
 
-    private func collectionLabel(_ type: String) -> String {
+    private func collectionLabel(_ type: String) -> LocalizedStringKey {
         switch type {
-        case "movies":    return "Filmler"
-        case "tvshows":   return "Diziler"
-        case "music":     return "Müzik"
-        case "books":     return "Kitaplar"
-        case "photos":    return "Fotoğraflar"
-        case "playlists": return "Oynatma Listeleri"
-        default:          return type.capitalized
+        case "movies":    return "Movies"
+        case "tvshows":   return "TV Shows"
+        case "music":     return "Music"
+        case "books":     return "Books"
+        case "photos":    return "Photos"
+        case "playlists": return "Playlists"
+        default:          return LocalizedStringKey(type.capitalized)
         }
     }
 }

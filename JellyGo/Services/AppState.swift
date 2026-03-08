@@ -1,6 +1,11 @@
 import SwiftUI
 import Combine
 
+enum PlayerEngine: String, CaseIterable {
+    case native = "Original"
+    case vlc    = "VLC"
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published var isAuthenticated = false
@@ -9,6 +14,11 @@ final class AppState: ObservableObject {
     @Published var userId: String = ""
     @Published var username: String = ""
     @Published var token: String = ""
+    @Published var playerEngine: PlayerEngine = PlayerEngine(
+        rawValue: UserDefaults.standard.string(forKey: "jellygo.playerEngine") ?? ""
+    ) ?? .native {
+        didSet { UserDefaults.standard.set(playerEngine.rawValue, forKey: "jellygo.playerEngine") }
+    }
 
     init() {
         restore()

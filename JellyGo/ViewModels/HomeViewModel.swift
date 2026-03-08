@@ -11,15 +11,11 @@ final class HomeViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
 
-    var featuredItems: [JellyfinItem] {
-        var result: [JellyfinItem] = []
-        let movies = latestMovies.prefix(4)
-        let shows  = latestShows.prefix(4)
-        for i in 0..<max(movies.count, shows.count) {
-            if i < movies.count { result.append(movies[i]) }
-            if i < shows.count  { result.append(shows[i]) }
-        }
-        return Array(result.prefix(6))
+    @Published var featuredItems: [JellyfinItem] = []
+
+    private func buildFeatured() {
+        let pool = Array(latestMovies.prefix(8)) + Array(latestShows.prefix(8))
+        featuredItems = Array(pool.shuffled().prefix(6))
     }
 
     func load(appState: AppState) async {
@@ -44,6 +40,7 @@ final class HomeViewModel: ObservableObject {
             latestMovies = lm.filter { $0.isMovie }
             latestShows = lm.filter { $0.isSeries || $0.isEpisode }
             libraries = libs
+            buildFeatured()
         } catch let err as JellyfinAPIError {
             error = err.errorDescription
         } catch {

@@ -8,7 +8,6 @@ struct ItemDetailView: View {
     @State private var activeItem: JellyfinItem
     @State private var itemToPlay: JellyfinItem?   // non-nil = player açık
     @State private var selectedSeason: JellyfinItem?
-    @State private var showSeasonPicker = false
 
     init(item: JellyfinItem) {
         self.item = item
@@ -39,13 +38,13 @@ struct ItemDetailView: View {
                     Button {
                         Task { await vm.toggleFavorite(item: item, appState: appState) }
                     } label: {
-                        Label(vm.isFavorite ? "Favorilerden Çıkar" : "Favorilere Ekle",
+                        Label(vm.isFavorite ? "Remove from Favorites" : "Add to Favorites",
                               systemImage: vm.isFavorite ? "heart.slash" : "heart")
                     }
                     Button {
                         Task { await vm.toggleWatched(item: item, appState: appState) }
                     } label: {
-                        Label(vm.isWatched ? "İzlenmedi İşaretle" : "İzlendi İşaretle",
+                        Label(vm.isWatched ? "Mark as Unwatched" : "Mark as Watched",
                               systemImage: vm.isWatched ? "eye.slash" : "eye")
                     }
                 } label: {
@@ -60,25 +59,40 @@ struct ItemDetailView: View {
             AppDelegate.orientationLock = .portrait
             PlayerView.rotate(to: .portrait)
         }) { ep in
-            PlayerView(item: ep)
+            PlayerContainerView(item: ep)
                 .environmentObject(appState)
         }
         .task {
             await vm.load(item: item, appState: appState)
-            selectedSeason = vm.seasons.first(where: { $0.indexNumber == item.parentIndexNumber })
-                ?? vm.seasons.first
-            // For series: auto-load first season episodes to find resume
-            if let sid = selectedSeason?.id {
-                await vm.loadEpisodes(seasonId: sid, appState: appState)
+            if item.isSeries {
+                // Find the season+episode where the user left off and jump straight to it
+                let season = await vm.bestSeasonToOpen(appState: appState)
+                selectedSeason = season
+                if let sid = season?.id, let ep = vm.resumeEpisode(seasonId: sid) {
+                    activeItem = ep   // show episode backdrop/meta/play button immediately
+                }
+            } else {
+                selectedSeason = vm.seasons.first(where: { $0.indexNumber == item.parentIndexNumber })
+                    ?? vm.seasons.first
+                if let sid = selectedSeason?.id {
+                    await vm.loadEpisodes(seasonId: sid, appState: appState)
+                }
             }
         }
         .onChange(of: selectedSeason) { _, newSeason in
             guard let sid = newSeason?.id else { return }
             Task { await vm.loadEpisodes(seasonId: sid, appState: appState) }
         }
-        .confirmationDialog("Sezon Seç", isPresented: $showSeasonPicker, titleVisibility: .visible) {
-            ForEach(vm.seasons) { season in
-                Button(season.name) { selectedSeason = season }
+        .onReceive(NotificationCenter.default.publisher(for: .playbackStopped)) { _ in
+            Task {
+                if let updated = try? await JellyfinAPI.shared.getItemDetails(
+                    serverURL: appState.serverURL,
+                    itemId: activeItem.id,
+                    userId: appState.userId,
+                    token: appState.token
+                ) {
+                    activeItem = updated
+                }
             }
         }
     }
@@ -157,8 +171,25 @@ struct ItemDetailView: View {
 
     private var metaChips: some View {
         HStack(spacing: 8) {
-            if let mins = activeItem.runtimeMinutes {
-                Text("\(mins) dk.")
+            if activeItem.isSeries {
+                // Show season count for series
+                let count = (displayItem.childCount ?? activeItem.childCount) ?? vm.seasons.count
+                if count > 0 {
+                    Text(count == 1 ? "1 Season" : "\(count) Seasons")
+                        .metaStyle()
+                }
+            } else if activeItem.isSeason {
+                // Show episode count for seasons
+                if let seasonId = activeItem.id.isEmpty ? nil : activeItem.id,
+                   let eps = vm.episodes[seasonId] {
+                    let count = eps.count
+                    if count > 0 {
+                        Text(count == 1 ? "1 Episode" : "\(count) Episodes")
+                            .metaStyle()
+                    }
+                }
+            } else if let mins = activeItem.runtimeMinutes, mins > 0 {
+                Text(String(format: NSLocalizedString("%lld min.", comment: ""), Int64(mins)))
                     .metaStyle()
             }
             if let date = activeItem.formattedPremiereDate {
@@ -200,61 +231,60 @@ struct ItemDetailView: View {
     // MARK: - Action Buttons
 
     private var actionButtons: some View {
-        VStack(spacing: 12) {
-            // Primary: Play / Resume
+        VStack(spacing: 10) {
+            // Primary: Play / Resume with progress bar
             Button {
                 Task { await startPlayback() }
             } label: {
-                HStack {
-                    Image(systemName: "play.fill")
-                    playButtonLabel
-                }
-                .font(.headline)
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                playButtonContent
             }
             .padding(.horizontal, 16)
 
-            // Secondary icons
-            HStack(spacing: 0) {
-                actionIcon(
+            // Secondary glass buttons
+            HStack(spacing: 10) {
+                glassButton(
                     systemImage: vm.isWatched ? "eye.fill" : "eye",
-                    label: "İzlendi",
+                    label: vm.isWatched ? "Watched" : "Mark Watched",
                     active: vm.isWatched
                 ) {
                     Task { await vm.toggleWatched(item: activeItem, appState: appState) }
                 }
-                actionIcon(systemImage: "bookmark", label: "Listele") {}
-                actionIcon(systemImage: "star", label: "Puan") {}
-                actionIcon(
+                glassButton(
                     systemImage: vm.isFavorite ? "heart.fill" : "heart",
-                    label: "Favori",
+                    label: "Favorite",
                     active: vm.isFavorite
                 ) {
                     Task { await vm.toggleFavorite(item: activeItem, appState: appState) }
                 }
-                actionIcon(systemImage: "arrow.down.circle", label: "İndir") {}
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 16)
         }
     }
 
     @ViewBuilder
-    private func actionIcon(systemImage: String, label: String, active: Bool = false, action: @escaping () -> Void) -> some View {
+    private func glassButton(systemImage: String, label: String, active: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: 7) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 22))
+                    .font(.system(size: 22, weight: .medium))
                     .foregroundStyle(active ? Color.accentColor : .white)
+                    .frame(height: 26)
                 Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.85))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 16)
         }
+        .modify {
+            if #available(iOS 26, *) {
+                $0.glassEffect(in: Capsule())
+            } else {
+                $0.background(.ultraThinMaterial, in: Capsule())
+                  .overlay(Capsule().stroke(.white.opacity(0.25), lineWidth: 0.8))
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Overview
@@ -305,19 +335,35 @@ struct ItemDetailView: View {
     // MARK: - Episodes
 
     private var episodeSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Season picker header
-            Button { showSeasonPicker = true } label: {
-                HStack(spacing: 6) {
-                    Text(selectedSeason?.name ?? "Sezon")
-                        .font(.title3.bold())
-                        .foregroundStyle(.white)
-                    Image(systemName: "chevron.down")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.7))
+        VStack(alignment: .leading, spacing: 10) {
+            // Inline season chips
+            if vm.seasons.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(vm.seasons) { season in
+                            Button { selectedSeason = season } label: {
+                                Text(season.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(selectedSeason?.id == season.id ? .black : .white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 7)
+                                    .background(
+                                        selectedSeason?.id == season.id ? Color.white : Color.white.opacity(0.15),
+                                        in: Capsule()
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .animation(.easeInOut(duration: 0.15), value: selectedSeason?.id)
+                        }
+                    }
+                    .padding(.horizontal, 16)
                 }
+            } else if let name = selectedSeason?.name {
+                Text(name)
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
 
             // Episode horizontal scroll
             if let seasonId = selectedSeason?.id, let eps = vm.episodes[seasonId] {
@@ -368,16 +414,56 @@ struct ItemDetailView: View {
     // MARK: - Playback
 
     private func startPlayback() async {
-        AppDelegate.orientationLock = .allButUpsideDown
+        let target: JellyfinItem?
         if activeItem.isMovie || activeItem.isEpisode {
-            itemToPlay = activeItem
+            target = activeItem
         } else if activeItem.isSeries {
-            let ep = await vm.resumeEpisodeForSeries(appState: appState)
-            guard let ep else {
-                AppDelegate.orientationLock = .portrait
-                return
+            target = await vm.resumeEpisodeForSeries(appState: appState)
+        } else {
+            target = nil
+        }
+        guard let target else { return }
+        AppDelegate.orientationLock = .allButUpsideDown
+        itemToPlay = target
+    }
+
+    @ViewBuilder
+    private var playButtonContent: some View {
+        let resumePos = activeItem.userData?.resumePositionSeconds
+        let totalSecs = activeItem.runTimeTicks.map { Double($0) / 10_000_000 }
+        let hasResume = (resumePos ?? 0) > 60
+
+        ZStack(alignment: .leading) {
+            // Progress bar fill behind glass
+            if hasResume, let pos = resumePos, let total = totalSecs, total > 0 {
+                let progress = min(pos / total, 1)
+                GeometryReader { geo in
+                    Capsule()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(width: geo.size.width * progress)
+                        .clipped()
+                }
             }
-            itemToPlay = ep
+
+            // Label
+            HStack(spacing: 8) {
+                Image(systemName: hasResume ? "play.fill" : "play.fill")
+                playButtonLabel
+            }
+            .font(.headline.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 52)
+        .modify {
+            if #available(iOS 26, *) {
+                $0.glassEffect(in: Capsule())
+            } else {
+                $0.background(.ultraThinMaterial, in: Capsule())
+                  .overlay(Capsule().stroke(.white.opacity(0.25), lineWidth: 0.8))
+            }
         }
     }
 
@@ -385,18 +471,18 @@ struct ItemDetailView: View {
     private var playButtonLabel: some View {
         if activeItem.isEpisode || activeItem.isMovie,
            let pos = activeItem.userData?.resumePositionSeconds, pos > 60 {
-            Text("Devam Et  \(formatTimestamp(pos))")
+            Text(String(format: NSLocalizedString("Continue  %@", comment: ""), formatTimestamp(pos)))
         } else if activeItem.isSeries {
             let ep = selectedSeason.flatMap { vm.resumeEpisode(seasonId: $0.id) }
             if let ep, let pos = ep.userData?.resumePositionSeconds, pos > 60 {
-                Text("Devam Et  S\(ep.parentIndexNumber ?? 1)B\(ep.indexNumber ?? 1)")
+                Text(String(format: NSLocalizedString("Continue  S%lldE%lld", comment: ""), Int64(ep.parentIndexNumber ?? 1), Int64(ep.indexNumber ?? 1)))
             } else if let ep, let epNum = ep.indexNumber {
-                Text("Oynat  S\(ep.parentIndexNumber ?? 1)B\(epNum)")
+                Text(String(format: NSLocalizedString("Play  S%lldE%lld", comment: ""), Int64(ep.parentIndexNumber ?? 1), Int64(epNum)))
             } else {
-                Text("Oynat")
+                Text("Play")
             }
         } else {
-            Text("Oynat")
+            Text("Play")
         }
     }
 
@@ -414,7 +500,7 @@ struct ItemDetailView: View {
 
     private func castSection(people: [JellyfinPerson]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Kast ve Ekip")
+            Text("Cast & Crew")
                 .font(.title3.bold())
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)
@@ -602,5 +688,14 @@ private extension Text {
         self
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.75))
+    }
+}
+
+// MARK: - Conditional modifier helper
+
+private extension View {
+    @ViewBuilder
+    func modify<Content: View>(@ViewBuilder _ transform: (Self) -> Content) -> some View {
+        transform(self)
     }
 }

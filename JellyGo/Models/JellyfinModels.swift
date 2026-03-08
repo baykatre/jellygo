@@ -99,6 +99,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
     let people: [JellyfinPerson]?
     let premiereDate: String?
     let mediaStreams: [JellyfinMediaStream]?
+    let childCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -123,6 +124,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
         case people = "People"
         case premiereDate = "PremiereDate"
         case mediaStreams = "MediaStreams"
+        case childCount = "ChildCount"
     }
 
     var runtimeMinutes: Int? {
@@ -310,5 +312,6 @@ extension JellyfinItem {
         self.people = nil
         self.premiereDate = nil
         self.mediaStreams = nil
+        self.childCount = nil
     }
 }

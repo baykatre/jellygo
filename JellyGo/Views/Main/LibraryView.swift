@@ -17,7 +17,7 @@ struct LibraryView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, 60)
             } else if vm.items.isEmpty {
-                ContentUnavailableView("İçerik Bulunamadı", systemImage: "folder")
+                ContentUnavailableView("No Content Found", systemImage: "folder")
                     .padding(.top, 60)
             } else {
                 LazyVGrid(columns: columns, spacing: 20) {

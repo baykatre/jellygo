@@ -26,7 +26,7 @@ struct ServerView: View {
                         Text("JellyGo")
                             .font(.largeTitle.bold())
 
-                        Text("Jellyfin sunucunuza bağlanın")
+                        Text("Connect to your Jellyfin server")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -35,7 +35,7 @@ struct ServerView: View {
                     // Form
                     VStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Sunucu Adresi")
+                            Text("Server Address")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
@@ -69,7 +69,7 @@ struct ServerView: View {
                                     ProgressView()
                                         .tint(.white)
                                 } else {
-                                    Text("Bağlan")
+                                    Text("Connect")
                                         .fontWeight(.semibold)
                                 }
                             }

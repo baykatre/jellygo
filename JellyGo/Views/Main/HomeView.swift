@@ -8,18 +8,18 @@ struct HomeView: View {
     var body: some View {
         TabView {
             mainTab
-                .tabItem { Label("Ana Sayfa", systemImage: "house.fill") }
+                .tabItem { Label("Home", systemImage: "house.fill") }
 
             LibraryBrowseView()
-                .tabItem { Label("Kütüphane", systemImage: "square.grid.2x2.fill") }
+                .tabItem { Label("Library", systemImage: "square.grid.2x2.fill") }
 
             SearchView()
-                .tabItem { Label("Ara", systemImage: "magnifyingglass") }
+                .tabItem { Label("Search", systemImage: "magnifyingglass") }
 
             NavigationStack {
                 ProfileView()
             }
-            .tabItem { Label("Profil", systemImage: "person.fill") }
+            .tabItem { Label("Profile", systemImage: "person.fill") }
         }
         .task { await vm.load(appState: appState) }
     }
@@ -90,8 +90,11 @@ struct HomeView: View {
                 AppDelegate.orientationLock = .portrait
                 PlayerView.rotate(to: .portrait)
             }) { item in
-                PlayerView(item: item)
+                PlayerContainerView(item: item)
                     .environmentObject(appState)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .playbackStopped)) { _ in
+                Task { await vm.load(appState: appState) }
             }
         }
     }
@@ -100,7 +103,7 @@ struct HomeView: View {
 
     private var continueWatchingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Devam Et")
+            SectionHeaderView(title: "Continue Watching")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(vm.continueWatching) { item in
@@ -117,7 +120,7 @@ struct HomeView: View {
 
     private var nextUpSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Sıradaki Bölüm")
+            SectionHeaderView(title: "Next Up")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(vm.nextUp) { item in
@@ -134,7 +137,7 @@ struct HomeView: View {
 
     private var latestMoviesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Son Eklenen Filmler")
+            SectionHeaderView(title: "Latest Movies")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(vm.latestMovies) { item in
@@ -151,7 +154,7 @@ struct HomeView: View {
 
     private var latestShowsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Son Eklenen Diziler")
+            SectionHeaderView(title: "Latest TV Shows")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(vm.latestShows) { item in
@@ -168,7 +171,7 @@ struct HomeView: View {
 
     private var librariesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Kütüphaneler")
+            SectionHeaderView(title: "Libraries")
             VStack(spacing: 8) {
                 ForEach(vm.libraries) { library in
                     NavigationLink(value: library) {
@@ -188,7 +191,7 @@ struct HomeView: View {
             Image(systemName: "film.stack")
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
-            Text("İçerik bulunamadı")
+            Text("No Content Found")
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -259,9 +262,19 @@ struct ProfileView: View {
                 .padding(.vertical, 8)
             }
 
-            Section("Sunucu") {
-                LabeledContent("Adres", value: appState.serverURL)
+            Section("Server") {
+                LabeledContent("Address", value: appState.serverURL)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Player") {
+                Picker("Engine", selection: $appState.playerEngine) {
+                    ForEach(PlayerEngine.allCases, id: \.self) { engine in
+                        Text(engine.rawValue).tag(engine)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
             }
 
             Section {
@@ -270,7 +283,7 @@ struct ProfileView: View {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Label("Dil Ayarları", systemImage: "globe")
+                    Label("Language Settings", systemImage: "globe")
                 }
             }
 
@@ -278,16 +291,16 @@ struct ProfileView: View {
                 Button(role: .destructive) {
                     showLogoutAlert = true
                 } label: {
-                    Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right")
+                    Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                 }
             }
         }
-        .navigationTitle("Profil")
-        .alert("Çıkış Yap", isPresented: $showLogoutAlert) {
-            Button("Çıkış Yap", role: .destructive) { appState.logout() }
-            Button("İptal", role: .cancel) {}
+        .navigationTitle("Profile")
+        .alert("Sign Out", isPresented: $showLogoutAlert) {
+            Button("Sign Out", role: .destructive) { appState.logout() }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Hesabınızdan çıkmak istediğinize emin misiniz?")
+            Text("Are you sure you want to sign out?")
         }
     }
 }

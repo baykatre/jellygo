@@ -121,7 +121,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items/\(itemId)"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
-            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,MediaStreams")
+            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,MediaStreams,ChildCount")
         ]
         let req = baseRequest(url: components.url!, token: token)
         let data = try await perform(req)
@@ -257,10 +257,14 @@ final class JellyfinAPI {
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/PlaybackInfo"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "UserId", value: userId)]
+        var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
+        if startTimeTicks > 0 {
+            queryItems.append(URLQueryItem(name: "StartTimeTicks", value: "\(startTimeTicks)"))
+        }
+        components.queryItems = queryItems
         var req = baseRequest(url: components.url!, token: token)
         req.httpMethod = "POST"
 

@@ -84,6 +84,12 @@ final class ItemDetailViewModel: ObservableObject {
         isLoading = false
     }
 
+    func reloadAfterPlayback(item: JellyfinItem, appState: AppState) async {
+        // Clear episode cache so fresh data is fetched
+        episodes = [:]
+        await load(item: item, appState: appState)
+    }
+
     func loadEpisodes(seasonId: String, appState: AppState) async {
         guard episodes[seasonId] == nil else { return }
         do {
@@ -145,6 +151,18 @@ final class ItemDetailViewModel: ObservableObject {
             return episodes[firstSeason.id]?.first
         }
         return nil
+    }
+
+    /// Loads seasons one by one and returns the first season that has a partial watch
+    /// or an unwatched episode. Falls back to the first season.
+    func bestSeasonToOpen(appState: AppState) async -> JellyfinItem? {
+        for season in seasons {
+            await loadEpisodes(seasonId: season.id, appState: appState)
+            guard let eps = episodes[season.id] else { continue }
+            if eps.contains(where: { ($0.userData?.playbackPositionTicks ?? 0) > 0 }) { return season }
+            if eps.contains(where: { $0.userData?.played != true }) { return season }
+        }
+        return seasons.first
     }
 
     func toggleFavorite(item: JellyfinItem, appState: AppState) async {

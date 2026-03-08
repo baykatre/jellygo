@@ -52,38 +52,82 @@ struct HeroBannerView: View {
     let serverURL: String
     var onPlay: (JellyfinItem) -> Void = { _ in }
 
-    @State private var currentIndex = 0
+    // Start at 1: looped array is [last, ...items..., first]
+    @State private var currentIndex = 1
+    @State private var pauseUntil: Date = .distantPast
+    @State private var isAutoAdvance = false
+    @State private var ignoreNextChange = false
 
     private let autoTimer = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
+
+    // [items.last] + items + [items.first]
+    private var looped: [JellyfinItem] {
+        guard items.count > 1 else { return items }
+        return [items[items.count - 1]] + items + [items[0]]
+    }
+
+    // Dot indicator maps looped index → real index
+    private var dotIndex: Int {
+        guard items.count > 1 else { return 0 }
+        return max(0, min(currentIndex - 1, items.count - 1))
+    }
 
     var body: some View {
         let size = bannerSize
         ZStack(alignment: .bottom) {
             TabView(selection: $currentIndex) {
-                ForEach(items.indices, id: \.self) { i in
-                    BannerPageView(item: items[i], serverURL: serverURL, size: size, onPlay: onPlay)
+                ForEach(Array(looped.enumerated()), id: \.offset) { i, item in
+                    BannerPageView(item: item, serverURL: serverURL, size: size, onPlay: onPlay)
                         .tag(i)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(width: size.width, height: size.height)
+            .onChange(of: currentIndex) { _, new in
+                // Silent loop-jump triggered by us — skip all logic
+                if ignoreNextChange {
+                    ignoreNextChange = false
+                    isAutoAdvance = false
+                    return
+                }
+                defer { isAutoAdvance = false }
+
+                // User swiped — pause timer
+                if !isAutoAdvance {
+                    pauseUntil = Date().addingTimeInterval(8)
+                }
+
+                // Hit duplicate boundary → silently snap to real counterpart
+                if new == 0 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+                        ignoreNextChange = true
+                        currentIndex = items.count   // last real item
+                    }
+                } else if new == looped.count - 1 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+                        ignoreNextChange = true
+                        currentIndex = 1             // first real item
+                    }
+                }
+            }
 
             if items.count > 1 {
                 HStack(spacing: 5) {
                     ForEach(items.indices, id: \.self) { i in
                         Capsule()
-                            .fill(i == currentIndex ? Color.white : Color.white.opacity(0.35))
-                            .frame(width: i == currentIndex ? 20 : 5, height: 5)
-                            .animation(.spring(duration: 0.3), value: currentIndex)
+                            .fill(i == dotIndex ? Color.white : Color.white.opacity(0.35))
+                            .frame(width: i == dotIndex ? 20 : 5, height: 5)
+                            .animation(.spring(duration: 0.3), value: dotIndex)
                     }
                 }
                 .padding(.bottom, 18)
             }
         }
-        .onReceive(autoTimer) { _ in
-            guard items.count > 1 else { return }
-            withAnimation(.easeInOut(duration: 0.6)) {
-                currentIndex = (currentIndex + 1) % items.count
+        .onReceive(autoTimer) { now in
+            guard items.count > 1, now >= pauseUntil else { return }
+            isAutoAdvance = true
+            withAnimation(.easeInOut(duration: 0.9)) {
+                currentIndex += 1
             }
         }
     }
@@ -198,7 +242,7 @@ private struct BannerPageView: View {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.white.opacity(0.75))
                     }
-                    Text(item.isMovie ? LocalizedStringKey("Film") : LocalizedStringKey("Dizi"))
+                    Text(item.isMovie ? LocalizedStringKey("Movie") : LocalizedStringKey("Series"))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
@@ -222,7 +266,7 @@ private struct BannerPageView: View {
 
                     // Bilgi Al — her zaman detail
                     NavigationLink(value: item) {
-                        Label("Bilgi Al", systemImage: "info.circle")
+                        Label("More Info", systemImage: "info.circle")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
                             .frame(width: 126, height: 44)
@@ -262,7 +306,7 @@ private struct BannerPageView: View {
     }
 
     private var playLabel: some View {
-        Label("Oynat", systemImage: "play.fill")
+        Label("Play", systemImage: "play.fill")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.black)
             .frame(width: 126, height: 44)
@@ -412,7 +456,7 @@ struct BackdropCardView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 } else if let mins = item.runtimeMinutes {
-                    Text("\(mins) dk")
+                    Text(String(format: NSLocalizedString("%lld min", comment: ""), Int64(mins)))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -489,7 +533,7 @@ struct LibraryCardView: View {
 // MARK: - Section Header
 
 struct SectionHeaderView: View {
-    let title: String
+    let title: LocalizedStringKey
     var action: (() -> Void)? = nil
 
     var body: some View {
@@ -500,7 +544,7 @@ struct SectionHeaderView: View {
             if let action {
                 Button(action: action) {
                     HStack(spacing: 3) {
-                        Text("Tümü")
+                        Text("All")
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                     }
