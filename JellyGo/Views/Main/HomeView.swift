@@ -4,6 +4,7 @@ struct HomeView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = HomeViewModel()
     @State private var heroPlayItem: JellyfinItem?
+    @State private var showSearch = false
 
     var body: some View {
         TabView {
@@ -12,9 +13,6 @@ struct HomeView: View {
 
             LibraryBrowseView()
                 .tabItem { Label("Library", systemImage: "square.grid.2x2.fill") }
-
-            SearchView()
-                .tabItem { Label("Search", systemImage: "magnifyingglass") }
 
             NavigationStack {
                 ProfileView()
@@ -74,12 +72,26 @@ struct HomeView: View {
             .ignoresSafeArea(edges: .top)
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationTitle("")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSearch = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
             .refreshable { await vm.load(appState: appState) }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }
             .navigationDestination(for: JellyfinLibrary.self) { library in
                 LibraryView(library: library)
+            }
+            .navigationDestination(isPresented: $showSearch) {
+                SearchView()
             }
             .overlay(alignment: .bottom) {
                 if let error = vm.error {
