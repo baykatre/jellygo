@@ -5,6 +5,7 @@ struct LibraryBrowseView: View {
     @State private var libraries: [JellyfinLibrary] = []
     @State private var isLoading = false
     @State private var favoriteCoverURL: URL? = nil
+    @State private var showFavorites = false
 
     var body: some View {
         NavigationStack {
@@ -16,7 +17,7 @@ struct LibraryBrowseView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 12) {
                             // Favorites card
-                            NavigationLink(destination: FavoritesView()) {
+                            Button { showFavorites = true } label: {
                                 favoritesCard()
                             }
                             .buttonStyle(.plain)
@@ -36,6 +37,9 @@ struct LibraryBrowseView: View {
             }
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.large)
+            .navigationDestination(isPresented: $showFavorites) {
+                FavoritesView()
+            }
             .navigationDestination(for: JellyfinLibrary.self) { library in
                 LibraryView(library: library)
             }
