@@ -619,13 +619,8 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder
     private func qualityLabel(for quality: VideoQuality) -> some View {
-        if quality == .auto {
-            Text("Auto (WiFi → Direct, Cellular → 720p)")
-        } else {
-            Text(quality.rawValue)
-        }
+        Text(quality.rawValue)
     }
 
     // MARK: App Language

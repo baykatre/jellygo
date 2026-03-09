@@ -4,10 +4,11 @@ import SwiftUI
 struct PlayerContainerView: View {
     let item: JellyfinItem
     var localURL: URL? = nil
+    var qualityOverride: VideoQuality? = nil
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        JellyGoPlayerView(item: item, localURL: localURL)
+        JellyGoPlayerView(item: item, localURL: localURL, qualityOverride: qualityOverride)
             .environmentObject(appState)
     }
 

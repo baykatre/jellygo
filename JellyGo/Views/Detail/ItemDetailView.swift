@@ -22,12 +22,13 @@ struct ItemDetailView: View {
     @State private var pendingQuality: (label: String, bitrate: Int?)? = nil
     @State private var selectedAudioStreamIndex: Int? = nil
     private let backdropHeight: CGFloat = 580
+    @State private var showPlayQualityDialog = false
+    @State private var playQualityOverride: VideoQuality?
     private let qualities: [(label: String, bitrate: Int?)] = [
         ("Direct",  nil),
         ("1080p",   8_000_000),
         ("720p",    4_000_000),
         ("480p",    2_000_000),
-        ("360p",    1_000_000),
     ]
 
     init(item: JellyfinItem) {
@@ -85,8 +86,9 @@ struct ItemDetailView: View {
                     guard let url = item.localURL, FileManager.default.fileExists(atPath: url.path) else { return nil }
                     return url
                 }
-            PlayerContainerView(item: ep, localURL: localURL)
+            PlayerContainerView(item: ep, localURL: localURL, qualityOverride: playQualityOverride)
                 .environmentObject(appState)
+                .onAppear { playQualityOverride = nil }
         }
         .task {
             await vm.load(item: item, appState: appState)
@@ -301,11 +303,25 @@ struct ItemDetailView: View {
     private var actionButtons: some View {
         HStack(spacing: 10) {
             Button {
+                guard !showPlayQualityDialog else { return }
                 Task { await startPlayback() }
             } label: {
                 playButtonContent
             }
             .buttonStyle(.plain)
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                    showPlayQualityDialog = true
+                }
+            )
+            .confirmationDialog("Quality", isPresented: $showPlayQualityDialog, titleVisibility: .visible) {
+                ForEach(VideoQuality.allCases) { q in
+                    Button(q.rawValue) {
+                        playQualityOverride = q
+                        Task { await startPlayback() }
+                    }
+                }
+            }
 
             downloadTriggerButton
         }
@@ -668,8 +684,8 @@ struct ItemDetailView: View {
                         .foregroundStyle(Color(.label).opacity(0.72))
                         .lineSpacing(5)
                         .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .overlay(alignment: .bottomTrailing) {
                             if needsExpand {
                                 HStack(spacing: 0) {
@@ -781,7 +797,7 @@ struct ItemDetailView: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(Color(.systemGray5), in: Capsule())
+                    .background(.regularMaterial, in: Capsule())
                 }
                 .padding(.horizontal, 16)
             } else if let name = selectedSeason?.name {

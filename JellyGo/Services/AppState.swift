@@ -31,12 +31,9 @@ struct SavedAccount: Codable, Identifiable, Equatable {
 
 enum VideoQuality: String, CaseIterable, Identifiable {
     case direct = "Direct"
-    case auto   = "Auto"
-    case p4k    = "4K"
     case p1080  = "1080p"
     case p720   = "720p"
     case p480   = "480p"
-    case p360   = "360p"
 
     var id: String { rawValue }
 
@@ -44,24 +41,17 @@ enum VideoQuality: String, CaseIterable, Identifiable {
     var maxBitrate: Int? {
         switch self {
         case .direct: return nil
-        case .auto:   return nil
-        case .p4k:    return 80_000_000
         case .p1080:  return 8_000_000
         case .p720:   return 4_000_000
         case .p480:   return 2_000_000
-        case .p360:   return 1_000_000
         }
     }
 
     /// Direct play: skip PlaybackInfo entirely, stream the file as-is.
     var forceDirectPlay: Bool { self == .direct }
 
-    /// Resolves .auto to the right quality based on current network type.
-    /// WiFi → Direct, Cellular → 720p
-    var resolved: VideoQuality {
-        guard self == .auto else { return self }
-        return NetworkMonitor.shared.isWiFi ? .direct : .p720
-    }
+    /// No longer needs resolution — always returns self.
+    var resolved: VideoQuality { self }
 }
 
 // MARK: - Network Monitor
@@ -110,7 +100,7 @@ final class AppState: ObservableObject {
     // MARK: Playback
     @Published var defaultVideoQuality: VideoQuality = VideoQuality(
         rawValue: UserDefaults.standard.string(forKey: "jellygo.defaultQuality") ?? ""
-    ) ?? .auto {
+    ) ?? .direct {
         didSet { UserDefaults.standard.set(defaultVideoQuality.rawValue, forKey: "jellygo.defaultQuality") }
     }
 

@@ -33,7 +33,7 @@ final class VLCPlayerViewModel: ObservableObject {
     @Published var isPlaying = false
     @Published var error: String?
     @Published var position: Float = 0
-    @Published var selectedQuality: VideoQuality = .auto
+    @Published var selectedQuality: VideoQuality = .direct
 
     @Published var isLocal = false
     /// When true, VLC subtitle rendering is disabled at media load (JellyGo player manages its own).
@@ -104,7 +104,10 @@ final class VLCPlayerViewModel: ObservableObject {
     }
 
     func loadLocal(url: URL, item: JellyfinItem, appState: AppState) async {
+        self.item = item
         self.appState = appState
+        tracksLoaded = false
+        didDisableVLCSubs = false
         DispatchQueue.main.async { self.isLoading = true; self.error = nil; self.isLocal = true }
 
         let media = VLCMedia(url: url)
@@ -168,9 +171,12 @@ final class VLCPlayerViewModel: ObservableObject {
         startPositionTimer()
     }
 
-    func load(item: JellyfinItem, appState: AppState) async {
+    func load(item: JellyfinItem, appState: AppState, qualityOverride: VideoQuality? = nil) async {
         self.item = item
         self.appState = appState
+        selectedQuality = qualityOverride ?? appState.defaultVideoQuality
+        tracksLoaded = false
+        didDisableVLCSubs = false
         DispatchQueue.main.async { self.isLoading = true; self.error = nil }
 
         guard !item.isSeries && !item.isSeason else {
@@ -222,6 +228,7 @@ final class VLCPlayerViewModel: ObservableObject {
             }
             player.play()
             await waitForPlaying()
+            if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
             DispatchQueue.main.async { self.isLoading = false; self.isPlaying = self.player.isPlaying }
             startPositionTimer()
             return
@@ -293,6 +300,7 @@ final class VLCPlayerViewModel: ObservableObject {
 
         player.play()
         await waitForPlaying()
+        if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
         DispatchQueue.main.async { self.isLoading = false; self.isPlaying = self.player.isPlaying }
         startPositionTimer()
     }
@@ -315,6 +323,7 @@ final class VLCPlayerViewModel: ObservableObject {
         player.stop()
         player.media = nil
         tracksLoaded = false
+        didDisableVLCSubs = false
         DispatchQueue.main.async { self.isLoading = true; self.isPlaying = false }
 
         try? await Task.sleep(for: .milliseconds(500))
@@ -364,10 +373,6 @@ final class VLCPlayerViewModel: ObservableObject {
 
     func setSubtitleDelay(_ secs: Double) {
         subtitleDelaySecs = max(-10, min(10, secs))
-        let delayUs = Int(subtitleDelaySecs * 1_000_000)
-        Task.detached { [player] in
-            player.currentVideoSubTitleDelay = delayUs
-        }
     }
 
     func setAudio(index: Int32) {
@@ -414,7 +419,9 @@ final class VLCPlayerViewModel: ObservableObject {
 
         subtitleTracks = subs
         audioTracks = auds
-        if !disableVLCSubtitles {
+        if disableVLCSubtitles {
+            player.currentVideoSubTitleIndex = -1
+        } else {
             currentSubtitleIndex = player.currentVideoSubTitleIndex
         }
         currentAudioIndex = player.currentAudioTrackIndex

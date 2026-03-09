@@ -165,6 +165,14 @@ final class SubtitleManager: ObservableObject {
 
     private var lastIndex = 0
 
+    func reset() {
+        currentText = ""
+        entries = []
+        isLoaded = false
+        delaySecs = 0
+        lastIndex = 0
+    }
+
     /// Fetch and parse subtitle from URL. Returns true on success.
     @discardableResult
     func load(from url: URL, token: String) async -> Bool {
