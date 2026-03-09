@@ -1,11 +1,12 @@
 import SwiftUI
 
+private enum LibraryNav: Hashable { case favorites }
+
 struct LibraryBrowseView: View {
     @EnvironmentObject private var appState: AppState
     @State private var libraries: [JellyfinLibrary] = []
     @State private var isLoading = false
     @State private var favoriteCoverURL: URL? = nil
-    @State private var showFavorites = false
 
     var body: some View {
         NavigationStack {
@@ -17,7 +18,7 @@ struct LibraryBrowseView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 12) {
                             // Favorites card
-                            Button { showFavorites = true } label: {
+                            NavigationLink(value: LibraryNav.favorites) {
                                 favoritesCard()
                             }
                             .buttonStyle(.plain)
@@ -37,7 +38,7 @@ struct LibraryBrowseView: View {
             }
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.large)
-            .navigationDestination(isPresented: $showFavorites) {
+            .navigationDestination(for: LibraryNav.self) { _ in
                 FavoritesView()
             }
             .navigationDestination(for: JellyfinLibrary.self) { library in
@@ -45,6 +46,9 @@ struct LibraryBrowseView: View {
             }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
+            }
+            .navigationDestination(for: JellyfinPerson.self) { person in
+                PersonDetailView(person: person)
             }
             .task {
                 guard libraries.isEmpty else { return }
@@ -184,10 +188,10 @@ struct LibraryBrowseView: View {
             )
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Favoriler")
+                Text("Favorites")
                     .font(.title3.bold())
                     .foregroundStyle(.white)
-                Text("Beğendiklerim")
+                Text("My Favorites")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.75))
             }
@@ -214,12 +218,12 @@ struct LibraryBrowseView: View {
 
     private func collectionLabel(_ type: String) -> String {
         switch type {
-        case "movies":    return "Filmler"
-        case "tvshows":   return "Diziler"
-        case "music":     return "Müzik"
-        case "books":     return "Kitaplar"
-        case "photos":    return "Fotoğraflar"
-        case "playlists": return "Çalma Listeleri"
+        case "movies":    return String(localized: "Movies", bundle: AppState.currentBundle)
+        case "tvshows":   return String(localized: "TV Shows", bundle: AppState.currentBundle)
+        case "music":     return String(localized: "Music", bundle: AppState.currentBundle)
+        case "books":     return String(localized: "Books", bundle: AppState.currentBundle)
+        case "photos":    return String(localized: "Photos", bundle: AppState.currentBundle)
+        case "playlists": return String(localized: "Playlists", bundle: AppState.currentBundle)
         default:          return type.capitalized
         }
     }
@@ -243,9 +247,9 @@ struct FavoritesView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if items.isEmpty {
                 ContentUnavailableView(
-                    "Favori Yok",
+                    "No Favorites",
                     systemImage: "heart.slash",
-                    description: Text("Beğendiğiniz içerikleri favorilere ekleyin.")
+                    description: Text("Add content you like to your favorites.")
                 )
             } else {
                 ScrollView(showsIndicators: false) {
@@ -271,7 +275,7 @@ struct FavoritesView: View {
                 }
             }
         }
-        .navigationTitle("Favoriler")
+        .navigationTitle("Favorites")
         .navigationBarTitleDisplayMode(.large)
         .task { await loadInitial() }
         .refreshable { await loadInitial() }

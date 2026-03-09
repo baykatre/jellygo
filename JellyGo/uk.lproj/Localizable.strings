@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "Головна";
+"Library" = "Бібліотека";
+"Search" = "Пошук";
+"Profile" = "Профіль";
+
+/* Home */
+"Continue Watching" = "Продовжити перегляд";
+"Next Up" = "Наступне";
+"Latest Movies" = "Нові фільми";
+"Latest TV Shows" = "Нові серіали";
+"Libraries" = "Бібліотеки";
+"No Content Found" = "Вміст не знайдено";
+
+/* Profile */
+"Server" = "Сервер";
+"Address" = "Адреса";
+"Language Settings" = "Налаштування мови";
+"Sign Out" = "Вийти";
+"Are you sure you want to sign out?" = "Ви впевнені, що хочете вийти?";
+"Cancel" = "Скасувати";
+
+/* Search */
+"Recent Searches" = "Останні пошуки";
+"Clear" = "Очистити";
+"Movies, series..." = "Фільми, серіали...";
+"Search for movies or series" = "Шукати фільми або серіали";
+"Start typing the name" = "Почніть вводити назву";
+"All" = "Усе";
+
+/* Actions */
+"Play" = "Відтворити";
+"More Info" = "Докладніше";
+"Continue  %@" = "Продовжити  %@";
+"Play  S%lldE%lld" = "Відтворити  S%lldE%lld";
+"Continue  S%lldE%lld" = "Продовжити  S%lldE%lld";
+"Add to Favorites" = "Додати до обраного";
+"Remove from Favorites" = "Видалити з обраного";
+"Mark as Watched" = "Позначити як переглянуте";
+"Mark as Unwatched" = "Позначити як непереглянуте";
+"Watched" = "Переглянуто";
+"Save" = "Зберегти";
+"Rate" = "Оцінити";
+"Favorite" = "Обране";
+"Download" = "Завантажити";
+
+/* Detail */
+"Select Season" = "Вибрати сезон";
+"Season" = "Сезон";
+"Cast & Crew" = "Актори та знімальна група";
+
+/* Item Types */
+"Movie" = "Фільм";
+"Series" = "Серіал";
+"Episode" = "Епізод";
+
+/* Runtime */
+"%lld min." = "%lld хв.";
+"%lld min" = "%lld хв";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Підключитися до сервера Jellyfin";
+"Server Address" = "Адреса сервера";
+"Connect" = "Підключитися";
+"Sign in" = "Увійти";
+"Username" = "Ім'я користувача";
+"Password" = "Пароль";
+"Sign In" = "Увійти";
+"Login" = "Вхід";
+
+/* Library */
+"No Libraries Found" = "Бібліотеки не знайдено";
+"Movies" = "Фільми";
+"TV Shows" = "Серіали";
+"Music" = "Музика";
+"Books" = "Книги";
+"Photos" = "Фото";
+"Playlists" = "Плейлисти";
+
+/* Accounts */
+"Accounts" = "Облікові записи";
+"Add" = "Додати";
+"Tap to switch · Long press to remove" = "Торкніться для перемикання · Утримуйте для видалення";
+"Switch to %@" = "Перейти до %@";
+"Edit Label" = "Змінити мітку";
+"Remove Account" = "Видалити обліковий запис";
+"Remove %@ from this device?" = "Видалити %@ з цього пристрою?";
+"Account Already Added" = "Обліковий запис вже додано";
+"e.g. Home, Remote, VPN…" = "наприклад: Дім, Віддалений, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Мітка відображається на значку головного екрана та в бульбашках облікових записів. Залиште порожнім, щоб використовувати адресу сервера.";
+
+/* Settings */
+"Settings" = "Налаштування";
+"Playback" = "Відтворення";
+"Player Engine" = "Плеєр";
+"Default Quality" = "Якість за замовчуванням";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Авто (WiFi → Пряме, Мобільна мережа → 720p)";
+"Audio" = "Аудіо";
+"Preferred Language" = "Бажана мова";
+"Subtitles" = "Субтитри";
+"Enable by Default" = "Увімкнути за замовчуванням";
+"About" = "Про застосунок";
+"Version" = "Версія";
+"Jellyfin Project" = "Проект Jellyfin";
+"Sign out of %@?" = "Вийти з %@?";
+"Remove" = "Видалити";
+
+/* Downloads */
+"Downloads" = "Завантаження";
+"No Downloads" = "Немає завантажень";
+"Downloaded content will appear here." = "Завантажений вміст з'явиться тут.";
+
+/* Errors */
+"Invalid server address" = "Неправильна адреса сервера";
+"Invalid username or password" = "Неправильне ім'я користувача або пароль";
+"This is not a Jellyfin server" = "Це не сервер Jellyfin";
+"Could not read server response" = "Не вдалося прочитати відповідь сервера";
+"Connection error: %@" = "Помилка підключення: %@";
+"Server error: %d" = "Помилка сервера: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Видалити всі епізоди?";
+"Delete Download?" = "Видалити завантаження?";
+"Delete" = "Видалити";
+"Remove \"%@\" from your downloads?" = "Видалити \"%@\" із завантажень?";
+"Remove all downloaded episodes of \"%@\"?" = "Видалити всі завантажені епізоди \"%@\"?";
+"Delete all %lld episodes of \"%@\"?" = "Видалити всі %lld епізодів \"%@\"?";
+"Downloading" = "Завантаження";
+"Failed" = "Помилка";
+"Transcoding" = "Перекодування";
+"Direct" = "Пряме";
+"Waiting" = "Очікування";
+"Delete Download" = "Видалити завантаження";
+"Special Episodes" = "Спеціальні епізоди";
+"Episode %lld" = "Епізод %lld";
+"Delete Episode?" = "Видалити епізод?";
+
+/* Detail Extended */
+"Download This Episode" = "Завантажити цей епізод";
+"Download Entire Season" = "Завантажити весь сезон";
+"Resolution" = "Роздільна здатність";
+"Original (Direct)" = "Оригінал (Пряме)";
+"Download Details" = "Деталі завантаження";
+"Queued" = "У черзі";
+"Pause" = "Пауза";
+"Cancel Download" = "Скасувати завантаження";
+"Media Info" = "Інформація про медіа";
+"1 Season" = "1 сезон";
+"%lld Seasons" = "%lld сезонів";
+"1 Episode" = "1 епізод";
+"%lld Episodes" = "%lld епізодів";
+"Critic" = "Критик";
+"Download started" = "Завантаження розпочато";
+
+/* Library Extended */
+"Favorites" = "Обране";
+"My Favorites" = "Моє обране";
+"No Favorites" = "Немає обраного";
+"Add content you like to your favorites." = "Додавайте вміст, який вам подобається, до обраного.";
+
+/* Auth Extended */
+"Saved Servers" = "Збережені сервери";
+"Add existing account" = "Додати існуючий обліковий запис";
+"Sign in as a different user" = "Увійти як інший користувач";
+
+/* Player */
+"Quality" = "Якість";
+"Dismiss" = "Закрити";
+"Playback error" = "Помилка відтворення";
+"Select an episode to play" = "Виберіть епізод для відтворення";
+"No playable source found" = "Відтворюване джерело не знайдено";
+"Tracks" = "Доріжки";
+"Stats" = "Статистика";
+"Done" = "Готово";
+
+/* Offline */
+"Offline" = "Офлайн";
+"You're offline. Download content while connected to browse here." = "Ви офлайн. Завантажте вміст при наявності з'єднання, щоб переглядати його тут.";
+"No internet connection — showing downloaded content" = "Немає підключення до інтернету — відображається завантажений вміст";
+
+/* Home Extended */
+"Download Started" = "Завантаження розпочато";
+"System Default" = "Системний за замовчуванням";
+"Off" = "Вимк";
+"Active" = "Активно";
+"Session expired. Re-add the account from settings." = "Сесія закінчилась. Повторно додайте обліковий запис у налаштуваннях.";
+"App Language" = "Мова застосунку";
+"Restart App" = "Перезапустити застосунок";
+"The app will close to apply the new language." = "Застосунок закриється для застосування нової мови.";
+
+/* Overview */
+"Show More" = "Показати більше";
+"Show Less" = "Показати менше";

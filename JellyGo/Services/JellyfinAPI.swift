@@ -121,7 +121,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items/\(itemId)"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
-            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,MediaStreams,MediaSources,ChildCount")
+            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CommunityRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,EndDate,ProductionLocations,MediaStreams,MediaSources,ChildCount,ProviderIds")
         ]
         let req = baseRequest(url: components.url!, token: token)
         let data = try await perform(req)
@@ -147,11 +147,7 @@ final class JellyfinAPI {
     func personImageURL(serverURL: String, person: JellyfinPerson, maxWidth: Int = 200) -> URL? {
         guard let base = URL(string: serverURL) else { return nil }
         var components = URLComponents(url: base.appendingPathComponent("Items/\(person.id)/Images/Primary"), resolvingAgainstBaseURL: false)
-        var items: [URLQueryItem] = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
-        if let tag = person.primaryImageTag {
-            items.append(URLQueryItem(name: "tag", value: tag))
-        }
-        components?.queryItems = items
+        components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
         return components?.url
     }
 
@@ -260,18 +256,25 @@ final class JellyfinAPI {
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, subtitleStreamIndex: Int? = nil) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/PlaybackInfo"), resolvingAgainstBaseURL: false)!
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
         if startTimeTicks > 0 {
             queryItems.append(URLQueryItem(name: "StartTimeTicks", value: "\(startTimeTicks)"))
         }
+        if let idx = audioStreamIndex {
+            queryItems.append(URLQueryItem(name: "AudioStreamIndex", value: "\(idx)"))
+        }
+        if let idx = subtitleStreamIndex {
+            queryItems.append(URLQueryItem(name: "SubtitleStreamIndex", value: "\(idx)"))
+        }
         components.queryItems = queryItems
         var req = baseRequest(url: components.url!, token: token)
         req.httpMethod = "POST"
 
         // Device profile: direct play MP4/H264/HEVC, fallback to HLS transcode
+        let subMethod = externalSubtitles ? "External" : "Hls"
         let profile: [String: Any] = [
             "UserId": userId,
             "DeviceProfile": [
@@ -297,10 +300,10 @@ final class JellyfinAPI {
                     ]
                 ],
                 "SubtitleProfiles": [
-                    ["Format": "vtt", "Method": "Hls"],
-                    ["Format": "ass", "Method": "Hls"],
-                    ["Format": "ssa", "Method": "Hls"],
-                    ["Format": "srt", "Method": "Hls"]
+                    ["Format": "vtt", "Method": subMethod],
+                    ["Format": "ass", "Method": subMethod],
+                    ["Format": "ssa", "Method": subMethod],
+                    ["Format": "srt", "Method": subMethod]
                 ],
                 "ResponseProfiles": [
                     ["Type": "Video", "Container": "m4v", "MimeType": "video/mp4"]
@@ -381,5 +384,37 @@ final class JellyfinAPI {
         var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/Logo"), resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
         return components?.url
+    }
+
+    func refreshItemMetadata(serverURL: String, itemId: String, token: String) async {
+        guard let base = URL(string: serverURL) else { return }
+        var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Refresh"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [
+            URLQueryItem(name: "MetadataRefreshMode", value: "FullRefresh"),
+            URLQueryItem(name: "ImageRefreshMode", value: "FullRefresh"),
+            URLQueryItem(name: "ReplaceAllImages", value: "false"),
+            URLQueryItem(name: "ReplaceAllMetadata", value: "false"),
+        ]
+        guard let url = components?.url else { return }
+        var req = baseRequest(url: url, token: token)
+        req.httpMethod = "POST"
+        _ = try? await perform(req)
+    }
+
+    func getPersonFilmography(serverURL: String, personId: String, userId: String, token: String) async throws -> [JellyfinItem] {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "PersonIds", value: personId),
+            URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series"),
+            URLQueryItem(name: "Recursive", value: "true"),
+            URLQueryItem(name: "SortBy", value: "PremiereDate"),
+            URLQueryItem(name: "SortOrder", value: "Descending"),
+            URLQueryItem(name: "Fields", value: "PrimaryImageAspectRatio,ProductionYear,CommunityRating"),
+            URLQueryItem(name: "Limit", value: "50"),
+        ]
+        let req = baseRequest(url: components.url!, token: token)
+        let data = try await perform(req)
+        return try decode(JellyfinItemsResponse.self, from: data).items
     }
 }

@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "خانه";
+"Library" = "کتابخانه";
+"Search" = "جستجو";
+"Profile" = "پروفایل";
+
+/* Home */
+"Continue Watching" = "ادامه تماشا";
+"Next Up" = "بعدی";
+"Latest Movies" = "آخرین فیلم‌ها";
+"Latest TV Shows" = "آخرین سریال‌ها";
+"Libraries" = "کتابخانه‌ها";
+"No Content Found" = "محتوایی یافت نشد";
+
+/* Profile */
+"Server" = "سرور";
+"Address" = "آدرس";
+"Language Settings" = "تنظیمات زبان";
+"Sign Out" = "خروج از حساب";
+"Are you sure you want to sign out?" = "آیا مطمئن هستید که می‌خواهید خارج شوید؟";
+"Cancel" = "لغو";
+
+/* Search */
+"Recent Searches" = "جستجوهای اخیر";
+"Clear" = "پاک کردن";
+"Movies, series..." = "فیلم‌ها، سریال‌ها...";
+"Search for movies or series" = "جستجوی فیلم یا سریال";
+"Start typing the name" = "شروع به تایپ نام کنید";
+"All" = "همه";
+
+/* Actions */
+"Play" = "پخش";
+"More Info" = "اطلاعات بیشتر";
+"Continue  %@" = "ادامه  %@";
+"Play  S%lldE%lld" = "پخش  S%lldE%lld";
+"Continue  S%lldE%lld" = "ادامه  S%lldE%lld";
+"Add to Favorites" = "افزودن به علاقه‌مندی‌ها";
+"Remove from Favorites" = "حذف از علاقه‌مندی‌ها";
+"Mark as Watched" = "علامت‌گذاری به عنوان دیده‌شده";
+"Mark as Unwatched" = "علامت‌گذاری به عنوان ندیده‌شده";
+"Watched" = "دیده‌شده";
+"Save" = "ذخیره";
+"Rate" = "امتیاز";
+"Favorite" = "علاقه‌مندی";
+"Download" = "دانلود";
+
+/* Detail */
+"Select Season" = "انتخاب فصل";
+"Season" = "فصل";
+"Cast & Crew" = "بازیگران و عوامل";
+
+/* Item Types */
+"Movie" = "فیلم";
+"Series" = "سریال";
+"Episode" = "قسمت";
+
+/* Runtime */
+"%lld min." = "%lld دقیقه.";
+"%lld min" = "%lld دقیقه";
+
+/* Auth */
+"Connect to your Jellyfin server" = "اتصال به سرور Jellyfin";
+"Server Address" = "آدرس سرور";
+"Connect" = "اتصال";
+"Sign in" = "ورود";
+"Username" = "نام کاربری";
+"Password" = "رمز عبور";
+"Sign In" = "ورود";
+"Login" = "ورود";
+
+/* Library */
+"No Libraries Found" = "کتابخانه‌ای یافت نشد";
+"Movies" = "فیلم‌ها";
+"TV Shows" = "سریال‌ها";
+"Music" = "موسیقی";
+"Books" = "کتاب‌ها";
+"Photos" = "عکس‌ها";
+"Playlists" = "پلی‌لیست‌ها";
+
+/* Accounts */
+"Accounts" = "حساب‌های کاربری";
+"Add" = "افزودن";
+"Tap to switch · Long press to remove" = "ضربه بزنید برای تغییر · نگه دارید برای حذف";
+"Switch to %@" = "تغییر به %@";
+"Edit Label" = "ویرایش برچسب";
+"Remove Account" = "حذف حساب";
+"Remove %@ from this device?" = "حذف %@ از این دستگاه؟";
+"Account Already Added" = "حساب قبلاً اضافه شده است";
+"e.g. Home, Remote, VPN…" = "مثلاً: خانه، ریموت، VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "برچسب نمایش داده شده در نشان صفحه اصلی و حباب‌های حساب. برای استفاده از آدرس سرور خالی بگذارید.";
+
+/* Settings */
+"Settings" = "تنظیمات";
+"Playback" = "پخش";
+"Player Engine" = "موتور پخش";
+"Default Quality" = "کیفیت پیش‌فرض";
+"Auto (WiFi → Direct, Cellular → 720p)" = "خودکار (WiFi → مستقیم، شبکه موبایل → 720p)";
+"Audio" = "صدا";
+"Preferred Language" = "زبان ترجیحی";
+"Subtitles" = "زیرنویس";
+"Enable by Default" = "فعال‌سازی پیش‌فرض";
+"About" = "درباره";
+"Version" = "نسخه";
+"Jellyfin Project" = "پروژه Jellyfin";
+"Sign out of %@?" = "خروج از %@؟";
+"Remove" = "حذف";
+
+/* Downloads */
+"Downloads" = "دانلودها";
+"No Downloads" = "دانلودی وجود ندارد";
+"Downloaded content will appear here." = "محتوای دانلود شده اینجا نمایش داده می‌شود.";
+
+/* Errors */
+"Invalid server address" = "آدرس سرور نامعتبر";
+"Invalid username or password" = "نام کاربری یا رمز عبور نامعتبر";
+"This is not a Jellyfin server" = "این یک سرور Jellyfin نیست";
+"Could not read server response" = "خواندن پاسخ سرور ممکن نشد";
+"Connection error: %@" = "خطای اتصال: %@";
+"Server error: %d" = "خطای سرور: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "حذف همه قسمت‌ها؟";
+"Delete Download?" = "حذف دانلود؟";
+"Delete" = "حذف";
+"Remove \"%@\" from your downloads?" = "حذف \"%@\" از دانلودهای شما؟";
+"Remove all downloaded episodes of \"%@\"?" = "حذف همه قسمت‌های دانلودشده \"%@\"؟";
+"Delete all %lld episodes of \"%@\"?" = "حذف همه %lld قسمت از \"%@\"؟";
+"Downloading" = "در حال دانلود";
+"Failed" = "ناموفق";
+"Transcoding" = "در حال تبدیل";
+"Direct" = "مستقیم";
+"Waiting" = "در انتظار";
+"Delete Download" = "حذف دانلود";
+"Special Episodes" = "قسمت‌های ویژه";
+"Episode %lld" = "قسمت %lld";
+"Delete Episode?" = "حذف قسمت؟";
+
+/* Detail Extended */
+"Download This Episode" = "دانلود این قسمت";
+"Download Entire Season" = "دانلود کل فصل";
+"Resolution" = "وضوح تصویر";
+"Original (Direct)" = "اصلی (مستقیم)";
+"Download Details" = "جزئیات دانلود";
+"Queued" = "در صف";
+"Pause" = "توقف موقت";
+"Cancel Download" = "لغو دانلود";
+"Media Info" = "اطلاعات رسانه";
+"1 Season" = "۱ فصل";
+"%lld Seasons" = "%lld فصل";
+"1 Episode" = "۱ قسمت";
+"%lld Episodes" = "%lld قسمت";
+"Critic" = "منتقد";
+"Download started" = "دانلود شروع شد";
+
+/* Library Extended */
+"Favorites" = "علاقه‌مندی‌ها";
+"My Favorites" = "علاقه‌مندی‌های من";
+"No Favorites" = "علاقه‌مندی وجود ندارد";
+"Add content you like to your favorites." = "محتوایی که دوست دارید را به علاقه‌مندی‌هایتان اضافه کنید.";
+
+/* Auth Extended */
+"Saved Servers" = "سرورهای ذخیره شده";
+"Add existing account" = "افزودن حساب موجود";
+"Sign in as a different user" = "ورود به عنوان کاربر دیگر";
+
+/* Player */
+"Quality" = "کیفیت";
+"Dismiss" = "بستن";
+"Playback error" = "خطای پخش";
+"Select an episode to play" = "یک قسمت برای پخش انتخاب کنید";
+"No playable source found" = "منبع قابل پخش یافت نشد";
+"Tracks" = "آهنگ‌ها";
+"Stats" = "آمار";
+"Done" = "انجام شد";
+
+/* Offline */
+"Offline" = "آفلاین";
+"You're offline. Download content while connected to browse here." = "شما آفلاین هستید. در هنگام اتصال محتوا دانلود کنید تا اینجا مرور کنید.";
+"No internet connection — showing downloaded content" = "بدون اتصال اینترنت — نمایش محتوای دانلودشده";
+
+/* Home Extended */
+"Download Started" = "دانلود شروع شد";
+"System Default" = "پیش‌فرض سیستم";
+"Off" = "خاموش";
+"Active" = "فعال";
+"Session expired. Re-add the account from settings." = "جلسه منقضی شده است. حساب را از تنظیمات دوباره اضافه کنید.";
+"App Language" = "زبان برنامه";
+"Restart App" = "راه‌اندازی مجدد برنامه";
+"The app will close to apply the new language." = "برنامه برای اعمال زبان جدید بسته می‌شود.";
+
+/* Overview */
+"Show More" = "نمایش بیشتر";
+"Show Less" = "نمایش کمتر";

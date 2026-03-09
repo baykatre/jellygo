@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "Hjem";
+"Library" = "Bibliotek";
+"Search" = "Søg";
+"Profile" = "Profil";
+
+/* Home */
+"Continue Watching" = "Fortsæt med at se";
+"Next Up" = "Næste";
+"Latest Movies" = "Seneste film";
+"Latest TV Shows" = "Seneste TV-serier";
+"Libraries" = "Biblioteker";
+"No Content Found" = "Intet indhold fundet";
+
+/* Profile */
+"Server" = "Server";
+"Address" = "Adresse";
+"Language Settings" = "Sprogindstillinger";
+"Sign Out" = "Log ud";
+"Are you sure you want to sign out?" = "Er du sikker på, at du vil logge ud?";
+"Cancel" = "Annuller";
+
+/* Search */
+"Recent Searches" = "Seneste søgninger";
+"Clear" = "Ryd";
+"Movies, series..." = "Film, serier...";
+"Search for movies or series" = "Søg efter film eller serier";
+"Start typing the name" = "Begynd at skrive navnet";
+"All" = "Alle";
+
+/* Actions */
+"Play" = "Afspil";
+"More Info" = "Mere info";
+"Continue  %@" = "Fortsæt  %@";
+"Play  S%lldE%lld" = "Afspil  S%lldE%lld";
+"Continue  S%lldE%lld" = "Fortsæt  S%lldE%lld";
+"Add to Favorites" = "Tilføj til favoritter";
+"Remove from Favorites" = "Fjern fra favoritter";
+"Mark as Watched" = "Markér som set";
+"Mark as Unwatched" = "Markér som ikke set";
+"Watched" = "Set";
+"Save" = "Gem";
+"Rate" = "Bedøm";
+"Favorite" = "Favorit";
+"Download" = "Download";
+
+/* Detail */
+"Select Season" = "Vælg sæson";
+"Season" = "Sæson";
+"Cast & Crew" = "Skuespillere og crew";
+
+/* Item Types */
+"Movie" = "Film";
+"Series" = "Serie";
+"Episode" = "Afsnit";
+
+/* Runtime */
+"%lld min." = "%lld min.";
+"%lld min" = "%lld min";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Opret forbindelse til din Jellyfin-server";
+"Server Address" = "Serveradresse";
+"Connect" = "Opret forbindelse";
+"Sign in" = "Log ind";
+"Username" = "Brugernavn";
+"Password" = "Adgangskode";
+"Sign In" = "Log ind";
+"Login" = "Login";
+
+/* Library */
+"No Libraries Found" = "Ingen biblioteker fundet";
+"Movies" = "Film";
+"TV Shows" = "TV-serier";
+"Music" = "Musik";
+"Books" = "Bøger";
+"Photos" = "Fotos";
+"Playlists" = "Afspilningslister";
+
+/* Accounts */
+"Accounts" = "Konti";
+"Add" = "Tilføj";
+"Tap to switch · Long press to remove" = "Tryk for at skifte · Hold nede for at fjerne";
+"Switch to %@" = "Skift til %@";
+"Edit Label" = "Rediger etiket";
+"Remove Account" = "Fjern konto";
+"Remove %@ from this device?" = "Fjern %@ fra denne enhed?";
+"Account Already Added" = "Konto allerede tilføjet";
+"e.g. Home, Remote, VPN…" = "f.eks. Hjem, Fjern, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Etiket vist i hjemmeskærmens badge og kontoboblerne. Lad stå tomt for at bruge serveradressen.";
+
+/* Settings */
+"Settings" = "Indstillinger";
+"Playback" = "Afspilning";
+"Player Engine" = "Afspiller";
+"Default Quality" = "Standardkvalitet";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WiFi → Direkte, Mobil → 720p)";
+"Audio" = "Lyd";
+"Preferred Language" = "Foretrukket sprog";
+"Subtitles" = "Undertekster";
+"Enable by Default" = "Aktivér som standard";
+"About" = "Om";
+"Version" = "Version";
+"Jellyfin Project" = "Jellyfin-projektet";
+"Sign out of %@?" = "Log ud af %@?";
+"Remove" = "Fjern";
+
+/* Downloads */
+"Downloads" = "Downloads";
+"No Downloads" = "Ingen downloads";
+"Downloaded content will appear here." = "Downloadet indhold vises her.";
+
+/* Errors */
+"Invalid server address" = "Ugyldig serveradresse";
+"Invalid username or password" = "Ugyldigt brugernavn eller adgangskode";
+"This is not a Jellyfin server" = "Dette er ikke en Jellyfin-server";
+"Could not read server response" = "Kunne ikke læse serversvaret";
+"Connection error: %@" = "Forbindelsesfejl: %@";
+"Server error: %d" = "Serverfejl: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Slet alle afsnit?";
+"Delete Download?" = "Slet download?";
+"Delete" = "Slet";
+"Remove \"%@\" from your downloads?" = "Fjern \"%@\" fra dine downloads?";
+"Remove all downloaded episodes of \"%@\"?" = "Fjern alle downloadede afsnit af \"%@\"?";
+"Delete all %lld episodes of \"%@\"?" = "Slet alle %lld afsnit af \"%@\"?";
+"Downloading" = "Downloader";
+"Failed" = "Mislykkedes";
+"Transcoding" = "Transkodning";
+"Direct" = "Direkte";
+"Waiting" = "Venter";
+"Delete Download" = "Slet download";
+"Special Episodes" = "Specialafsnit";
+"Episode %lld" = "Afsnit %lld";
+"Delete Episode?" = "Slet afsnit?";
+
+/* Detail Extended */
+"Download This Episode" = "Download dette afsnit";
+"Download Entire Season" = "Download hele sæsonen";
+"Resolution" = "Opløsning";
+"Original (Direct)" = "Original (Direkte)";
+"Download Details" = "Downloaddetaljer";
+"Queued" = "I kø";
+"Pause" = "Pause";
+"Cancel Download" = "Annuller download";
+"Media Info" = "Medieinfo";
+"1 Season" = "1 sæson";
+"%lld Seasons" = "%lld sæsoner";
+"1 Episode" = "1 afsnit";
+"%lld Episodes" = "%lld afsnit";
+"Critic" = "Kritiker";
+"Download started" = "Download startet";
+
+/* Library Extended */
+"Favorites" = "Favoritter";
+"My Favorites" = "Mine favoritter";
+"No Favorites" = "Ingen favoritter";
+"Add content you like to your favorites." = "Tilføj indhold du kan lide til dine favoritter.";
+
+/* Auth Extended */
+"Saved Servers" = "Gemte servere";
+"Add existing account" = "Tilføj eksisterende konto";
+"Sign in as a different user" = "Log ind som en anden bruger";
+
+/* Player */
+"Quality" = "Kvalitet";
+"Dismiss" = "Luk";
+"Playback error" = "Afspilningsfejl";
+"Select an episode to play" = "Vælg et afsnit at afspille";
+"No playable source found" = "Ingen afspillelig kilde fundet";
+"Tracks" = "Spor";
+"Stats" = "Statistik";
+"Done" = "Færdig";
+
+/* Offline */
+"Offline" = "Offline";
+"You're offline. Download content while connected to browse here." = "Du er offline. Download indhold, mens du er forbundet, for at gennemse det her.";
+"No internet connection — showing downloaded content" = "Ingen internetforbindelse — viser downloadet indhold";
+
+/* Home Extended */
+"Download Started" = "Download startet";
+"System Default" = "Systemstandard";
+"Off" = "Fra";
+"Active" = "Aktiv";
+"Session expired. Re-add the account from settings." = "Session udløbet. Tilføj kontoen igen fra indstillinger.";
+"App Language" = "App-sprog";
+"Restart App" = "Genstart app";
+"The app will close to apply the new language." = "Appen lukkes for at anvende det nye sprog.";
+
+/* Overview */
+"Show More" = "Vis mere";
+"Show Less" = "Vis mindre";

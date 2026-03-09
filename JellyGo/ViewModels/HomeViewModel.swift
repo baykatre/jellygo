@@ -51,7 +51,7 @@ final class HomeViewModel: ObservableObject {
         do {
             latestMovies = try await lmTask.items
         } catch JellyfinAPIError.unauthorized {
-            error = NSLocalizedString("Oturum süresi dolmuş. Hesabı ayarlardan yeniden ekleyin.", comment: "")
+            error = NSLocalizedString("Session expired. Re-add the account from settings.", comment: "")
         } catch let err as JellyfinAPIError {
             error = err.errorDescription
         } catch {}
@@ -59,7 +59,7 @@ final class HomeViewModel: ObservableObject {
         do {
             latestShows = try await lsTask.items
         } catch JellyfinAPIError.unauthorized {
-            if error == nil { error = NSLocalizedString("Oturum süresi dolmuş. Hesabı ayarlardan yeniden ekleyin.", comment: "") }
+            if error == nil { error = NSLocalizedString("Session expired. Re-add the account from settings.", comment: "") }
         } catch let err as JellyfinAPIError {
             if error == nil { error = err.errorDescription }
         } catch {}

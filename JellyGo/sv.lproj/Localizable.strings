@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "Hem";
+"Library" = "Bibliotek";
+"Search" = "Sök";
+"Profile" = "Profil";
+
+/* Home */
+"Continue Watching" = "Fortsätt titta";
+"Next Up" = "Nästa";
+"Latest Movies" = "Senaste filmer";
+"Latest TV Shows" = "Senaste TV-serier";
+"Libraries" = "Bibliotek";
+"No Content Found" = "Inget innehåll hittades";
+
+/* Profile */
+"Server" = "Server";
+"Address" = "Adress";
+"Language Settings" = "Språkinställningar";
+"Sign Out" = "Logga ut";
+"Are you sure you want to sign out?" = "Är du säker på att du vill logga ut?";
+"Cancel" = "Avbryt";
+
+/* Search */
+"Recent Searches" = "Senaste sökningar";
+"Clear" = "Rensa";
+"Movies, series..." = "Filmer, serier...";
+"Search for movies or series" = "Sök efter filmer eller serier";
+"Start typing the name" = "Börja skriva namnet";
+"All" = "Alla";
+
+/* Actions */
+"Play" = "Spela upp";
+"More Info" = "Mer info";
+"Continue  %@" = "Fortsätt  %@";
+"Play  S%lldE%lld" = "Spela upp  S%lldE%lld";
+"Continue  S%lldE%lld" = "Fortsätt  S%lldE%lld";
+"Add to Favorites" = "Lägg till i favoriter";
+"Remove from Favorites" = "Ta bort från favoriter";
+"Mark as Watched" = "Markera som sedd";
+"Mark as Unwatched" = "Markera som osedd";
+"Watched" = "Sedd";
+"Save" = "Spara";
+"Rate" = "Betygsätt";
+"Favorite" = "Favorit";
+"Download" = "Ladda ned";
+
+/* Detail */
+"Select Season" = "Välj säsong";
+"Season" = "Säsong";
+"Cast & Crew" = "Skådespelare och crew";
+
+/* Item Types */
+"Movie" = "Film";
+"Series" = "Serie";
+"Episode" = "Avsnitt";
+
+/* Runtime */
+"%lld min." = "%lld min.";
+"%lld min" = "%lld min";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Anslut till din Jellyfin-server";
+"Server Address" = "Serveradress";
+"Connect" = "Anslut";
+"Sign in" = "Logga in";
+"Username" = "Användarnamn";
+"Password" = "Lösenord";
+"Sign In" = "Logga in";
+"Login" = "Inloggning";
+
+/* Library */
+"No Libraries Found" = "Inga bibliotek hittades";
+"Movies" = "Filmer";
+"TV Shows" = "TV-serier";
+"Music" = "Musik";
+"Books" = "Böcker";
+"Photos" = "Foton";
+"Playlists" = "Spellistor";
+
+/* Accounts */
+"Accounts" = "Konton";
+"Add" = "Lägg till";
+"Tap to switch · Long press to remove" = "Tryck för att byta · Håll ned för att ta bort";
+"Switch to %@" = "Byt till %@";
+"Edit Label" = "Redigera etikett";
+"Remove Account" = "Ta bort konto";
+"Remove %@ from this device?" = "Ta bort %@ från den här enheten?";
+"Account Already Added" = "Konto redan tillagt";
+"e.g. Home, Remote, VPN…" = "t.ex. Hem, Fjärr, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Etikett som visas i hemskärmens badge och kontobubblor. Lämna tomt för att använda serveradressen.";
+
+/* Settings */
+"Settings" = "Inställningar";
+"Playback" = "Uppspelning";
+"Player Engine" = "Spelare";
+"Default Quality" = "Standardkvalitet";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WiFi → Direkt, Mobil → 720p)";
+"Audio" = "Ljud";
+"Preferred Language" = "Föredraget språk";
+"Subtitles" = "Undertexter";
+"Enable by Default" = "Aktivera som standard";
+"About" = "Om";
+"Version" = "Version";
+"Jellyfin Project" = "Jellyfin-projektet";
+"Sign out of %@?" = "Logga ut från %@?";
+"Remove" = "Ta bort";
+
+/* Downloads */
+"Downloads" = "Nedladdningar";
+"No Downloads" = "Inga nedladdningar";
+"Downloaded content will appear here." = "Nedladdat innehåll visas här.";
+
+/* Errors */
+"Invalid server address" = "Ogiltig serveradress";
+"Invalid username or password" = "Ogiltigt användarnamn eller lösenord";
+"This is not a Jellyfin server" = "Det här är inte en Jellyfin-server";
+"Could not read server response" = "Kunde inte läsa serversvaret";
+"Connection error: %@" = "Anslutningsfel: %@";
+"Server error: %d" = "Serverfel: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Ta bort alla avsnitt?";
+"Delete Download?" = "Ta bort nedladdning?";
+"Delete" = "Ta bort";
+"Remove \"%@\" from your downloads?" = "Ta bort \"%@\" från dina nedladdningar?";
+"Remove all downloaded episodes of \"%@\"?" = "Ta bort alla nedladdade avsnitt av \"%@\"?";
+"Delete all %lld episodes of \"%@\"?" = "Ta bort alla %lld avsnitt av \"%@\"?";
+"Downloading" = "Laddar ned";
+"Failed" = "Misslyckades";
+"Transcoding" = "Omkodning";
+"Direct" = "Direkt";
+"Waiting" = "Väntar";
+"Delete Download" = "Ta bort nedladdning";
+"Special Episodes" = "Specialavsnitt";
+"Episode %lld" = "Avsnitt %lld";
+"Delete Episode?" = "Ta bort avsnitt?";
+
+/* Detail Extended */
+"Download This Episode" = "Ladda ned det här avsnittet";
+"Download Entire Season" = "Ladda ned hela säsongen";
+"Resolution" = "Upplösning";
+"Original (Direct)" = "Original (Direkt)";
+"Download Details" = "Nedladdningsdetaljer";
+"Queued" = "I kö";
+"Pause" = "Pausa";
+"Cancel Download" = "Avbryt nedladdning";
+"Media Info" = "Medieinfo";
+"1 Season" = "1 säsong";
+"%lld Seasons" = "%lld säsonger";
+"1 Episode" = "1 avsnitt";
+"%lld Episodes" = "%lld avsnitt";
+"Critic" = "Kritiker";
+"Download started" = "Nedladdning startad";
+
+/* Library Extended */
+"Favorites" = "Favoriter";
+"My Favorites" = "Mina favoriter";
+"No Favorites" = "Inga favoriter";
+"Add content you like to your favorites." = "Lägg till innehåll du gillar i dina favoriter.";
+
+/* Auth Extended */
+"Saved Servers" = "Sparade servrar";
+"Add existing account" = "Lägg till befintligt konto";
+"Sign in as a different user" = "Logga in som en annan användare";
+
+/* Player */
+"Quality" = "Kvalitet";
+"Dismiss" = "Stäng";
+"Playback error" = "Uppspelningsfel";
+"Select an episode to play" = "Välj ett avsnitt att spela upp";
+"No playable source found" = "Ingen uppspelningsbar källa hittades";
+"Tracks" = "Spår";
+"Stats" = "Statistik";
+"Done" = "Klar";
+
+/* Offline */
+"Offline" = "Offline";
+"You're offline. Download content while connected to browse here." = "Du är offline. Ladda ned innehåll när du är ansluten för att bläddra här.";
+"No internet connection — showing downloaded content" = "Ingen internetanslutning — visar nedladdat innehåll";
+
+/* Home Extended */
+"Download Started" = "Nedladdning startad";
+"System Default" = "Systemstandard";
+"Off" = "Av";
+"Active" = "Aktiv";
+"Session expired. Re-add the account from settings." = "Sessionen har gått ut. Lägg till kontot igen från inställningar.";
+"App Language" = "Appspråk";
+"Restart App" = "Starta om appen";
+"The app will close to apply the new language." = "Appen stängs för att tillämpa det nya språket.";
+
+/* Overview */
+"Show More" = "Visa mer";
+"Show Less" = "Visa mindre";

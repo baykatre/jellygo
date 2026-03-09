@@ -16,6 +16,11 @@ struct ItemDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var showDownloadDetail = false
     @State private var showDownloadProgress = false
+    @State private var downloadedEpisodeTarget: String? = nil
+    @State private var overviewExpanded = false
+    @State private var showAudioDialog = false
+    @State private var pendingQuality: (label: String, bitrate: Int?)? = nil
+    @State private var selectedAudioStreamIndex: Int? = nil
     private let backdropHeight: CGFloat = 580
     private let qualities: [(label: String, bitrate: Int?)] = [
         ("Direct",  nil),
@@ -73,7 +78,7 @@ struct ItemDetailView: View {
         .toolbar(.hidden, for: .tabBar)
         .fullScreenCover(item: $itemToPlay, onDismiss: {
             AppDelegate.orientationLock = .portrait
-            PlayerView.rotate(to: .portrait)
+            PlayerContainerView.rotate(to: .portrait)
         }) { ep in
             let localURL = dm.downloads.first(where: { $0.id == ep.id })
                 .flatMap { item -> URL? in
@@ -86,10 +91,31 @@ struct ItemDetailView: View {
         .task {
             await vm.load(item: item, appState: appState)
             if item.isSeries {
-                let season = await vm.bestSeasonToOpen(appState: appState)
-                selectedSeason = season
-                if let sid = season?.id, let ep = vm.resumeEpisode(seasonId: sid) {
-                    activeItem = ep
+                let seriesId = item.id
+                // Offline fallback: if network failed and seasons didn't load, build from downloads
+                if vm.seasons.isEmpty {
+                    vm.buildOfflineData(from: dm.downloads, seriesId: seriesId)
+                }
+                // Check for downloaded episodes — prefer the most recent one
+                let latestDownload = dm.downloads
+                    .filter { ($0.seriesId ?? $0.id) == seriesId && $0.isEpisode }
+                    .sorted {
+                        let s0 = $0.seasonNumber ?? 0, s1 = $1.seasonNumber ?? 0
+                        if s0 != s1 { return s0 > s1 }
+                        return ($0.episodeNumber ?? 0) > ($1.episodeNumber ?? 0)
+                    }
+                    .first
+
+                if let dl = latestDownload,
+                   let targetSeason = vm.seasons.first(where: { $0.indexNumber == dl.seasonNumber }) {
+                    downloadedEpisodeTarget = dl.id
+                    selectedSeason = targetSeason
+                } else {
+                    let season = await vm.bestSeasonToOpen(appState: appState)
+                    selectedSeason = season ?? vm.seasons.first
+                    if let sid = selectedSeason?.id, let ep = vm.resumeEpisode(seasonId: sid) {
+                        activeItem = ep
+                    }
                 }
             } else {
                 selectedSeason = vm.seasons.first(where: { $0.indexNumber == item.parentIndexNumber })
@@ -103,10 +129,12 @@ struct ItemDetailView: View {
             guard let sid = newSeason?.id else { return }
             Task {
                 await vm.loadEpisodes(seasonId: sid, appState: appState)
-                // If the user opened an episode directly and this is its season,
-                // keep that episode selected instead of auto-picking resume episode
                 if item.isEpisode && newSeason?.indexNumber == item.parentIndexNumber {
                     activeItem = item
+                } else if let dlId = downloadedEpisodeTarget,
+                          let ep = vm.episodes[sid]?.first(where: { $0.id == dlId }) {
+                    activeItem = ep
+                    downloadedEpisodeTarget = nil
                 } else if let ep = vm.resumeEpisode(seasonId: sid) {
                     activeItem = ep
                 }
@@ -123,7 +151,8 @@ struct ItemDetailView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .playbackStopped)) { _ in
             Task {
-                if let updated = try? await JellyfinAPI.shared.getItemDetails(
+                if NetworkMonitor.shared.isConnected,
+                   let updated = try? await JellyfinAPI.shared.getItemDetails(
                     serverURL: appState.serverURL,
                     itemId: activeItem.id,
                     userId: appState.userId,
@@ -139,7 +168,9 @@ struct ItemDetailView: View {
 
     private var backdropBackground: some View {
         let backdropId = activeItem.isEpisode ? (activeItem.seriesId ?? activeItem.id) : activeItem.id
-        let url = JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: backdropId, maxWidth: 1280)
+        // Prefer local cached backdrop, fall back to remote
+        let url = DownloadManager.localBackdropURL(itemId: backdropId)
+            ?? JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: backdropId, maxWidth: 1280)
         let height = backdropHeight + pullDown
         return Group {
             if let url {
@@ -175,11 +206,12 @@ struct ItemDetailView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .center, spacing: 12) {
                 let logoItemId = activeItem.isEpisode ? (activeItem.seriesId ?? activeItem.id) : activeItem.id
                 LogoTitleView(
                     title: activeItem.isEpisode ? (activeItem.seriesName ?? activeItem.name) : activeItem.name,
-                    logoURL: JellyfinAPI.shared.logoURL(serverURL: appState.serverURL, itemId: logoItemId)
+                    logoURL: DownloadManager.localLogoURL(itemId: logoItemId)
+                        ?? JellyfinAPI.shared.logoURL(serverURL: appState.serverURL, itemId: logoItemId)
                 )
 
                 if activeItem.isEpisode {
@@ -188,6 +220,7 @@ struct ItemDetailView: View {
                     Text("\(sLabel) • \(eLabel) - \(activeItem.name)")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
                 }
 
                 metaChips
@@ -196,13 +229,14 @@ struct ItemDetailView: View {
                     Text(genres.prefix(3).joined(separator: ", "))
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
                 }
 
                 actionButtons
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(height: backdropHeight)
     }
@@ -212,7 +246,7 @@ struct ItemDetailView: View {
             if activeItem.isSeries {
                 let count = (displayItem.childCount ?? activeItem.childCount) ?? vm.seasons.count
                 if count > 0 {
-                    Text(count == 1 ? "1 Season" : "\(count) Seasons")
+                    Text(verbatim: count == 1 ? String(localized: "1 Season", bundle: AppState.currentBundle) : String(format: String(localized: "%lld Seasons", bundle: AppState.currentBundle), Int64(count)))
                         .metaStyle()
                 }
             } else if activeItem.isSeason {
@@ -220,12 +254,12 @@ struct ItemDetailView: View {
                    let eps = vm.episodes[seasonId] {
                     let count = eps.count
                     if count > 0 {
-                        Text(count == 1 ? "1 Episode" : "\(count) Episodes")
+                        Text(verbatim: count == 1 ? String(localized: "1 Episode", bundle: AppState.currentBundle) : String(format: String(localized: "%lld Episodes", bundle: AppState.currentBundle), Int64(count)))
                             .metaStyle()
                     }
                 }
             } else if let mins = activeItem.runtimeMinutes, mins > 0 {
-                Text(String(format: NSLocalizedString("%lld min.", comment: ""), Int64(mins)))
+                Text(verbatim: String(format: String(localized: "%lld min.", bundle: AppState.currentBundle), Int64(mins)))
                     .metaStyle()
             }
             if let date = activeItem.formattedPremiereDate {
@@ -276,33 +310,65 @@ struct ItemDetailView: View {
             downloadTriggerButton
         }
         .confirmationDialog(
-            activeItem.isMovie ? "İndir" : "Ne İndirelim?",
+            activeItem.isMovie ? String(localized: "Download", bundle: AppState.currentBundle) : String(localized: "Download Details", bundle: AppState.currentBundle),
             isPresented: $showDownloadScopeDialog,
             titleVisibility: .visible
         ) {
-            Button("Bu Bölümü İndir") {
+            Button("Download This Episode") {
                 pendingDownloadSeason = false
                 showDownloadQualityDialog = true
             }
             if let sid = selectedSeason?.id, vm.episodes[sid] != nil {
-                Button("Tüm Sezonu İndir") {
+                Button("Download Entire Season") {
                     pendingDownloadSeason = true
                     showDownloadQualityDialog = true
                 }
             }
-            Button("İptal", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Çözünürlük", isPresented: $showDownloadQualityDialog, titleVisibility: .visible) {
+        .confirmationDialog("Resolution", isPresented: $showDownloadQualityDialog, titleVisibility: .visible) {
             ForEach(qualities, id: \.label) { quality in
-                Button(quality.bitrate == nil ? "Orijinal (Direct)" : quality.label) {
+                Button(quality.bitrate == nil ? String(localized: "Original (Direct)", bundle: AppState.currentBundle) : quality.label) {
+                    // Direct → download immediately (all audio tracks included)
+                    if quality.bitrate == nil {
+                        if pendingDownloadSeason {
+                            startSeasonDownload(quality: quality)
+                        } else {
+                            startDownload(quality: quality)
+                        }
+                        return
+                    }
+                    // Transcode → check if multiple audio languages
+                    let audioStreams = downloadAudioStreams
+                    let uniqueLangs = Set(audioStreams.map { $0.language ?? "und" })
+                    if uniqueLangs.count > 1 {
+                        pendingQuality = quality
+                        showAudioDialog = true
+                    } else {
+                        if pendingDownloadSeason {
+                            startSeasonDownload(quality: quality)
+                        } else {
+                            startDownload(quality: quality)
+                        }
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Audio Language", isPresented: $showAudioDialog, titleVisibility: .visible) {
+            ForEach(downloadAudioStreams, id: \.index) { stream in
+                Button(stream.audioLabel) {
+                    selectedAudioStreamIndex = stream.index
+                    guard let quality = pendingQuality else { return }
                     if pendingDownloadSeason {
                         startSeasonDownload(quality: quality)
                     } else {
                         startDownload(quality: quality)
                     }
+                    pendingQuality = nil
                 }
             }
-            Button("İptal", role: .cancel) {}
+            Button("Cancel", role: .cancel) { pendingQuality = nil }
         }
     }
 
@@ -412,11 +478,11 @@ struct ItemDetailView: View {
                 downloadProgressPopover(task: activeDownload, isQueued: isQueued)
                     .presentationCompactAdaptation(.popover)
             }
-            .alert("İndirmeyi Sil", isPresented: $showDeleteConfirm) {
-                Button("Sil", role: .destructive) { dm.deleteDownload(activeItem.id) }
-                Button("İptal", role: .cancel) {}
+            .alert("Delete Download", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) { dm.deleteDownload(activeItem.id) }
+                Button("Cancel", role: .cancel) {}
             } message: {
-                Text("\"\(activeItem.name)\" cihazdan silinsin mi?")
+                Text("Remove \"\(activeItem.name)\" from your downloads?")
             }
         }
     }
@@ -446,7 +512,7 @@ struct ItemDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if isQueued {
-                    Label("Sırada bekliyor", systemImage: "clock")
+                    Label("Queued", systemImage: "clock")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -470,7 +536,7 @@ struct ItemDetailView: View {
                         dm.pauseDownload(activeItem.id)
                         showDownloadProgress = false
                     } label: {
-                        Label("Duraklat", systemImage: "pause.fill")
+                        Label("Pause", systemImage: "pause.fill")
                             .font(.caption.weight(.medium))
                             .frame(maxWidth: .infinity)
                     }
@@ -480,7 +546,7 @@ struct ItemDetailView: View {
                     dm.deleteDownload(activeItem.id)
                     showDownloadProgress = false
                 } label: {
-                    Label("İptal Et", systemImage: "xmark")
+                    Label("Cancel Download", systemImage: "xmark")
                         .font(.caption.weight(.medium))
                         .frame(maxWidth: .infinity)
                 }
@@ -492,39 +558,85 @@ struct ItemDetailView: View {
     }
 
 
-    private func downloadURL(for item: JellyfinItem, quality: (label: String, bitrate: Int?)) -> URL? {
+    /// Audio streams from the active item's details (for download audio picker).
+    private var downloadAudioStreams: [JellyfinMediaStream] {
+        let item = displayItem.id == activeItem.id ? displayItem : activeItem
+        return item.mediaStreams?.filter(\.isAudio) ?? []
+    }
+
+    private func downloadURL(for item: JellyfinItem, quality: (label: String, bitrate: Int?), audioStreamIndex: Int? = nil) -> URL? {
         if quality.bitrate == nil {
             return DownloadManager.directURL(itemId: item.id, serverURL: appState.serverURL, token: appState.token)
         } else {
-            return DownloadManager.transcodedURL(itemId: item.id, serverURL: appState.serverURL, token: appState.token, maxBitrate: quality.bitrate!)
+            return DownloadManager.transcodedURL(itemId: item.id, serverURL: appState.serverURL, token: appState.token, maxBitrate: quality.bitrate!, audioStreamIndex: audioStreamIndex)
         }
     }
 
     private func startDownload(quality: (label: String, bitrate: Int?)) {
         guard !activeItem.isSeries else { return }
-        guard let url = downloadURL(for: activeItem, quality: quality) else { return }
-        dm.startDownload(item: activeItem, qualityLabel: quality.label, downloadURL: url, appState: appState)
-        let sourceId = displayItem.mediaSources?.first?.id ?? activeItem.id
-        let subtitleStreams = displayItem.mediaStreams?.filter { $0.canDownloadAsSRT } ?? []
-        if !subtitleStreams.isEmpty {
-            dm.downloadSubtitles(itemId: activeItem.id, mediaSourceId: sourceId, streams: subtitleStreams, serverURL: appState.serverURL, token: appState.token)
+        guard let url = downloadURL(for: activeItem, quality: quality, audioStreamIndex: selectedAudioStreamIndex) else { return }
+        defer { selectedAudioStreamIndex = nil }
+        // Use activeItem for the download metadata (correct type/name/id)
+        // but enrich it with full details from displayItem when it matches
+        let itemForDownload = (displayItem.id == activeItem.id) ? displayItem : activeItem
+        dm.startDownload(item: itemForDownload, qualityLabel: quality.label, downloadURL: url, appState: appState)
+        // Save series details if this is an episode on a series page
+        if activeItem.isEpisode, let seriesId = activeItem.seriesId {
+            // Save series-level details (ratings, cast, etc.)
+            if displayItem.isSeries || displayItem.id == seriesId {
+                DownloadManager.saveItemDetails(displayItem)
+            }
+        }
+        // Also download people from series/movie level (displayItem)
+        if let people = displayItem.people, !people.isEmpty {
+            dm.downloadPeople(people, serverURL: appState.serverURL, token: appState.token)
+        }
+        // Fetch and cache full episode/movie details + people photos + subtitles
+        Task {
+            let detailItem: JellyfinItem
+            if let full = try? await JellyfinAPI.shared.getItemDetails(
+                serverURL: appState.serverURL, itemId: activeItem.id,
+                userId: appState.userId, token: appState.token
+            ) {
+                DownloadManager.saveItemDetails(full)
+                if let people = full.people, !people.isEmpty {
+                    dm.downloadPeople(people, serverURL: appState.serverURL, token: appState.token)
+                }
+                detailItem = full
+            } else {
+                detailItem = (displayItem.id == activeItem.id) ? displayItem : activeItem
+            }
+            // Download subtitles using the episode's own mediaStreams (not series-level)
+            let sourceId = detailItem.mediaSources?.first?.id ?? activeItem.id
+            let subtitleStreams = detailItem.mediaStreams?.filter { $0.canDownloadAsSRT } ?? []
+            if !subtitleStreams.isEmpty {
+                dm.downloadSubtitles(itemId: activeItem.id, mediaSourceId: sourceId, streams: subtitleStreams, serverURL: appState.serverURL, token: appState.token)
+            }
         }
     }
 
     private func startSeasonDownload(quality: (label: String, bitrate: Int?)) {
         guard let sid = selectedSeason?.id, let episodes = vm.episodes[sid] else { return }
+        let audioIdx = selectedAudioStreamIndex
+        selectedAudioStreamIndex = nil
+        // Save series details + people photos for offline
+        DownloadManager.saveItemDetails(displayItem)
+        if let people = displayItem.people, !people.isEmpty {
+            dm.downloadPeople(people, serverURL: appState.serverURL, token: appState.token)
+        }
         for ep in episodes {
             guard !dm.isDownloaded(ep.id), !dm.isDownloading(ep.id), !dm.isQueued(ep.id) else { continue }
-            guard let url = downloadURL(for: ep, quality: quality) else { continue }
+            guard let url = downloadURL(for: ep, quality: quality, audioStreamIndex: audioIdx) else { continue }
             dm.startDownload(item: ep, qualityLabel: quality.label, downloadURL: url, appState: appState)
         }
-        // Fetch full details per episode to download subtitles
+        // Fetch full details per episode to download subtitles + cache details
         Task {
             for ep in episodes {
                 guard let details = try? await JellyfinAPI.shared.getItemDetails(
                     serverURL: appState.serverURL, itemId: ep.id,
                     userId: appState.userId, token: appState.token
                 ) else { continue }
+                DownloadManager.saveItemDetails(details)
                 let sourceId = details.mediaSources?.first?.id ?? ep.id
                 let subs = details.mediaStreams?.filter { $0.canDownloadAsSRT } ?? []
                 if !subs.isEmpty {
@@ -540,11 +652,72 @@ struct ItemDetailView: View {
     @ViewBuilder
     private var overviewSection: some View {
         if let overview = activeItem.overview ?? displayItem.overview, !overview.isEmpty {
-            Text(overview)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineSpacing(3)
-                .padding(.horizontal, 16)
+            let needsExpand = overview.count > 150
+            VStack(alignment: .center, spacing: 8) {
+                if overviewExpanded {
+                    Text(overview)
+                        .font(.subheadline)
+                        .foregroundStyle(Color(.label).opacity(0.72))
+                        .lineSpacing(5)
+                        .multilineTextAlignment(.center)
+                        .transition(.opacity)
+                } else {
+                    // Collapsed: leading so truncation is at trailing edge, overlay fits last line
+                    Text(overview)
+                        .font(.subheadline)
+                        .foregroundStyle(Color(.label).opacity(0.72))
+                        .lineSpacing(5)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(alignment: .bottomTrailing) {
+                            if needsExpand {
+                                HStack(spacing: 0) {
+                                    LinearGradient(
+                                        colors: [Color(.systemBackground).opacity(0),
+                                                 Color(.systemBackground)],
+                                        startPoint: .leading, endPoint: .trailing
+                                    )
+                                    .frame(width: 44, height: 18)
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            overviewExpanded = true
+                                        }
+                                    } label: {
+                                        HStack(spacing: 2) {
+                                            Text(String(localized: "Show More", bundle: AppState.currentBundle))
+                                            Image(systemName: "chevron.down")
+                                                .font(.system(size: 10, weight: .semibold))
+                                        }
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.tint)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.leading, 2)
+                                    .frame(height: 18)
+                                    .background(Color(.systemBackground))
+                                }
+                            }
+                        }
+                        .transition(.opacity)
+                }
+
+                if overviewExpanded && needsExpand {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            overviewExpanded = false
+                        }
+                    } label: {
+                        Label(String(localized: "Show Less", bundle: AppState.currentBundle),
+                              systemImage: "chevron.up")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .onChange(of: activeItem.id) { _, _ in overviewExpanded = false }
         }
     }
 
@@ -552,30 +725,29 @@ struct ItemDetailView: View {
 
     @ViewBuilder
     private var ratingsSection: some View {
-        let hasRatings = displayItem.communityRating != nil || displayItem.criticRating != nil
-        if hasRatings {
-            HStack(spacing: 20) {
+        // Episodes don't have standalone ratings; show only for movies and series
+        if !item.isEpisode,
+           displayItem.communityRating != nil || displayItem.criticRating != nil {
+            HStack(spacing: 24) {
                 if let rating = displayItem.communityRating {
-                    HStack(alignment: .bottom, spacing: 8) {
-                        Text("TMDb")
-                            .font(.system(size: 10, weight: .black))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color(red: 0.004, green: 0.706, blue: 0.894), in: RoundedRectangle(cornerRadius: 4))
+                    HStack(alignment: .center, spacing: 8) {
+                        Image("TMDbLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 36, height: 36)
                         Text(String(format: "%.1f", rating))
                             .font(.title3.bold())
                             .foregroundStyle(.primary)
                     }
                 }
                 if let critic = displayItem.criticRating {
-                    VStack(spacing: 2) {
-                        Text("Critic")
-                            .font(.caption2.weight(.bold))
+                    HStack(alignment: .center, spacing: 6) {
+                        Image(systemName: "rosette")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.secondary)
-                        Text("\(Int(critic))")
+                        Text("\(Int(critic))%")
                             .font(.title3.bold())
-                            .foregroundStyle(critic >= 60 ? .green : .red)
+                            .foregroundStyle(.primary)
                     }
                 }
             }
@@ -641,7 +813,9 @@ struct ItemDetailView: View {
                             }
                         }
                         .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
                     }
+                    .scrollClipDisabled()
                     .onAppear {
                         if let hid = highlightId {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -667,9 +841,18 @@ struct ItemDetailView: View {
 
     @ViewBuilder
     private var mediaInfoSection: some View {
-        let source = displayItem.mediaSources?.first
-        let videoStream = displayItem.mediaStreams?.first(where: { $0.isVideo })
-        let audioStream = displayItem.mediaStreams?.first(where: { $0.isAudio })
+        // For episodes, use activeItem's cached details so media info updates per episode
+        let mediaItem: JellyfinItem = {
+            if activeItem.isEpisode,
+               let cached = DownloadManager.loadItemDetails(itemId: activeItem.id),
+               cached.mediaSources != nil || cached.mediaStreams != nil {
+                return cached
+            }
+            return displayItem
+        }()
+        let source = mediaItem.mediaSources?.first
+        let videoStream = mediaItem.mediaStreams?.first(where: { $0.isVideo })
+        let audioStream = mediaItem.mediaStreams?.first(where: { $0.isAudio })
 
         if source != nil || videoStream != nil || audioStream != nil {
             VStack(alignment: .leading, spacing: 12) {
@@ -737,7 +920,11 @@ struct ItemDetailView: View {
             target = nil
         }
         guard let target else { return }
-        AppDelegate.orientationLock = .allButUpsideDown
+        // Rotate to landscape BEFORE presenting the fullScreenCover
+        // to avoid visible portrait→landscape jank during presentation.
+        AppDelegate.orientationLock = .landscape
+        PlayerContainerView.rotate(to: .landscapeRight)
+        try? await Task.sleep(for: .milliseconds(300))
         itemToPlay = target
     }
 
@@ -774,13 +961,13 @@ struct ItemDetailView: View {
     private var playButtonLabel: some View {
         if activeItem.isEpisode || activeItem.isMovie,
            let pos = activeItem.userData?.resumePositionSeconds, pos > 60 {
-            Text(String(format: NSLocalizedString("Continue  %@", comment: ""), formatTimestamp(pos)))
+            Text(verbatim: String(format: String(localized: "Continue  %@", bundle: AppState.currentBundle), formatTimestamp(pos)))
         } else if activeItem.isSeries {
             let ep = selectedSeason.flatMap { vm.resumeEpisode(seasonId: $0.id) }
             if let ep, let pos = ep.userData?.resumePositionSeconds, pos > 60 {
-                Text(String(format: NSLocalizedString("Continue  S%lldE%lld", comment: ""), Int64(ep.parentIndexNumber ?? 1), Int64(ep.indexNumber ?? 1)))
+                Text(verbatim: String(format: String(localized: "Continue  S%lldE%lld", bundle: AppState.currentBundle), Int64(ep.parentIndexNumber ?? 1), Int64(ep.indexNumber ?? 1)))
             } else if let ep, let epNum = ep.indexNumber {
-                Text(String(format: NSLocalizedString("Play  S%lldE%lld", comment: ""), Int64(ep.parentIndexNumber ?? 1), Int64(epNum)))
+                Text(verbatim: String(format: String(localized: "Play  S%lldE%lld", bundle: AppState.currentBundle), Int64(ep.parentIndexNumber ?? 1), Int64(epNum)))
             } else {
                 Text("Play")
             }
@@ -838,9 +1025,12 @@ struct EpisodeThumbnailView: View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack {
                 FallbackAsyncImage(
-                    primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: episode.id, imageType: "Primary", maxWidth: 320),
-                    fallbackURL: episode.seriesId.flatMap {
-                        JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: $0, maxWidth: 640)
+                    primaryURL: DownloadManager.localPosterURL(itemId: episode.id)
+                        ?? DownloadManager.localBackdropURL(itemId: episode.id)
+                        ?? JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: episode.id, imageType: "Primary", maxWidth: 320),
+                    fallbackURL: episode.seriesId.flatMap { sid in
+                        DownloadManager.localBackdropURL(itemId: sid)
+                            ?? JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: sid, maxWidth: 640)
                     },
                     placeholder: RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemGray5))
@@ -939,40 +1129,51 @@ struct CastCardView: View {
     let person: JellyfinPerson
     let serverURL: String
 
-    var body: some View {
-        VStack(spacing: 8) {
-            let url = JellyfinAPI.shared.personImageURL(serverURL: serverURL, person: person)
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                default:
-                    Circle().fill(Color(.systemGray5))
-                        .overlay(
-                            Text(String(person.name.prefix(1)))
-                                .font(.title2.bold())
-                                .foregroundStyle(.secondary)
-                        )
-                }
-            }
-            .frame(width: 72, height: 72)
-            .clipShape(Circle())
+    private var placeholder: some View {
+        Circle().fill(Color(.systemGray5))
+            .overlay(
+                Text(String(person.name.prefix(1)))
+                    .font(.title2.bold())
+                    .foregroundStyle(.secondary)
+            )
+    }
 
-            VStack(spacing: 2) {
-                Text(person.name)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                if let role = person.role, !role.isEmpty {
-                    Text(role)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+    var body: some View {
+        NavigationLink {
+            PersonDetailView(person: person)
+        } label: {
+            VStack(spacing: 8) {
+                AsyncImage(url: DownloadManager.localPersonURL(personId: person.id)
+                    ?? JellyfinAPI.shared.personImageURL(serverURL: serverURL, person: person)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    case .failure:
+                        placeholder
+                    default:
+                        placeholder.overlay(ProgressView().scaleEffect(0.6).tint(.secondary))
+                    }
                 }
+                .frame(width: 72, height: 72)
+                .clipShape(Circle())
+
+                VStack(spacing: 2) {
+                    Text(person.name)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                    if let role = person.role, !role.isEmpty {
+                        Text(role)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(width: 80)
             }
-            .frame(width: 80)
         }
+        .buttonStyle(.plain)
     }
 }
 

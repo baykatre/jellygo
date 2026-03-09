@@ -23,6 +23,9 @@ struct DownloadsView: View {
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }
+            .navigationDestination(for: JellyfinPerson.self) { person in
+                PersonDetailView(person: person)
+            }
             .alert("Delete All Episodes?", isPresented: Binding(
                 get: { showDeleteSeriesConfirm != nil },
                 set: { if !$0 { showDeleteSeriesConfirm = nil } }
@@ -92,7 +95,7 @@ struct DownloadsView: View {
             (groups[$0]?.first?.seriesName ?? "") < (groups[$1]?.first?.seriesName ?? "")
         }
         return VStack(alignment: .leading, spacing: 12) {
-            Text("Diziler")
+            Text("TV Shows")
                 .font(.title3.bold())
                 .padding(.horizontal, 20)
 
@@ -108,7 +111,7 @@ struct DownloadsView: View {
                             Button(role: .destructive) {
                                 showDeleteSeriesConfirm = sid
                             } label: {
-                                Label("Tümünü Sil (\(groupEps.count) bölüm)", systemImage: "trash")
+                                Label("Delete All (\(groupEps.count) episodes)", systemImage: "trash")
                             }
                         }
                     }
@@ -131,7 +134,8 @@ struct DownloadsView: View {
             primaryImageAspectRatio: nil, genres: nil,
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
-            childCount: nil
+            childCount: nil, providerIds: nil,
+            endDate: nil, productionLocations: nil
         )
     }
 
@@ -197,7 +201,8 @@ struct DownloadsView: View {
             primaryImageAspectRatio: nil, genres: nil,
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
-            childCount: nil
+            childCount: nil, providerIds: nil,
+            endDate: nil, productionLocations: nil
         )
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
@@ -406,16 +411,16 @@ struct DownloadsView: View {
     }
 
     private func activeThumbnailURL(_ task: ActiveDownload) -> URL? {
-        guard let base = URL(string: appState.serverURL) else { return nil }
-        // Episodes: use the episode's Primary image (16:9 thumbnail)
-        // Movies / series fallback: use Backdrop of the series or item
-        let isEpisode = task.seriesId != nil
-        let path: String
-        if isEpisode {
-            path = "Items/\(task.id)/Images/Primary"
-        } else {
-            path = "Items/\(task.id)/Images/Backdrop"
+        // Prefer local cache
+        if let local = DownloadManager.localBackdropURL(itemId: task.id)
+            ?? DownloadManager.localPosterURL(itemId: task.id) {
+            return local
         }
+        guard let base = URL(string: appState.serverURL) else { return nil }
+        let isEpisode = task.seriesId != nil
+        let path = isEpisode
+            ? "Items/\(task.id)/Images/Primary"
+            : "Items/\(task.id)/Images/Backdrop"
         var c = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)
         c?.queryItems = [URLQueryItem(name: "maxWidth", value: "320"),
                          URLQueryItem(name: "api_key", value: appState.token)]

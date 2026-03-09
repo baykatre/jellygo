@@ -116,3 +116,74 @@
 "Sunucu yanıtı okunamadı" = "Could not read server response";
 "Bağlantı hatası: %@" = "Connection error: %@";
 "Sunucu hatası: %d" = "Server error: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Delete All Episodes?";
+"Delete Download?" = "Delete Download?";
+"Delete" = "Delete";
+"Downloading" = "Downloading";
+"Failed" = "Failed";
+"Transcoding" = "Transcoding";
+"Direct" = "Direct";
+"Waiting" = "Waiting";
+"Delete Download" = "Delete Download";
+"Special Episodes" = "Special Episodes";
+"Episode %lld" = "Episode %lld";
+"Delete Episode?" = "Delete Episode?";
+
+/* Detail Extended */
+"Download This Episode" = "Download This Episode";
+"Download Entire Season" = "Download Entire Season";
+"Resolution" = "Resolution";
+"Original (Direct)" = "Original (Direct)";
+"Download Details" = "Download Details";
+"Queued" = "Queued";
+"Pause" = "Pause";
+"Cancel Download" = "Cancel Download";
+"Media Info" = "Media Info";
+"1 Season" = "1 Season";
+"%lld Seasons" = "%lld Seasons";
+"1 Episode" = "1 Episode";
+"%lld Episodes" = "%lld Episodes";
+"Critic" = "Critic";
+"Download started" = "Download started";
+
+/* Library Extended */
+"Favorites" = "Favorites";
+"My Favorites" = "My Favorites";
+"No Favorites" = "No Favorites";
+"Add content you like to your favorites." = "Add content you like to your favorites.";
+
+/* Auth Extended */
+"Saved Servers" = "Saved Servers";
+"Add existing account" = "Add existing account";
+"Sign in as a different user" = "Sign in as a different user";
+
+/* Player */
+"Quality" = "Quality";
+"Dismiss" = "Dismiss";
+"Playback error" = "Playback error";
+"Select an episode to play" = "Select an episode to play";
+"No playable source found" = "No playable source found";
+"Tracks" = "Tracks";
+"Stats" = "Stats";
+"Done" = "Done";
+
+/* Offline */
+"Offline" = "Offline";
+"You're offline. Download content while connected to browse here." = "You're offline. Download content while connected to browse here.";
+"No internet connection — showing downloaded content" = "No internet connection — showing downloaded content";
+
+/* Overview */
+"Show More" = "Show More";
+"Show Less" = "Show Less";
+
+/* Home Extended */
+"Download Started" = "Download Started";
+"System Default" = "System Default";
+"Off" = "Off";
+"Active" = "Active";
+"Session expired. Re-add the account from settings." = "Session expired. Re-add the account from settings.";
+"App Language" = "App Language";
+"Restart App" = "Restart App";
+"The app will close to apply the new language." = "The app will close to apply the new language.";

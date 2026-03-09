@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "홈";
+"Library" = "라이브러리";
+"Search" = "검색";
+"Profile" = "프로필";
+
+/* Home */
+"Continue Watching" = "이어보기";
+"Next Up" = "다음 편";
+"Latest Movies" = "최신 영화";
+"Latest TV Shows" = "최신 TV 시리즈";
+"Libraries" = "라이브러리";
+"No Content Found" = "콘텐츠를 찾을 수 없음";
+
+/* Profile */
+"Server" = "서버";
+"Address" = "주소";
+"Language Settings" = "언어 설정";
+"Sign Out" = "로그아웃";
+"Are you sure you want to sign out?" = "로그아웃하시겠습니까?";
+"Cancel" = "취소";
+
+/* Search */
+"Recent Searches" = "최근 검색";
+"Clear" = "지우기";
+"Movies, series..." = "영화, 시리즈...";
+"Search for movies or series" = "영화 또는 시리즈 검색";
+"Start typing the name" = "이름을 입력하세요";
+"All" = "전체";
+
+/* Actions */
+"Play" = "재생";
+"More Info" = "더보기";
+"Continue  %@" = "이어보기  %@";
+"Play  S%lldE%lld" = "재생  S%lldE%lld";
+"Continue  S%lldE%lld" = "이어보기  S%lldE%lld";
+"Add to Favorites" = "즐겨찾기에 추가";
+"Remove from Favorites" = "즐겨찾기에서 제거";
+"Mark as Watched" = "시청 완료로 표시";
+"Mark as Unwatched" = "미시청으로 표시";
+"Watched" = "시청 완료";
+"Save" = "저장";
+"Rate" = "평가";
+"Favorite" = "즐겨찾기";
+"Download" = "다운로드";
+
+/* Detail */
+"Select Season" = "시즌 선택";
+"Season" = "시즌";
+"Cast & Crew" = "출연진 및 제작진";
+
+/* Item Types */
+"Movie" = "영화";
+"Series" = "시리즈";
+"Episode" = "에피소드";
+
+/* Runtime */
+"%lld min." = "%lld분.";
+"%lld min" = "%lld분";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Jellyfin 서버에 연결";
+"Server Address" = "서버 주소";
+"Connect" = "연결";
+"Sign in" = "로그인";
+"Username" = "사용자 이름";
+"Password" = "비밀번호";
+"Sign In" = "로그인";
+"Login" = "로그인";
+
+/* Library */
+"No Libraries Found" = "라이브러리를 찾을 수 없음";
+"Movies" = "영화";
+"TV Shows" = "TV 시리즈";
+"Music" = "음악";
+"Books" = "도서";
+"Photos" = "사진";
+"Playlists" = "재생목록";
+
+/* Accounts */
+"Accounts" = "계정";
+"Add" = "추가";
+"Tap to switch · Long press to remove" = "탭하여 전환 · 길게 눌러 제거";
+"Switch to %@" = "%@로 전환";
+"Edit Label" = "레이블 편집";
+"Remove Account" = "계정 제거";
+"Remove %@ from this device?" = "이 기기에서 %@을(를) 제거하시겠습니까?";
+"Account Already Added" = "이미 추가된 계정";
+"e.g. Home, Remote, VPN…" = "예: 집, 원격, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "홈 화면 배지 및 계정 버블에 표시되는 레이블입니다. 서버 주소를 사용하려면 비워두세요.";
+
+/* Settings */
+"Settings" = "설정";
+"Playback" = "재생";
+"Player Engine" = "플레이어 엔진";
+"Default Quality" = "기본 화질";
+"Auto (WiFi → Direct, Cellular → 720p)" = "자동 (WiFi → 직접 재생, 셀룰러 → 720p)";
+"Audio" = "오디오";
+"Preferred Language" = "선호 언어";
+"Subtitles" = "자막";
+"Enable by Default" = "기본으로 활성화";
+"About" = "정보";
+"Version" = "버전";
+"Jellyfin Project" = "Jellyfin 프로젝트";
+"Sign out of %@?" = "%@에서 로그아웃하시겠습니까?";
+"Remove" = "제거";
+
+/* Downloads */
+"Downloads" = "다운로드";
+"No Downloads" = "다운로드 없음";
+"Downloaded content will appear here." = "다운로드한 콘텐츠가 여기에 표시됩니다.";
+
+/* Errors */
+"Invalid server address" = "잘못된 서버 주소";
+"Invalid username or password" = "잘못된 사용자 이름 또는 비밀번호";
+"This is not a Jellyfin server" = "이것은 Jellyfin 서버가 아닙니다";
+"Could not read server response" = "서버 응답을 읽을 수 없습니다";
+"Connection error: %@" = "연결 오류: %@";
+"Server error: %d" = "서버 오류: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "모든 에피소드를 삭제하시겠습니까?";
+"Delete Download?" = "다운로드를 삭제하시겠습니까?";
+"Delete" = "삭제";
+"Remove \"%@\" from your downloads?" = "\"%@\"을(를) 다운로드에서 제거하시겠습니까?";
+"Remove all downloaded episodes of \"%@\"?" = "\"%@\"의 모든 다운로드된 에피소드를 제거하시겠습니까?";
+"Delete all %lld episodes of \"%@\"?" = "\"%@\"의 %lld개 에피소드를 모두 삭제하시겠습니까?";
+"Downloading" = "다운로드 중";
+"Failed" = "실패";
+"Transcoding" = "트랜스코딩 중";
+"Direct" = "직접 재생";
+"Waiting" = "대기 중";
+"Delete Download" = "다운로드 삭제";
+"Special Episodes" = "특별 에피소드";
+"Episode %lld" = "에피소드 %lld";
+"Delete Episode?" = "에피소드를 삭제하시겠습니까?";
+
+/* Detail Extended */
+"Download This Episode" = "이 에피소드 다운로드";
+"Download Entire Season" = "전체 시즌 다운로드";
+"Resolution" = "해상도";
+"Original (Direct)" = "원본 (직접 재생)";
+"Download Details" = "다운로드 세부 정보";
+"Queued" = "대기열";
+"Pause" = "일시 중지";
+"Cancel Download" = "다운로드 취소";
+"Media Info" = "미디어 정보";
+"1 Season" = "1 시즌";
+"%lld Seasons" = "%lld 시즌";
+"1 Episode" = "1 에피소드";
+"%lld Episodes" = "%lld 에피소드";
+"Critic" = "평론가";
+"Download started" = "다운로드 시작됨";
+
+/* Library Extended */
+"Favorites" = "즐겨찾기";
+"My Favorites" = "내 즐겨찾기";
+"No Favorites" = "즐겨찾기 없음";
+"Add content you like to your favorites." = "좋아하는 콘텐츠를 즐겨찾기에 추가하세요.";
+
+/* Auth Extended */
+"Saved Servers" = "저장된 서버";
+"Add existing account" = "기존 계정 추가";
+"Sign in as a different user" = "다른 사용자로 로그인";
+
+/* Player */
+"Quality" = "화질";
+"Dismiss" = "닫기";
+"Playback error" = "재생 오류";
+"Select an episode to play" = "재생할 에피소드 선택";
+"No playable source found" = "재생 가능한 소스를 찾을 수 없음";
+"Tracks" = "트랙";
+"Stats" = "통계";
+"Done" = "완료";
+
+/* Offline */
+"Offline" = "오프라인";
+"You're offline. Download content while connected to browse here." = "오프라인 상태입니다. 연결된 상태에서 콘텐츠를 다운로드하면 여기서 탐색할 수 있습니다.";
+"No internet connection — showing downloaded content" = "인터넷 연결 없음 — 다운로드된 콘텐츠 표시 중";
+
+/* Home Extended */
+"Download Started" = "다운로드 시작됨";
+"System Default" = "시스템 기본값";
+"Off" = "끄기";
+"Active" = "활성";
+"Session expired. Re-add the account from settings." = "세션이 만료되었습니다. 설정에서 계정을 다시 추가하세요.";
+"App Language" = "앱 언어";
+"Restart App" = "앱 재시작";
+"The app will close to apply the new language." = "새 언어를 적용하기 위해 앱이 종료됩니다.";
+
+/* Overview */
+"Show More" = "더 보기";
+"Show Less" = "접기";

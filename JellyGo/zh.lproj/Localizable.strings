@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "首页";
+"Library" = "媒体库";
+"Search" = "搜索";
+"Profile" = "个人资料";
+
+/* Home */
+"Continue Watching" = "继续观看";
+"Next Up" = "即将播出";
+"Latest Movies" = "最新电影";
+"Latest TV Shows" = "最新剧集";
+"Libraries" = "媒体库";
+"No Content Found" = "未找到内容";
+
+/* Profile */
+"Server" = "服务器";
+"Address" = "地址";
+"Language Settings" = "语言设置";
+"Sign Out" = "退出登录";
+"Are you sure you want to sign out?" = "确定要退出登录吗？";
+"Cancel" = "取消";
+
+/* Search */
+"Recent Searches" = "最近搜索";
+"Clear" = "清除";
+"Movies, series..." = "电影、剧集...";
+"Search for movies or series" = "搜索电影或剧集";
+"Start typing the name" = "开始输入名称";
+"All" = "全部";
+
+/* Actions */
+"Play" = "播放";
+"More Info" = "更多信息";
+"Continue  %@" = "继续  %@";
+"Play  S%lldE%lld" = "播放  S%lldE%lld";
+"Continue  S%lldE%lld" = "继续  S%lldE%lld";
+"Add to Favorites" = "添加到收藏";
+"Remove from Favorites" = "从收藏中移除";
+"Mark as Watched" = "标记为已看";
+"Mark as Unwatched" = "标记为未看";
+"Watched" = "已看";
+"Save" = "保存";
+"Rate" = "评分";
+"Favorite" = "收藏";
+"Download" = "下载";
+
+/* Detail */
+"Select Season" = "选择季";
+"Season" = "第";
+"Cast & Crew" = "演员与制作";
+
+/* Item Types */
+"Movie" = "电影";
+"Series" = "剧集";
+"Episode" = "集";
+
+/* Runtime */
+"%lld min." = "%lld 分钟.";
+"%lld min" = "%lld 分钟";
+
+/* Auth */
+"Connect to your Jellyfin server" = "连接到您的 Jellyfin 服务器";
+"Server Address" = "服务器地址";
+"Connect" = "连接";
+"Sign in" = "登录";
+"Username" = "用户名";
+"Password" = "密码";
+"Sign In" = "登录";
+"Login" = "登录";
+
+/* Library */
+"No Libraries Found" = "未找到媒体库";
+"Movies" = "电影";
+"TV Shows" = "剧集";
+"Music" = "音乐";
+"Books" = "图书";
+"Photos" = "照片";
+"Playlists" = "播放列表";
+
+/* Accounts */
+"Accounts" = "账户";
+"Add" = "添加";
+"Tap to switch · Long press to remove" = "轻触切换 · 长按删除";
+"Switch to %@" = "切换到 %@";
+"Edit Label" = "编辑标签";
+"Remove Account" = "删除账户";
+"Remove %@ from this device?" = "从此设备删除 %@ 吗？";
+"Account Already Added" = "账户已添加";
+"e.g. Home, Remote, VPN…" = "例如：家、远程、VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "显示在主屏幕徽章和账户气泡中的标签。留空则使用服务器地址。";
+
+/* Settings */
+"Settings" = "设置";
+"Playback" = "播放";
+"Player Engine" = "播放引擎";
+"Default Quality" = "默认画质";
+"Auto (WiFi → Direct, Cellular → 720p)" = "自动 (WiFi → 直连, 蜂窝网络 → 720p)";
+"Audio" = "音频";
+"Preferred Language" = "首选语言";
+"Subtitles" = "字幕";
+"Enable by Default" = "默认启用";
+"About" = "关于";
+"Version" = "版本";
+"Jellyfin Project" = "Jellyfin 项目";
+"Sign out of %@?" = "退出 %@ 吗？";
+"Remove" = "删除";
+
+/* Downloads */
+"Downloads" = "下载";
+"No Downloads" = "暂无下载";
+"Downloaded content will appear here." = "下载的内容将显示在此处。";
+
+/* Errors */
+"Invalid server address" = "服务器地址无效";
+"Invalid username or password" = "用户名或密码无效";
+"This is not a Jellyfin server" = "这不是 Jellyfin 服务器";
+"Could not read server response" = "无法读取服务器响应";
+"Connection error: %@" = "连接错误：%@";
+"Server error: %d" = "服务器错误：%d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "删除所有集数？";
+"Delete Download?" = "删除下载？";
+"Delete" = "删除";
+"Remove \"%@\" from your downloads?" = "从下载中删除 \"%@\"？";
+"Remove all downloaded episodes of \"%@\"?" = "删除 \"%@\" 的所有已下载集数？";
+"Delete all %lld episodes of \"%@\"?" = "删除 \"%@\" 的全部 %lld 集？";
+"Downloading" = "下载中";
+"Failed" = "失败";
+"Transcoding" = "转码中";
+"Direct" = "直连";
+"Waiting" = "等待中";
+"Delete Download" = "删除下载";
+"Special Episodes" = "特别篇";
+"Episode %lld" = "第 %lld 集";
+"Delete Episode?" = "删除这一集？";
+
+/* Detail Extended */
+"Download This Episode" = "下载此集";
+"Download Entire Season" = "下载整季";
+"Resolution" = "分辨率";
+"Original (Direct)" = "原始（直连）";
+"Download Details" = "下载详情";
+"Queued" = "排队中";
+"Pause" = "暂停";
+"Cancel Download" = "取消下载";
+"Media Info" = "媒体信息";
+"1 Season" = "1 季";
+"%lld Seasons" = "%lld 季";
+"1 Episode" = "1 集";
+"%lld Episodes" = "%lld 集";
+"Critic" = "影评";
+"Download started" = "下载已开始";
+
+/* Library Extended */
+"Favorites" = "收藏";
+"My Favorites" = "我的收藏";
+"No Favorites" = "暂无收藏";
+"Add content you like to your favorites." = "将您喜欢的内容添加到收藏夹。";
+
+/* Auth Extended */
+"Saved Servers" = "已保存的服务器";
+"Add existing account" = "添加现有账户";
+"Sign in as a different user" = "以其他用户身份登录";
+
+/* Player */
+"Quality" = "画质";
+"Dismiss" = "关闭";
+"Playback error" = "播放错误";
+"Select an episode to play" = "选择要播放的集数";
+"No playable source found" = "未找到可播放的来源";
+"Tracks" = "音轨";
+"Stats" = "统计";
+"Done" = "完成";
+
+/* Offline */
+"Offline" = "离线";
+"You're offline. Download content while connected to browse here." = "您处于离线状态。在连接时下载内容以在此处浏览。";
+"No internet connection — showing downloaded content" = "无网络连接 — 显示已下载内容";
+
+/* Home Extended */
+"Download Started" = "下载已开始";
+"System Default" = "系统默认";
+"Off" = "关闭";
+"Active" = "活跃";
+"Session expired. Re-add the account from settings." = "会话已过期。请从设置中重新添加账户。";
+"App Language" = "应用语言";
+"Restart App" = "重启应用";
+"The app will close to apply the new language." = "应用将关闭以应用新语言。";
+
+/* Overview */
+"Show More" = "显示更多";
+"Show Less" = "收起";

@@ -41,6 +41,9 @@ struct SearchView: View {
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }
+            .navigationDestination(for: JellyfinPerson.self) { person in
+                PersonDetailView(person: person)
+            }
         }
     }
 

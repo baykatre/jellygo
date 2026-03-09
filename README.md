@@ -10,30 +10,29 @@
 ## ✨ Features
 
 - **Hero Browse:** Full-screen hero banner with featured content, Continue Watching, Next Up, Latest Movies & Shows sections on the home screen.
-- **Detail Pages:** Backdrop, logo, metadata chips, genres, ratings, cast & crew, season/episode browser with resume highlighting.
-- **Dual Player Engine:** Switch between the native AVFoundation player and an in-app VLC player (MobileVLCKit) from Profile settings.
-- **Native Player:** AVKit-based playback with subtitle/audio track selection, skip controls, and progress reporting.
-- **VLC Player:** MobileVLCKit-powered player with pinch-to-zoom (capped at screen-fill scale), double-tap punch zoom, subtitle/audio track picker, and forced landscape orientation.
+- **Detail Pages:** Backdrop with parallax, logo, metadata chips, genres, ratings (TMDb & critic), cast & crew, season/episode browser with resume highlighting.
+- **Custom Player:** VLC-powered player with pinch-to-zoom, brightness/volume swipe gestures with glass indicator, subtitle/audio track picker, transcode audio switching, and aspect-fill by default.
 - **Resume Playback:** Picks up exactly where you left off — both on the detail page and inside the player.
 - **Playback Reporting:** Reports start, progress (every 10 s), and stop events to the Jellyfin server.
 - **Search:** Full-text search across your entire library.
 - **Library Browser:** Browse all Jellyfin libraries with grid layout; Favorites card at top with a random cover from your favorite items.
 - **Favorites & Watched:** Toggle favorite and watched state directly from the detail page.
-- **Apple Liquid Glass UI:** Detail page action buttons use iOS 26 native `glassEffect` with Capsule shape.
+- **Person Detail:** Tap any cast or crew member to see their filmography.
+- **Apple Liquid Glass UI:** Action buttons and player indicators use iOS 26 native `glassEffect`.
 - **Secure Auth:** Token-based login with Keychain storage; session restores automatically on launch.
-- **Multi-Account:** Switch between multiple Jellyfin servers/accounts; tokens shared across URL variants of the same server.
-- **Localization:** English and Turkish string tables included.
+- **Multi-Account & Quick Switch:** Seamlessly switch between multiple Jellyfin servers and accounts without re-authenticating. Tokens are shared across URL variants of the same server (e.g. local IP vs domain), so you never get logged out when your network changes.
+- **Localization:** 18 languages — English, Turkish, Arabic, Azerbaijani, Danish, German, Spanish, Persian, French, Italian, Japanese, Korean, Dutch, Portuguese, Russian, Swedish, Ukrainian, Chinese.
 
-### Offline Downloads
+### Offline & Downloads
 
+- **Offline Mode:** Dedicated offline view with hero banner, continue watching, next up, and dynamic content sections — all from local cache.
 - **Background Downloads:** Download movies and episodes for offline viewing via URLSession background sessions.
 - **Quality Selection:** Choose Direct (original file) or transcoded quality (1080p / 720p / 480p / 360p) per download.
+- **Audio Language Selection:** When downloading with transcode, choose which audio language to include.
+- **Subtitle Downloads:** Text-based subtitle tracks (SRT) are automatically downloaded alongside the video. Auto-repair downloads missing subtitles when viewing online.
 - **Stable Queue:** Active, paused, and queued downloads maintain stable ordering in the Downloads tab.
 - **Pause & Resume:** Downloads can be paused mid-way and resumed from the exact byte offset.
 - **Kill Recovery:** Downloads in progress when the app is killed are automatically recovered on next launch.
-- **Subtitle Downloads:** Text-based subtitle tracks (SRT) are automatically downloaded alongside the video. Image-based codecs (PGS, VobSub) are filtered out. Subtitles load automatically during offline VLC playback.
-- **Download Detail Sheet:** From a downloaded item's detail page, view all downloaded episodes per series, see file sizes, and delete individual episodes.
-- **Auto-dismiss:** The download detail sheet closes automatically when the last episode is deleted.
 - **In-App Banner:** A banner notification appears when a download starts; tap it to open the item's detail page directly.
 - **Progress Popover:** Tap the download button on an actively downloading item to see a live progress popover with pause and cancel controls.
 
@@ -49,13 +48,11 @@
 |---|---|
 | Language | Swift 6 |
 | UI Framework | SwiftUI |
-| Native Player | AVFoundation / AVKit |
-| VLC Player | MobileVLCKit 3.7.3 (XCFramework) |
+| Player Engine | MobileVLCKit 3.7.3 (XCFramework) |
 | Networking | URLSession + async/await |
 | Background Downloads | URLSession background session + URLSessionDownloadDelegate |
 | Auth Storage | Keychain |
 | State Management | ObservableObject / @EnvironmentObject |
-| Dependency Manager | Manual XCFramework (MobileVLCKit) |
 
 ## 🚀 Getting Started
 
@@ -75,12 +72,19 @@
 
 2. Open `JellyGo.xcodeproj` in Xcode.
 
-3. The MobileVLCKit XCFramework is included in the repo under `MobileVLCKit-binary/`. It is already linked in the project — no additional setup needed.
+3. The MobileVLCKit XCFramework is included locally under `MobileVLCKit-binary/` (not tracked in git due to size). Download it from the [MobileVLCKit releases](https://code.videolan.org/videolan/VLCKit/-/releases) and place it there.
 
 4. Select your target device/simulator and hit **Run**.
 
-### Player Engine
+### Quick Switch Setup
 
-Go to **Profile → Player** and choose between:
-- **Original** — native AVFoundation/AVKit player
-- **VLC** — in-app MobileVLCKit player (useful for formats AVFoundation doesn't support)
+If you access your Jellyfin server from different URLs (e.g. `192.168.1.100:8096` at home and `jellyfin.example.com` outside), add both URLs to the same account:
+
+1. Go to **Settings → Accounts**.
+2. Log in with your first server URL.
+3. Tap **Add Server** and log in with the second URL using the same credentials.
+4. JellyGo automatically shares your session token across both URLs, so switching networks never logs you out.
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

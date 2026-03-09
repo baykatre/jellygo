@@ -57,7 +57,7 @@ struct HomeView: View {
                     .font(.title2)
                     .foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("İndirme Başladı")
+                    Text("Download Started")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                     Text(entry.seriesName.map { "\($0) · " + entry.name } ?? entry.name)
@@ -95,8 +95,12 @@ struct HomeView: View {
                             items: vm.featuredItems,
                             serverURL: vm.serverURL,
                             onPlay: { item in
-                                AppDelegate.orientationLock = .allButUpsideDown
-                                heroPlayItem = item
+                                AppDelegate.orientationLock = .landscape
+                                PlayerContainerView.rotate(to: .landscapeRight)
+                                Task {
+                                    try? await Task.sleep(for: .milliseconds(300))
+                                    heroPlayItem = item
+                                }
                             }
                         )
                     }
@@ -157,6 +161,9 @@ struct HomeView: View {
             .navigationDestination(for: JellyfinLibrary.self) { library in
                 LibraryView(library: library)
             }
+            .navigationDestination(for: JellyfinPerson.self) { person in
+                PersonDetailView(person: person)
+            }
             .overlay(alignment: .bottom) {
                 if let error = vm.error {
                     errorBanner(message: error)
@@ -164,7 +171,7 @@ struct HomeView: View {
             }
             .fullScreenCover(item: $heroPlayItem, onDismiss: {
                 AppDelegate.orientationLock = .portrait
-                PlayerView.rotate(to: .portrait)
+                PlayerContainerView.rotate(to: .portrait)
             }) { item in
                 PlayerContainerView(item: item)
                     .environmentObject(appState)
@@ -399,15 +406,29 @@ struct SettingsView: View {
     var body: some View {
         List {
             playbackSection
+            appLanguageSection
             audioSection
             subtitlesSection
             aboutSection
-            signOutSection
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             accountsBubbles
         }
         .navigationTitle("Settings")
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    showLogoutAlert = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                        Text("Sign Out")
+                    }
+                    .foregroundStyle(.red)
+                }
+            }
+        }
         .sheet(isPresented: $showAddAccountSheet) {
             ServerView()
                 .environmentObject(appState)
@@ -590,12 +611,6 @@ struct SettingsView: View {
 
     private var playbackSection: some View {
         Section("Playback") {
-            Picker("Player Engine", selection: $appState.playerEngine) {
-                ForEach(PlayerEngine.allCases, id: \.self) { engine in
-                    Text(engine.rawValue).tag(engine)
-                }
-            }
-
             Picker("Default Quality", selection: $appState.defaultVideoQuality) {
                 ForEach(VideoQuality.allCases) { quality in
                     qualityLabel(for: quality).tag(quality)
@@ -610,6 +625,14 @@ struct SettingsView: View {
             Text("Auto (WiFi → Direct, Cellular → 720p)")
         } else {
             Text(quality.rawValue)
+        }
+    }
+
+    // MARK: App Language
+
+    private var appLanguageSection: some View {
+        Section("Language Settings") {
+            AppLanguagePicker(selection: $appState.appLanguage)
         }
     }
 
@@ -638,6 +661,11 @@ struct SettingsView: View {
                     includeOff: false
                 )
             }
+
+            NavigationLink("Subtitle Appearance") {
+                SubtitleAppearanceView()
+                    .environmentObject(appState)
+            }
         }
     }
 
@@ -653,17 +681,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: Sign Out
-
-    private var signOutSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showLogoutAlert = true
-            } label: {
-                Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-            }
-        }
-    }
 }
 
 
@@ -714,28 +731,37 @@ struct AliasEditSheet: View {
 
 // MARK: - Language Picker
 
+// MARK: - Media Language Picker (for audio/subtitle track preference)
+
 private struct LanguagePicker: View {
-    let label: String
+    let label: LocalizedStringKey
     @Binding var selection: String
     let includeOff: Bool
 
-    private let languages: [(name: String, code: String)] = [
-        ("System Default", ""),
-        ("English", "eng"),
-        ("Turkish", "tur"),
-        ("German", "deu"),
-        ("French", "fra"),
-        ("Spanish", "spa"),
-        ("Italian", "ita"),
-        ("Portuguese", "por"),
-        ("Dutch", "nld"),
-        ("Russian", "rus"),
-        ("Polish", "pol"),
-        ("Japanese", "jpn"),
-        ("Korean", "kor"),
-        ("Chinese", "chi"),
-        ("Arabic", "ara"),
-    ]
+    private var languages: [(name: String, code: String)] {
+        [
+            (String(localized: "System Default"), ""),
+            ("Arabic (عربي)", "ara"),
+            ("Azerbaijani (Azərbaycanca)", "aze"),
+            ("Chinese (中文)", "chi"),
+            ("Danish (Dansk)", "dan"),
+            ("Dutch (Nederlands)", "nld"),
+            ("English", "eng"),
+            ("Farsi (فارسی)", "per"),
+            ("French (Français)", "fra"),
+            ("German (Deutsch)", "deu"),
+            ("Italian (Italiano)", "ita"),
+            ("Japanese (日本語)", "jpn"),
+            ("Korean (한국어)", "kor"),
+            ("Polish (Polski)", "pol"),
+            ("Portuguese (Português)", "por"),
+            ("Russian (Русский)", "rus"),
+            ("Spanish (Español)", "spa"),
+            ("Swedish (Svenska)", "swe"),
+            ("Turkish (Türkçe)", "tur"),
+            ("Ukrainian (Українська)", "ukr"),
+        ]
+    }
 
     var body: some View {
         Picker(label, selection: $selection) {
@@ -743,9 +769,131 @@ private struct LanguagePicker: View {
                 Text("Off").tag("off")
             }
             ForEach(languages, id: \.code) { lang in
-                Text(lang.name).tag(lang.code)
+                Text(verbatim: lang.name).tag(lang.code)
             }
         }
+    }
+}
+
+// MARK: - App UI Language Picker
+
+private struct AppLanguagePicker: View {
+    @Binding var selection: String
+
+    private let uiLanguages: [(name: String, code: String)] = [
+        ("System Default", ""),
+        ("Azərbaycan dili", "az"),
+        ("Dansk", "da"),
+        ("Deutsch", "de"),
+        ("English", "en"),
+        ("Español", "es"),
+        ("Français", "fr"),
+        ("Italiano", "it"),
+        ("日本語", "ja"),
+        ("한국어", "ko"),
+        ("Nederlands", "nl"),
+        ("Português", "pt"),
+        ("Русский", "ru"),
+        ("Svenska", "sv"),
+        ("Türkçe", "tr"),
+        ("Українська", "uk"),
+        ("فارسی", "fa"),
+        ("العربية", "ar"),
+        ("中文", "zh"),
+    ]
+
+    var body: some View {
+        Picker("App Language", selection: $selection) {
+            ForEach(uiLanguages, id: \.code) { lang in
+                Text(verbatim: lang.name).tag(lang.code)
+            }
+        }
+    }
+}
+
+// MARK: - Subtitle Appearance View
+
+struct SubtitleAppearanceView: View {
+    @EnvironmentObject private var appState: AppState
+
+    private var previewFont: Font {
+        let base: Font = switch appState.subtitleFontSize {
+        case 25: .caption
+        case 15: .title3
+        case 10: .title2
+        default: .body
+        }
+        return appState.subtitleBold ? base.bold() : base
+    }
+
+    private var previewColor: Color {
+        appState.subtitleColor == "yellow" ? .yellow : .white
+    }
+
+    var body: some View {
+        List {
+            // Preview
+            Section {
+                ZStack {
+                    LinearGradient(
+                        colors: [Color(white: 0.12), Color(white: 0.05)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    VStack(spacing: 2) {
+                        subtitleLine("The quick brown fox jumps")
+                        subtitleLine("over the lazy dog.")
+                    }
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 20)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            } header: {
+                Text("Preview")
+            }
+
+            // Font Size
+            Section("Font Size") {
+                Picker("Size", selection: $appState.subtitleFontSize) {
+                    Text("Small").tag(25)
+                    Text("Medium").tag(20)
+                    Text("Large").tag(15)
+                    Text("Extra Large").tag(10)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+            }
+
+            // Style
+            Section("Style") {
+                Toggle("Bold", isOn: $appState.subtitleBold)
+
+                Picker("Color", selection: $appState.subtitleColor) {
+                    Text("White").tag("white")
+                    Text("Yellow").tag("yellow")
+                }
+
+                Toggle("Background Box", isOn: $appState.subtitleBackgroundEnabled)
+            }
+        }
+        .navigationTitle("Subtitle Appearance")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private func subtitleLine(_ text: String) -> some View {
+        Text(text)
+            .font(previewFont)
+            .foregroundStyle(previewColor)
+            .padding(.horizontal, appState.subtitleBackgroundEnabled ? 6 : 0)
+            .padding(.vertical, appState.subtitleBackgroundEnabled ? 2 : 0)
+            .background(appState.subtitleBackgroundEnabled ? Color.black.opacity(0.75) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 3))
+            .multilineTextAlignment(.center)
     }
 }
 

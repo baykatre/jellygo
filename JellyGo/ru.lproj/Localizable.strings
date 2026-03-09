@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "Главная";
+"Library" = "Библиотека";
+"Search" = "Поиск";
+"Profile" = "Профиль";
+
+/* Home */
+"Continue Watching" = "Продолжить просмотр";
+"Next Up" = "Следующее";
+"Latest Movies" = "Новые фильмы";
+"Latest TV Shows" = "Новые сериалы";
+"Libraries" = "Библиотеки";
+"No Content Found" = "Контент не найден";
+
+/* Profile */
+"Server" = "Сервер";
+"Address" = "Адрес";
+"Language Settings" = "Настройки языка";
+"Sign Out" = "Выйти";
+"Are you sure you want to sign out?" = "Вы уверены, что хотите выйти?";
+"Cancel" = "Отмена";
+
+/* Search */
+"Recent Searches" = "Недавние поиски";
+"Clear" = "Очистить";
+"Movies, series..." = "Фильмы, сериалы...";
+"Search for movies or series" = "Искать фильмы или сериалы";
+"Start typing the name" = "Начните вводить название";
+"All" = "Все";
+
+/* Actions */
+"Play" = "Воспроизвести";
+"More Info" = "Подробнее";
+"Continue  %@" = "Продолжить  %@";
+"Play  S%lldE%lld" = "Воспроизвести  S%lldE%lld";
+"Continue  S%lldE%lld" = "Продолжить  S%lldE%lld";
+"Add to Favorites" = "Добавить в избранное";
+"Remove from Favorites" = "Удалить из избранного";
+"Mark as Watched" = "Отметить как просмотренное";
+"Mark as Unwatched" = "Отметить как непросмотренное";
+"Watched" = "Просмотрено";
+"Save" = "Сохранить";
+"Rate" = "Оценить";
+"Favorite" = "Избранное";
+"Download" = "Скачать";
+
+/* Detail */
+"Select Season" = "Выбрать сезон";
+"Season" = "Сезон";
+"Cast & Crew" = "Актёры и съёмочная группа";
+
+/* Item Types */
+"Movie" = "Фильм";
+"Series" = "Сериал";
+"Episode" = "Эпизод";
+
+/* Runtime */
+"%lld min." = "%lld мин.";
+"%lld min" = "%lld мин";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Подключиться к серверу Jellyfin";
+"Server Address" = "Адрес сервера";
+"Connect" = "Подключиться";
+"Sign in" = "Войти";
+"Username" = "Имя пользователя";
+"Password" = "Пароль";
+"Sign In" = "Войти";
+"Login" = "Вход";
+
+/* Library */
+"No Libraries Found" = "Библиотеки не найдены";
+"Movies" = "Фильмы";
+"TV Shows" = "Сериалы";
+"Music" = "Музыка";
+"Books" = "Книги";
+"Photos" = "Фото";
+"Playlists" = "Плейлисты";
+
+/* Accounts */
+"Accounts" = "Аккаунты";
+"Add" = "Добавить";
+"Tap to switch · Long press to remove" = "Нажмите для переключения · Удерживайте для удаления";
+"Switch to %@" = "Переключиться на %@";
+"Edit Label" = "Изменить метку";
+"Remove Account" = "Удалить аккаунт";
+"Remove %@ from this device?" = "Удалить %@ с этого устройства?";
+"Account Already Added" = "Аккаунт уже добавлен";
+"e.g. Home, Remote, VPN…" = "например: Дом, Удалённый, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Метка отображается на значке главного экрана и в пузырях аккаунтов. Оставьте пустым, чтобы использовать адрес сервера.";
+
+/* Settings */
+"Settings" = "Настройки";
+"Playback" = "Воспроизведение";
+"Player Engine" = "Плеер";
+"Default Quality" = "Качество по умолчанию";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Авто (WiFi → Прямой, Сотовая → 720p)";
+"Audio" = "Аудио";
+"Preferred Language" = "Предпочтительный язык";
+"Subtitles" = "Субтитры";
+"Enable by Default" = "Включить по умолчанию";
+"About" = "О приложении";
+"Version" = "Версия";
+"Jellyfin Project" = "Проект Jellyfin";
+"Sign out of %@?" = "Выйти из %@?";
+"Remove" = "Удалить";
+
+/* Downloads */
+"Downloads" = "Загрузки";
+"No Downloads" = "Нет загрузок";
+"Downloaded content will appear here." = "Загруженный контент появится здесь.";
+
+/* Errors */
+"Invalid server address" = "Неверный адрес сервера";
+"Invalid username or password" = "Неверное имя пользователя или пароль";
+"This is not a Jellyfin server" = "Это не сервер Jellyfin";
+"Could not read server response" = "Не удалось прочитать ответ сервера";
+"Connection error: %@" = "Ошибка подключения: %@";
+"Server error: %d" = "Ошибка сервера: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Удалить все эпизоды?";
+"Delete Download?" = "Удалить загрузку?";
+"Delete" = "Удалить";
+"Remove \"%@\" from your downloads?" = "Удалить \"%@\" из загрузок?";
+"Remove all downloaded episodes of \"%@\"?" = "Удалить все загруженные эпизоды \"%@\"?";
+"Delete all %lld episodes of \"%@\"?" = "Удалить все %lld эпизодов \"%@\"?";
+"Downloading" = "Загрузка";
+"Failed" = "Ошибка";
+"Transcoding" = "Перекодирование";
+"Direct" = "Прямой";
+"Waiting" = "Ожидание";
+"Delete Download" = "Удалить загрузку";
+"Special Episodes" = "Специальные эпизоды";
+"Episode %lld" = "Эпизод %lld";
+"Delete Episode?" = "Удалить эпизод?";
+
+/* Detail Extended */
+"Download This Episode" = "Скачать этот эпизод";
+"Download Entire Season" = "Скачать весь сезон";
+"Resolution" = "Разрешение";
+"Original (Direct)" = "Оригинал (Прямой)";
+"Download Details" = "Детали загрузки";
+"Queued" = "В очереди";
+"Pause" = "Пауза";
+"Cancel Download" = "Отменить загрузку";
+"Media Info" = "Информация о медиа";
+"1 Season" = "1 сезон";
+"%lld Seasons" = "%lld сезонов";
+"1 Episode" = "1 эпизод";
+"%lld Episodes" = "%lld эпизодов";
+"Critic" = "Критик";
+"Download started" = "Загрузка начата";
+
+/* Library Extended */
+"Favorites" = "Избранное";
+"My Favorites" = "Моё избранное";
+"No Favorites" = "Нет избранного";
+"Add content you like to your favorites." = "Добавляйте понравившийся контент в избранное.";
+
+/* Auth Extended */
+"Saved Servers" = "Сохранённые серверы";
+"Add existing account" = "Добавить существующий аккаунт";
+"Sign in as a different user" = "Войти как другой пользователь";
+
+/* Player */
+"Quality" = "Качество";
+"Dismiss" = "Закрыть";
+"Playback error" = "Ошибка воспроизведения";
+"Select an episode to play" = "Выберите эпизод для воспроизведения";
+"No playable source found" = "Воспроизводимый источник не найден";
+"Tracks" = "Дорожки";
+"Stats" = "Статистика";
+"Done" = "Готово";
+
+/* Offline */
+"Offline" = "Офлайн";
+"You're offline. Download content while connected to browse here." = "Вы офлайн. Скачайте контент при наличии подключения, чтобы просматривать его здесь.";
+"No internet connection — showing downloaded content" = "Нет интернет-соединения — отображается загруженный контент";
+
+/* Home Extended */
+"Download Started" = "Загрузка начата";
+"System Default" = "Системный по умолчанию";
+"Off" = "Выкл";
+"Active" = "Активно";
+"Session expired. Re-add the account from settings." = "Сессия истекла. Повторно добавьте аккаунт в настройках.";
+"App Language" = "Язык приложения";
+"Restart App" = "Перезапустить приложение";
+"The app will close to apply the new language." = "Приложение закроется для применения нового языка.";
+
+/* Overview */
+"Show More" = "Показать больше";
+"Show Less" = "Показать меньше";

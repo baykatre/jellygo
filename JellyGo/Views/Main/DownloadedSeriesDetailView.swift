@@ -25,7 +25,9 @@ struct DownloadedSeriesDetailView: View {
     }
 
     private var backdropURL: URL? {
-        JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: seriesId, maxWidth: 1000)
+        DownloadManager.localBackdropURL(itemId: seriesId)
+            ?? DownloadManager.localPosterURL(itemId: seriesId)
+            ?? JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: seriesId, maxWidth: 1000)
     }
 
 var body: some View {
@@ -48,7 +50,7 @@ var body: some View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(seasonNumbers, id: \.self) { sNum in
                         if let sEps = seasons[sNum]?.sorted(by: { ($0.episodeNumber ?? 0) < ($1.episodeNumber ?? 0) }) {
-                            Text(sNum == 0 ? "Özel Bölümler" : "Sezon \(sNum)")
+                            Text(verbatim: sNum == 0 ? String(localized: "Special Episodes", bundle: AppState.currentBundle) : "\(String(localized: "Season", bundle: AppState.currentBundle)) \(sNum)")
                                 .font(.title3.bold())
                                 .padding(.horizontal, 16)
                                 .padding(.top, 20)
@@ -71,24 +73,26 @@ var body: some View {
             if isEmpty { dismiss() }
         }
         .toolbar(.hidden, for: .tabBar)
-        .alert("Bölümü Sil?", isPresented: Binding(
+        .alert("Delete Episode?", isPresented: Binding(
             get: { showDeleteConfirm != nil },
             set: { if !$0 { showDeleteConfirm = nil } }
         )) {
-            Button("Sil", role: .destructive) {
+            Button("Delete", role: .destructive) {
                 if let id = showDeleteConfirm { dm.deleteDownload(id) }
                 showDeleteConfirm = nil
             }
-            Button("İptal", role: .cancel) { showDeleteConfirm = nil }
+            Button("Cancel", role: .cancel) { showDeleteConfirm = nil }
         } message: {
             let name = episodes.first { $0.id == showDeleteConfirm }?.name ?? ""
-            Text("\"\(name)\" silinsin mi?")
+            Text("Remove \"\(name)\" from your downloads?")
         }
     }
 
     private func episodeRow(_ ep: DownloadedItem) -> some View {
-        let thumbURL = JellyfinAPI.shared.imageURL(serverURL: appState.serverURL,
-                                                   itemId: ep.id, imageType: "Primary", maxWidth: 200)
+        let thumbURL = DownloadManager.localPosterURL(itemId: ep.id)
+            ?? DownloadManager.localBackdropURL(itemId: ep.id)
+            ?? JellyfinAPI.shared.imageURL(serverURL: appState.serverURL,
+                                            itemId: ep.id, imageType: "Primary", maxWidth: 200)
         return HStack(spacing: 12) {
             AsyncImage(url: thumbURL) { phase in
                 switch phase {
@@ -104,7 +108,7 @@ var body: some View {
 
             VStack(alignment: .leading, spacing: 2) {
                 if let epNum = ep.episodeNumber {
-                    Text("Bölüm \(epNum)")
+                    Text(verbatim: String(format: String(localized: "Episode %lld", bundle: AppState.currentBundle), Int64(epNum)))
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                 }

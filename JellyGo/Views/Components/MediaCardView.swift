@@ -176,7 +176,7 @@ struct HeroBannerPlaceholder: View {
     }
 }
 
-private struct BannerPageView: View {
+struct BannerPageView: View {
     let item: JellyfinItem
     let serverURL: String
     let size: CGSize
@@ -234,7 +234,7 @@ private struct BannerPageView: View {
             VStack(alignment: .leading, spacing: 10) {
                 LogoTitleView(
                     title: item.name,
-                    logoURL: JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: item.id)
+                    logoURL: logoURL
                 )
                 .frame(maxWidth: 280, alignment: .leading)
 
@@ -298,7 +298,17 @@ private struct BannerPageView: View {
     }
 
     private var backdropURL: URL? {
-        JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
+        // Prefer local cache for offline support
+        if let local = DownloadManager.localBackdropURL(itemId: item.id)
+            ?? DownloadManager.localPosterURL(itemId: item.id) {
+            return local
+        }
+        return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
+    }
+
+    private var logoURL: URL? {
+        DownloadManager.localLogoURL(itemId: item.id)
+            ?? JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: item.id)
     }
 }
 
@@ -362,7 +372,8 @@ struct PosterCardView: View {
     @ViewBuilder
     private var posterImage: some View {
         FallbackAsyncImage(
-            primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: displayId, imageType: "Primary", maxWidth: Int(width * 2)),
+            primaryURL: DownloadManager.localPosterURL(itemId: displayId)
+                ?? JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: displayId, imageType: "Primary", maxWidth: Int(width * 2)),
             fallbackURL: nil,
             placeholder: RoundedRectangle(cornerRadius: 10)
                 .fill(.quaternary)
@@ -453,6 +464,11 @@ struct BackdropCardView: View {
     }
 
     private var backdropPrimaryURL: URL? {
+        // Prefer local cache for offline support
+        if let local = DownloadManager.localBackdropURL(itemId: item.id)
+            ?? DownloadManager.localPosterURL(itemId: item.id) {
+            return local
+        }
         if item.isEpisode {
             return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: Int(width * 2))
         }
@@ -462,7 +478,8 @@ struct BackdropCardView: View {
 
     private var backdropFallbackURL: URL? {
         guard item.isEpisode, let seriesId = item.seriesId else { return nil }
-        return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: seriesId, maxWidth: Int(width * 2))
+        return DownloadManager.localBackdropURL(itemId: seriesId)
+            ?? JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: seriesId, maxWidth: Int(width * 2))
     }
 
     private var backdropImage: some View {

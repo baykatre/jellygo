@@ -25,6 +25,29 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.4), value: appState.isAuthenticated)
         .animation(.easeInOut(duration: 0.4), value: networkMonitor.isConnected)
+        .onChange(of: networkMonitor.isConnected) { _, connected in
+            if connected && appState.isAuthenticated {
+                Task {
+                    await LocalPlaybackStore.syncPendingPositions(
+                        serverURL: appState.serverURL, token: appState.token
+                    )
+                }
+            }
+        }
+        .task {
+            // Sync any pending positions on launch if online
+            if networkMonitor.isConnected && appState.isAuthenticated {
+                await LocalPlaybackStore.syncPendingPositions(
+                    serverURL: appState.serverURL, token: appState.token
+                )
+                // Cache user avatar for offline display
+                DownloadManager.shared.downloadUserAvatar(
+                    userId: appState.userId,
+                    serverURL: appState.serverURL,
+                    token: appState.token
+                )
+            }
+        }
     }
 }
 

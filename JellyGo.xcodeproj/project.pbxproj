@@ -123,6 +123,22 @@
 				en,
 				Base,
 				tr,
+				de,
+				fr,
+				ru,
+				it,
+				da,
+				sv,
+				es,
+				pt,
+				nl,
+				ja,
+				zh,
+				ko,
+				ar,
+				fa,
+				uk,
+				az,
 			);
 			mainGroup = 045AD06D2F5CCFC5003D29D1;
 			minimizedProjectReferenceProxies = 1;

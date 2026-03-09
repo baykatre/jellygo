@@ -19,6 +19,65 @@ struct DownloadedItem: Codable, Identifiable {
     var fileSize: Int64?
     var runTimeTicks: Int64?
 
+    // Full metadata for offline display
+    var overview: String?
+    var productionYear: Int?
+    var communityRating: Double?
+    var officialRating: String?
+    var genres: [String]?
+    var premiereDate: String?
+    var primaryImageAspectRatio: Double?
+    var seasonName: String?
+    var taglines: [String]?
+
+    // Explicit init(from:) so existing metadata.json without new fields still decodes
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        type = try c.decode(String.self, forKey: .type)
+        seriesName = try c.decodeIfPresent(String.self, forKey: .seriesName)
+        seriesId = try c.decodeIfPresent(String.self, forKey: .seriesId)
+        seasonNumber = try c.decodeIfPresent(Int.self, forKey: .seasonNumber)
+        episodeNumber = try c.decodeIfPresent(Int.self, forKey: .episodeNumber)
+        quality = try c.decode(String.self, forKey: .quality)
+        fileName = try c.decode(String.self, forKey: .fileName)
+        addedDate = try c.decode(Date.self, forKey: .addedDate)
+        serverURL = try c.decode(String.self, forKey: .serverURL)
+        userId = try c.decode(String.self, forKey: .userId)
+        fileSize = try c.decodeIfPresent(Int64.self, forKey: .fileSize)
+        runTimeTicks = try c.decodeIfPresent(Int64.self, forKey: .runTimeTicks)
+        overview = try c.decodeIfPresent(String.self, forKey: .overview)
+        productionYear = try c.decodeIfPresent(Int.self, forKey: .productionYear)
+        communityRating = try c.decodeIfPresent(Double.self, forKey: .communityRating)
+        officialRating = try c.decodeIfPresent(String.self, forKey: .officialRating)
+        genres = try c.decodeIfPresent([String].self, forKey: .genres)
+        premiereDate = try c.decodeIfPresent(String.self, forKey: .premiereDate)
+        primaryImageAspectRatio = try c.decodeIfPresent(Double.self, forKey: .primaryImageAspectRatio)
+        seasonName = try c.decodeIfPresent(String.self, forKey: .seasonName)
+        taglines = try c.decodeIfPresent([String].self, forKey: .taglines)
+    }
+
+    init(id: String, name: String, type: String, seriesName: String?, seriesId: String?,
+         seasonNumber: Int?, episodeNumber: Int?, quality: String, fileName: String,
+         addedDate: Date, serverURL: String, userId: String, fileSize: Int64? = nil,
+         runTimeTicks: Int64? = nil, overview: String? = nil, productionYear: Int? = nil,
+         communityRating: Double? = nil, officialRating: String? = nil,
+         genres: [String]? = nil, premiereDate: String? = nil,
+         primaryImageAspectRatio: Double? = nil, seasonName: String? = nil,
+         taglines: [String]? = nil) {
+        self.id = id; self.name = name; self.type = type
+        self.seriesName = seriesName; self.seriesId = seriesId
+        self.seasonNumber = seasonNumber; self.episodeNumber = episodeNumber
+        self.quality = quality; self.fileName = fileName
+        self.addedDate = addedDate; self.serverURL = serverURL; self.userId = userId
+        self.fileSize = fileSize; self.runTimeTicks = runTimeTicks; self.overview = overview
+        self.productionYear = productionYear; self.communityRating = communityRating
+        self.officialRating = officialRating; self.genres = genres
+        self.premiereDate = premiereDate; self.primaryImageAspectRatio = primaryImageAspectRatio
+        self.seasonName = seasonName; self.taglines = taglines
+    }
+
     var localURL: URL? {
         DownloadManager.downloadsDirectory.appendingPathComponent(fileName)
     }
@@ -26,21 +85,28 @@ struct DownloadedItem: Codable, Identifiable {
     var isMovie: Bool   { type == "Movie" }
     var isEpisode: Bool { type == "Episode" }
 
-    /// Converts back to a minimal JellyfinItem so existing views can be reused.
+    /// Converts back to a full JellyfinItem so existing views work identically offline.
     func toJellyfinItem() -> JellyfinItem {
-        JellyfinItem(
+        // Build userData from saved local position
+        let savedPos = LocalPlaybackStore.position(for: id)
+        let ud: JellyfinUserData? = savedPos > 0
+            ? JellyfinUserData(playbackPositionTicks: Int64(savedPos * 10_000_000), played: nil, isFavorite: nil, playCount: nil)
+            : nil
+
+        return JellyfinItem(
             id: id, name: name, type: type,
-            overview: nil, productionYear: nil,
-            communityRating: nil, criticRating: nil,
+            overview: overview, productionYear: productionYear,
+            communityRating: communityRating, criticRating: nil,
             runTimeTicks: runTimeTicks,
             seriesName: seriesName, seriesId: seriesId,
-            seasonName: nil, indexNumber: episodeNumber,
+            seasonName: seasonName, indexNumber: episodeNumber,
             parentIndexNumber: seasonNumber,
-            userData: nil, imageBlurHashes: nil,
-            primaryImageAspectRatio: nil, genres: nil,
-            officialRating: nil, taglines: nil, people: nil,
-            premiereDate: nil, mediaStreams: nil, mediaSources: nil,
-            childCount: nil
+            userData: ud, imageBlurHashes: nil,
+            primaryImageAspectRatio: primaryImageAspectRatio, genres: genres,
+            officialRating: officialRating, taglines: taglines, people: nil,
+            premiereDate: premiereDate, mediaStreams: nil, mediaSources: nil,
+            childCount: nil, providerIds: nil,
+            endDate: nil, productionLocations: nil
         )
     }
 
@@ -282,7 +348,12 @@ final class DownloadManager: NSObject, ObservableObject {
             seasonNumber: item.parentIndexNumber, episodeNumber: item.indexNumber,
             quality: qualityLabel, fileName: fileName, addedDate: Date(),
             serverURL: appState.serverURL, userId: appState.userId,
-            runTimeTicks: item.runTimeTicks
+            runTimeTicks: item.runTimeTicks,
+            overview: item.overview, productionYear: item.productionYear,
+            communityRating: item.communityRating, officialRating: item.officialRating,
+            genres: item.genres, premiereDate: item.premiereDate,
+            primaryImageAspectRatio: item.primaryImageAspectRatio,
+            seasonName: item.seasonName, taglines: item.taglines
         )
 
         // Estimate total bytes for transcoding so the progress bar is deterministic
@@ -299,6 +370,12 @@ final class DownloadManager: NSObject, ObservableObject {
         let entry = QueuedDownload(id: item.id, name: item.name, seriesName: item.seriesName,
                                    isDirect: isDirect, isTranscoding: isTranscoding,
                                    meta: meta, request: req, estimatedBytes: estimatedBytes)
+
+        // Cache poster/backdrop for offline display
+        downloadPoster(itemId: item.id, serverURL: appState.serverURL, token: appState.token)
+        if let seriesId = item.seriesId {
+            downloadSeriesPoster(seriesId: seriesId, serverURL: appState.serverURL, token: appState.token)
+        }
 
         if !downloadOrder.contains(item.id) { downloadOrder.append(item.id) }
         if canStartNow(isTranscoding: isTranscoding) {
@@ -464,10 +541,10 @@ final class DownloadManager: NSObject, ObservableObject {
             try? FileManager.default.removeItem(at: fallback)
         }
 
-        // Delete subtitle files (e.g. {itemId}_tur.srt, {itemId}_eng.srt …)
-        let srtPattern = "\(itemId)_"
+        // Delete subtitle + poster files (e.g. {itemId}_tur_3.srt, {itemId}_poster.jpg …)
+        let subPattern = "\(itemId)_"
         if let files = try? FileManager.default.contentsOfDirectory(atPath: Self.downloadsDirectory.path) {
-            for file in files where file.hasPrefix(srtPattern) && file.hasSuffix(".srt") {
+            for file in files where file.hasPrefix(subPattern) && !file.hasSuffix(".mp4") {
                 try? FileManager.default.removeItem(at: Self.downloadsDirectory.appendingPathComponent(file))
             }
         }
@@ -480,21 +557,180 @@ final class DownloadManager: NSObject, ObservableObject {
         drainQueue()
     }
 
+    // MARK: - Poster Cache
+
+    /// Downloads poster, backdrop, and logo images to local storage for offline display.
+    func downloadPoster(itemId: String, serverURL: String, token: String) {
+        Task {
+            // Primary poster
+            if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: itemId, imageType: "Primary", maxWidth: 400) {
+                await Self.downloadImage(url: url, destName: "\(itemId)_poster.jpg", token: token)
+            }
+            // Backdrop
+            if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: itemId, imageType: "Backdrop", maxWidth: 800) {
+                await Self.downloadImage(url: url, destName: "\(itemId)_backdrop.jpg", token: token)
+            }
+            // Logo
+            if let url = JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: itemId) {
+                await Self.downloadImage(url: url, destName: "\(itemId)_logo.png", token: token)
+            }
+        }
+    }
+
+    /// Downloads poster, backdrop, and logo for series (used by episode downloads).
+    func downloadSeriesPoster(seriesId: String, serverURL: String, token: String) {
+        let posterDest = "\(seriesId)_poster.jpg"
+        let backdropDest = "\(seriesId)_backdrop.jpg"
+        let logoDest = "\(seriesId)_logo.png"
+        // Skip if already cached
+        guard !FileManager.default.fileExists(atPath: Self.downloadsDirectory.appendingPathComponent(posterDest).path) else { return }
+        Task {
+            if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: seriesId, imageType: "Primary", maxWidth: 400) {
+                await Self.downloadImage(url: url, destName: posterDest, token: token)
+            }
+            if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: seriesId, imageType: "Backdrop", maxWidth: 800) {
+                await Self.downloadImage(url: url, destName: backdropDest, token: token)
+            }
+            if let url = JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: seriesId) {
+                await Self.downloadImage(url: url, destName: logoDest, token: token)
+            }
+        }
+    }
+
+    private static func downloadImage(url: URL, destName: String, token: String) async {
+        var req = URLRequest(url: url)
+        req.setValue("MediaBrowser Token=\"\(token)\"", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            guard status >= 200, status < 300, !data.isEmpty else { return }
+            let dest = downloadsDirectory.appendingPathComponent(destName)
+            try data.write(to: dest)
+        } catch { }
+    }
+
+    /// Returns local poster URL if cached, nil otherwise.
+    static func localPosterURL(itemId: String) -> URL? {
+        let url = downloadsDirectory.appendingPathComponent("\(itemId)_poster.jpg")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Returns local backdrop URL if cached, nil otherwise.
+    static func localBackdropURL(itemId: String) -> URL? {
+        let url = downloadsDirectory.appendingPathComponent("\(itemId)_backdrop.jpg")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Returns local logo URL if cached, nil otherwise.
+    static func localLogoURL(itemId: String) -> URL? {
+        let url = downloadsDirectory.appendingPathComponent("\(itemId)_logo.png")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Returns local person photo URL if cached, nil otherwise.
+    static func localPersonURL(personId: String) -> URL? {
+        let url = downloadsDirectory.appendingPathComponent("\(personId)_person.jpg")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Returns local user avatar URL if cached, nil otherwise.
+    static func localUserAvatarURL(userId: String) -> URL? {
+        let url = downloadsDirectory.appendingPathComponent("\(userId)_avatar.jpg")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Downloads and caches the user's profile image for offline display.
+    func downloadUserAvatar(userId: String, serverURL: String, token: String) {
+        let destName = "\(userId)_avatar.jpg"
+        let dest = Self.downloadsDirectory.appendingPathComponent(destName)
+        guard !FileManager.default.fileExists(atPath: dest.path) else { return }
+        var components = URLComponents(string: serverURL)
+        components?.path += "/Users/\(userId)/Images/Primary"
+        components?.queryItems = [
+            URLQueryItem(name: "maxWidth", value: "80"),
+            URLQueryItem(name: "api_key", value: token)
+        ]
+        guard let url = components?.url else { return }
+        Task {
+            await Self.downloadImage(url: url, destName: destName, token: token)
+        }
+    }
+
+    /// Downloads cast/crew photos for offline display.
+    func downloadPeople(_ people: [JellyfinPerson], serverURL: String, token: String) {
+        Task {
+            for person in people.prefix(15) {
+                guard person.primaryImageTag != nil else { continue }
+                let dest = "\(person.id)_person.jpg"
+                guard !FileManager.default.fileExists(atPath: Self.downloadsDirectory.appendingPathComponent(dest).path) else { continue }
+                if let url = JellyfinAPI.shared.personImageURL(serverURL: serverURL, person: person) {
+                    await Self.downloadImage(url: url, destName: dest, token: token)
+                }
+            }
+        }
+    }
+
+    // MARK: - Item Details Cache
+
+    /// Saves full JellyfinItem JSON for offline detail view.
+    nonisolated static func saveItemDetails(_ item: JellyfinItem) {
+        let dest = downloadsDirectory.appendingPathComponent("\(item.id)_details.json")
+        if let data = try? JSONEncoder().encode(item) {
+            try? data.write(to: dest)
+        }
+    }
+
+    /// Loads cached JellyfinItem details from disk.
+    nonisolated static func loadItemDetails(itemId: String) -> JellyfinItem? {
+        let url = downloadsDirectory.appendingPathComponent("\(itemId)_details.json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(JellyfinItem.self, from: data)
+    }
+
     // MARK: - Subtitles
 
     func downloadSubtitles(itemId: String, mediaSourceId: String, streams: [JellyfinMediaStream], serverURL: String, token: String) {
-        for stream in streams.prefix(5) {
-            guard let url = Self.subtitleURL(serverURL: serverURL, itemId: itemId,
-                                             mediaSourceId: mediaSourceId,
-                                             streamIndex: stream.index, token: token) else { continue }
+        for stream in streams {
             let lang = stream.language ?? "und"
-            let destURL = Self.downloadsDirectory.appendingPathComponent("\(itemId)_\(lang).srt")
-            URLSession.shared.downloadTask(with: url) { tempURL, _, _ in
-                guard let tempURL else { return }
-                try? FileManager.default.removeItem(at: destURL)
-                try? FileManager.default.moveItem(at: tempURL, to: destURL)
-            }.resume()
+            // Try SRT → VTT → ASS fallback (same as streaming player)
+            Task {
+                await Self.downloadSubtitleWithFallback(
+                    itemId: itemId, mediaSourceId: mediaSourceId,
+                    streamIndex: stream.index, lang: lang,
+                    serverURL: serverURL, token: token
+                )
+            }
         }
+    }
+
+    /// Tries downloading a subtitle in SRT, then VTT, then ASS format.
+    private static func downloadSubtitleWithFallback(
+        itemId: String, mediaSourceId: String, streamIndex: Int,
+        lang: String, serverURL: String, token: String
+    ) async {
+        let formats = ["srt", "vtt", "ass"]
+        for format in formats {
+            guard let url = subtitleURL(serverURL: serverURL, itemId: itemId,
+                                        mediaSourceId: mediaSourceId,
+                                        streamIndex: streamIndex, token: token,
+                                        format: format) else { continue }
+            var req = URLRequest(url: url)
+            req.setValue("MediaBrowser Token=\"\(token)\"", forHTTPHeaderField: "Authorization")
+            do {
+                let (data, response) = try await URLSession.shared.data(for: req)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                guard status >= 200, status < 300, !data.isEmpty else { continue }
+                // Save with .srt extension always — our parser handles all formats
+                let destURL = downloadsDirectory.appendingPathComponent("\(itemId)_\(lang)_\(streamIndex).srt")
+                try? FileManager.default.removeItem(at: destURL)
+                try data.write(to: destURL)
+                print("[DownloadManager] Subtitle saved: \(lang)_\(streamIndex) as \(format)")
+                return // success
+            } catch {
+                continue
+            }
+        }
+        print("[DownloadManager] All subtitle formats failed for \(lang)_\(streamIndex)")
     }
 
     // MARK: - URL Builders
@@ -509,21 +745,21 @@ final class DownloadManager: NSObject, ObservableObject {
     }
 
     static func subtitleURL(serverURL: String, itemId: String, mediaSourceId: String,
-                            streamIndex: Int, token: String) -> URL? {
+                            streamIndex: Int, token: String, format: String = "srt") -> URL? {
         guard let base = URL(string: serverURL) else { return nil }
         var c = URLComponents(
             url: base.appendingPathComponent(
-                "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(streamIndex)/0/Stream.srt"),
+                "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(streamIndex)/0/Stream.\(format)"),
             resolvingAgainstBaseURL: false)
         c?.queryItems = [URLQueryItem(name: "api_key", value: token)]
         return c?.url
     }
 
-    static func transcodedURL(itemId: String, serverURL: String, token: String, maxBitrate: Int) -> URL? {
+    static func transcodedURL(itemId: String, serverURL: String, token: String, maxBitrate: Int, audioStreamIndex: Int? = nil) -> URL? {
         guard let base = URL(string: serverURL) else { return nil }
         var c = URLComponents(url: base.appendingPathComponent("Videos/\(itemId)/stream.mp4"),
                               resolvingAgainstBaseURL: false)
-        c?.queryItems = [
+        var items = [
             URLQueryItem(name: "VideoCodec",       value: "h264"),
             URLQueryItem(name: "AudioCodec",       value: "aac"),
             URLQueryItem(name: "VideoBitrate",     value: "\(maxBitrate)"),
@@ -532,6 +768,10 @@ final class DownloadManager: NSObject, ObservableObject {
             URLQueryItem(name: "Static",           value: "false"),
             URLQueryItem(name: "api_key",          value: token)
         ]
+        if let idx = audioStreamIndex {
+            items.append(URLQueryItem(name: "AudioStreamIndex", value: "\(idx)"))
+        }
+        c?.queryItems = items
         return c?.url
     }
 

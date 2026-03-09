@@ -18,6 +18,7 @@ struct JellyGoApp: App {
                 .environmentObject(appState)
                 .environmentObject(DownloadManager.shared)
                 .environmentObject(NetworkMonitor.shared)
+                .environment(\.locale, appState.currentLocale)
         }
     }
 }

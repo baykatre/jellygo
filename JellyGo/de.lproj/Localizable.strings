@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "Startseite";
+"Library" = "Bibliothek";
+"Search" = "Suche";
+"Profile" = "Profil";
+
+/* Home */
+"Continue Watching" = "Weiterschauen";
+"Next Up" = "Als Nächstes";
+"Latest Movies" = "Neueste Filme";
+"Latest TV Shows" = "Neueste Serien";
+"Libraries" = "Bibliotheken";
+"No Content Found" = "Kein Inhalt gefunden";
+
+/* Profile */
+"Server" = "Server";
+"Address" = "Adresse";
+"Language Settings" = "Spracheinstellungen";
+"Sign Out" = "Abmelden";
+"Are you sure you want to sign out?" = "Möchten Sie sich wirklich abmelden?";
+"Cancel" = "Abbrechen";
+
+/* Search */
+"Recent Searches" = "Letzte Suchen";
+"Clear" = "Löschen";
+"Movies, series..." = "Filme, Serien...";
+"Search for movies or series" = "Filme oder Serien suchen";
+"Start typing the name" = "Namen eingeben";
+"All" = "Alle";
+
+/* Actions */
+"Play" = "Abspielen";
+"More Info" = "Mehr Info";
+"Continue  %@" = "Weiterschauen  %@";
+"Play  S%lldE%lld" = "Abspielen  S%lldE%lld";
+"Continue  S%lldE%lld" = "Weiterschauen  S%lldE%lld";
+"Add to Favorites" = "Zu Favoriten hinzufügen";
+"Remove from Favorites" = "Aus Favoriten entfernen";
+"Mark as Watched" = "Als gesehen markieren";
+"Mark as Unwatched" = "Als ungesehen markieren";
+"Watched" = "Gesehen";
+"Save" = "Speichern";
+"Rate" = "Bewerten";
+"Favorite" = "Favorit";
+"Download" = "Herunterladen";
+
+/* Detail */
+"Select Season" = "Staffel auswählen";
+"Season" = "Staffel";
+"Cast & Crew" = "Besetzung & Crew";
+
+/* Item Types */
+"Movie" = "Film";
+"Series" = "Serie";
+"Episode" = "Episode";
+
+/* Runtime */
+"%lld min." = "%lld Min.";
+"%lld min" = "%lld Min";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Mit Ihrem Jellyfin-Server verbinden";
+"Server Address" = "Serveradresse";
+"Connect" = "Verbinden";
+"Sign in" = "Anmelden";
+"Username" = "Benutzername";
+"Password" = "Passwort";
+"Sign In" = "Anmelden";
+"Login" = "Login";
+
+/* Library */
+"No Libraries Found" = "Keine Bibliotheken gefunden";
+"Movies" = "Filme";
+"TV Shows" = "Serien";
+"Music" = "Musik";
+"Books" = "Bücher";
+"Photos" = "Fotos";
+"Playlists" = "Wiedergabelisten";
+
+/* Accounts */
+"Accounts" = "Konten";
+"Add" = "Hinzufügen";
+"Tap to switch · Long press to remove" = "Tippen zum Wechseln · Lang drücken zum Entfernen";
+"Switch to %@" = "Zu %@ wechseln";
+"Edit Label" = "Label bearbeiten";
+"Remove Account" = "Konto entfernen";
+"Remove %@ from this device?" = "%@ von diesem Gerät entfernen?";
+"Account Already Added" = "Konto bereits hinzugefügt";
+"e.g. Home, Remote, VPN…" = "z.B. Zuhause, Remote, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Label auf dem Startbildschirm und Kontoblasen. Leer lassen für Serveradresse.";
+
+/* Settings */
+"Settings" = "Einstellungen";
+"Playback" = "Wiedergabe";
+"Player Engine" = "Player-Engine";
+"Default Quality" = "Standardqualität";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WLAN → Direkt, Mobil → 720p)";
+"Audio" = "Audio";
+"Preferred Language" = "Bevorzugte Sprache";
+"Subtitles" = "Untertitel";
+"Enable by Default" = "Standardmäßig aktivieren";
+"About" = "Über";
+"Version" = "Version";
+"Jellyfin Project" = "Jellyfin-Projekt";
+"Sign out of %@?" = "Von %@ abmelden?";
+"Remove" = "Entfernen";
+
+/* Downloads */
+"Downloads" = "Downloads";
+"No Downloads" = "Keine Downloads";
+"Downloaded content will appear here." = "Heruntergeladene Inhalte erscheinen hier.";
+
+/* Errors */
+"Invalid server address" = "Ungültige Serveradresse";
+"Invalid username or password" = "Ungültiger Benutzername oder Passwort";
+"This is not a Jellyfin server" = "Dies ist kein Jellyfin-Server";
+"Could not read server response" = "Serverantwort konnte nicht gelesen werden";
+"Connection error: %@" = "Verbindungsfehler: %@";
+"Server error: %d" = "Serverfehler: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Alle Episoden löschen?";
+"Delete Download?" = "Download löschen?";
+"Delete" = "Löschen";
+"Remove \"%@\" from your downloads?" = "\"%@\" aus den Downloads entfernen?";
+"Remove all downloaded episodes of \"%@\"?" = "Alle heruntergeladenen Episoden von \"%@\" entfernen?";
+"Delete all %lld episodes of \"%@\"?" = "Alle %lld Episoden von \"%@\" löschen?";
+"Downloading" = "Wird heruntergeladen";
+"Failed" = "Fehlgeschlagen";
+"Transcoding" = "Transkodierung";
+"Direct" = "Direkt";
+"Waiting" = "Wartend";
+"Delete Download" = "Download löschen";
+"Special Episodes" = "Sonderepisoden";
+"Episode %lld" = "Episode %lld";
+"Delete Episode?" = "Episode löschen?";
+
+/* Detail Extended */
+"Download This Episode" = "Diese Episode herunterladen";
+"Download Entire Season" = "Gesamte Staffel herunterladen";
+"Resolution" = "Auflösung";
+"Original (Direct)" = "Original (Direkt)";
+"Download Details" = "Download-Details";
+"Queued" = "In Warteschlange";
+"Pause" = "Pause";
+"Cancel Download" = "Download abbrechen";
+"Media Info" = "Medieninfo";
+"1 Season" = "1 Staffel";
+"%lld Seasons" = "%lld Staffeln";
+"1 Episode" = "1 Episode";
+"%lld Episodes" = "%lld Episoden";
+"Critic" = "Kritiker";
+"Download started" = "Download gestartet";
+
+/* Library Extended */
+"Favorites" = "Favoriten";
+"My Favorites" = "Meine Favoriten";
+"No Favorites" = "Keine Favoriten";
+"Add content you like to your favorites." = "Füge Inhalte, die dir gefallen, zu deinen Favoriten hinzu.";
+
+/* Auth Extended */
+"Saved Servers" = "Gespeicherte Server";
+"Add existing account" = "Vorhandenes Konto hinzufügen";
+"Sign in as a different user" = "Als anderer Benutzer anmelden";
+
+/* Player */
+"Quality" = "Qualität";
+"Dismiss" = "Schließen";
+"Playback error" = "Wiedergabefehler";
+"Select an episode to play" = "Episode zum Abspielen auswählen";
+"No playable source found" = "Keine abspielbare Quelle gefunden";
+"Tracks" = "Spuren";
+"Stats" = "Statistiken";
+"Done" = "Fertig";
+
+/* Offline */
+"Offline" = "Offline";
+"You're offline. Download content while connected to browse here." = "Sie sind offline. Laden Sie Inhalte herunter, während Sie verbunden sind.";
+"No internet connection — showing downloaded content" = "Keine Internetverbindung — zeige heruntergeladene Inhalte";
+
+/* Home Extended */
+"Download Started" = "Download gestartet";
+"System Default" = "Systemstandard";
+"Off" = "Aus";
+"Active" = "Aktiv";
+"Session expired. Re-add the account from settings." = "Sitzung abgelaufen. Konto in den Einstellungen erneut hinzufügen.";
+"App Language" = "App-Sprache";
+"Restart App" = "App neu starten";
+"The app will close to apply the new language." = "Die App wird geschlossen, um die neue Sprache anzuwenden.";
+
+/* Overview */
+"Show More" = "Mehr anzeigen";
+"Show Less" = "Weniger anzeigen";

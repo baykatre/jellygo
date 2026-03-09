@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "الرئيسية";
+"Library" = "المكتبة";
+"Search" = "بحث";
+"Profile" = "الملف الشخصي";
+
+/* Home */
+"Continue Watching" = "متابعة المشاهدة";
+"Next Up" = "التالي";
+"Latest Movies" = "أحدث الأفلام";
+"Latest TV Shows" = "أحدث المسلسلات";
+"Libraries" = "المكتبات";
+"No Content Found" = "لم يتم العثور على محتوى";
+
+/* Profile */
+"Server" = "الخادم";
+"Address" = "العنوان";
+"Language Settings" = "إعدادات اللغة";
+"Sign Out" = "تسجيل الخروج";
+"Are you sure you want to sign out?" = "هل أنت متأكد أنك تريد تسجيل الخروج؟";
+"Cancel" = "إلغاء";
+
+/* Search */
+"Recent Searches" = "عمليات البحث الأخيرة";
+"Clear" = "مسح";
+"Movies, series..." = "أفلام، مسلسلات...";
+"Search for movies or series" = "البحث عن أفلام أو مسلسلات";
+"Start typing the name" = "ابدأ بكتابة الاسم";
+"All" = "الكل";
+
+/* Actions */
+"Play" = "تشغيل";
+"More Info" = "مزيد من المعلومات";
+"Continue  %@" = "متابعة  %@";
+"Play  S%lldE%lld" = "تشغيل  S%lldE%lld";
+"Continue  S%lldE%lld" = "متابعة  S%lldE%lld";
+"Add to Favorites" = "إضافة إلى المفضلة";
+"Remove from Favorites" = "إزالة من المفضلة";
+"Mark as Watched" = "تعليم كمُشاهَد";
+"Mark as Unwatched" = "تعليم كغير مُشاهَد";
+"Watched" = "مُشاهَد";
+"Save" = "حفظ";
+"Rate" = "تقييم";
+"Favorite" = "مفضلة";
+"Download" = "تنزيل";
+
+/* Detail */
+"Select Season" = "اختر الموسم";
+"Season" = "موسم";
+"Cast & Crew" = "الممثلون والطاقم";
+
+/* Item Types */
+"Movie" = "فيلم";
+"Series" = "مسلسل";
+"Episode" = "حلقة";
+
+/* Runtime */
+"%lld min." = "%lld دقيقة.";
+"%lld min" = "%lld دقيقة";
+
+/* Auth */
+"Connect to your Jellyfin server" = "الاتصال بخادم Jellyfin الخاص بك";
+"Server Address" = "عنوان الخادم";
+"Connect" = "اتصال";
+"Sign in" = "تسجيل الدخول";
+"Username" = "اسم المستخدم";
+"Password" = "كلمة المرور";
+"Sign In" = "تسجيل الدخول";
+"Login" = "دخول";
+
+/* Library */
+"No Libraries Found" = "لم يتم العثور على مكتبات";
+"Movies" = "أفلام";
+"TV Shows" = "مسلسلات";
+"Music" = "موسيقى";
+"Books" = "كتب";
+"Photos" = "صور";
+"Playlists" = "قوائم التشغيل";
+
+/* Accounts */
+"Accounts" = "الحسابات";
+"Add" = "إضافة";
+"Tap to switch · Long press to remove" = "اضغط للتبديل · اضغط مطولاً للإزالة";
+"Switch to %@" = "التبديل إلى %@";
+"Edit Label" = "تعديل التسمية";
+"Remove Account" = "إزالة الحساب";
+"Remove %@ from this device?" = "إزالة %@ من هذا الجهاز؟";
+"Account Already Added" = "الحساب مضاف بالفعل";
+"e.g. Home, Remote, VPN…" = "مثل: المنزل، بعيد، VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "التسمية المعروضة في شارة الشاشة الرئيسية وفقاعات الحساب. اتركها فارغة لاستخدام عنوان الخادم.";
+
+/* Settings */
+"Settings" = "الإعدادات";
+"Playback" = "التشغيل";
+"Player Engine" = "محرك التشغيل";
+"Default Quality" = "الجودة الافتراضية";
+"Auto (WiFi → Direct, Cellular → 720p)" = "تلقائي (WiFi → مباشر، شبكة خلوية → 720p)";
+"Audio" = "الصوت";
+"Preferred Language" = "اللغة المفضلة";
+"Subtitles" = "الترجمة";
+"Enable by Default" = "تفعيل افتراضياً";
+"About" = "حول";
+"Version" = "الإصدار";
+"Jellyfin Project" = "مشروع Jellyfin";
+"Sign out of %@?" = "تسجيل الخروج من %@؟";
+"Remove" = "إزالة";
+
+/* Downloads */
+"Downloads" = "التنزيلات";
+"No Downloads" = "لا توجد تنزيلات";
+"Downloaded content will appear here." = "سيظهر المحتوى الذي تم تنزيله هنا.";
+
+/* Errors */
+"Invalid server address" = "عنوان الخادم غير صالح";
+"Invalid username or password" = "اسم المستخدم أو كلمة المرور غير صحيحة";
+"This is not a Jellyfin server" = "هذا ليس خادم Jellyfin";
+"Could not read server response" = "تعذر قراءة استجابة الخادم";
+"Connection error: %@" = "خطأ في الاتصال: %@";
+"Server error: %d" = "خطأ في الخادم: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "حذف جميع الحلقات؟";
+"Delete Download?" = "حذف التنزيل؟";
+"Delete" = "حذف";
+"Remove \"%@\" from your downloads?" = "إزالة \"%@\" من تنزيلاتك؟";
+"Remove all downloaded episodes of \"%@\"?" = "إزالة جميع حلقات \"%@\" التي تم تنزيلها؟";
+"Delete all %lld episodes of \"%@\"?" = "حذف جميع حلقات %lld من \"%@\"؟";
+"Downloading" = "جارٍ التنزيل";
+"Failed" = "فشل";
+"Transcoding" = "جارٍ التحويل";
+"Direct" = "مباشر";
+"Waiting" = "انتظار";
+"Delete Download" = "حذف التنزيل";
+"Special Episodes" = "حلقات خاصة";
+"Episode %lld" = "الحلقة %lld";
+"Delete Episode?" = "حذف الحلقة؟";
+
+/* Detail Extended */
+"Download This Episode" = "تنزيل هذه الحلقة";
+"Download Entire Season" = "تنزيل الموسم بالكامل";
+"Resolution" = "الدقة";
+"Original (Direct)" = "أصلي (مباشر)";
+"Download Details" = "تفاصيل التنزيل";
+"Queued" = "في الطابور";
+"Pause" = "إيقاف مؤقت";
+"Cancel Download" = "إلغاء التنزيل";
+"Media Info" = "معلومات الوسائط";
+"1 Season" = "موسم واحد";
+"%lld Seasons" = "%lld مواسم";
+"1 Episode" = "حلقة واحدة";
+"%lld Episodes" = "%lld حلقات";
+"Critic" = "ناقد";
+"Download started" = "بدأ التنزيل";
+
+/* Library Extended */
+"Favorites" = "المفضلة";
+"My Favorites" = "مفضلتي";
+"No Favorites" = "لا توجد مفضلة";
+"Add content you like to your favorites." = "أضف المحتوى الذي تحبه إلى مفضلتك.";
+
+/* Auth Extended */
+"Saved Servers" = "الخوادم المحفوظة";
+"Add existing account" = "إضافة حساب موجود";
+"Sign in as a different user" = "تسجيل الدخول كمستخدم مختلف";
+
+/* Player */
+"Quality" = "الجودة";
+"Dismiss" = "إغلاق";
+"Playback error" = "خطأ في التشغيل";
+"Select an episode to play" = "اختر حلقة للتشغيل";
+"No playable source found" = "لم يتم العثور على مصدر قابل للتشغيل";
+"Tracks" = "المسارات";
+"Stats" = "الإحصاءات";
+"Done" = "تم";
+
+/* Offline */
+"Offline" = "غير متصل";
+"You're offline. Download content while connected to browse here." = "أنت غير متصل بالإنترنت. نزّل المحتوى أثناء الاتصال للتصفح هنا.";
+"No internet connection — showing downloaded content" = "لا يوجد اتصال بالإنترنت — عرض المحتوى الذي تم تنزيله";
+
+/* Home Extended */
+"Download Started" = "بدأ التنزيل";
+"System Default" = "افتراضي النظام";
+"Off" = "إيقاف";
+"Active" = "نشط";
+"Session expired. Re-add the account from settings." = "انتهت صلاحية الجلسة. أعد إضافة الحساب من الإعدادات.";
+"App Language" = "لغة التطبيق";
+"Restart App" = "إعادة تشغيل التطبيق";
+"The app will close to apply the new language." = "سيُغلق التطبيق لتطبيق اللغة الجديدة.";
+
+/* Overview */
+"Show More" = "عرض المزيد";
+"Show Less" = "عرض أقل";

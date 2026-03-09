@@ -29,11 +29,6 @@ struct SavedAccount: Codable, Identifiable, Equatable {
 
 // MARK: - Enums
 
-enum PlayerEngine: String, CaseIterable {
-    case native = "Original"
-    case vlc    = "VLC"
-}
-
 enum VideoQuality: String, CaseIterable, Identifiable {
     case direct = "Direct"
     case auto   = "Auto"
@@ -113,11 +108,6 @@ final class AppState: ObservableObject {
     @Published var closeAddAccountSheet: Bool = false  // set true to dismiss the sheet from anywhere
 
     // MARK: Playback
-    @Published var playerEngine: PlayerEngine = PlayerEngine(
-        rawValue: UserDefaults.standard.string(forKey: "jellygo.playerEngine") ?? ""
-    ) ?? .native {
-        didSet { UserDefaults.standard.set(playerEngine.rawValue, forKey: "jellygo.playerEngine") }
-    }
     @Published var defaultVideoQuality: VideoQuality = VideoQuality(
         rawValue: UserDefaults.standard.string(forKey: "jellygo.defaultQuality") ?? ""
     ) ?? .auto {
@@ -138,6 +128,57 @@ final class AppState: ObservableObject {
     @Published var subtitlesEnabledByDefault: Bool =
         UserDefaults.standard.bool(forKey: "jellygo.subtitleEnabled") {
         didSet { UserDefaults.standard.set(subtitlesEnabledByDefault, forKey: "jellygo.subtitleEnabled") }
+    }
+    /// VLC freetype-rel-fontsize: lower = bigger text. Default 20.
+    @Published var subtitleFontSize: Int = {
+        let v = UserDefaults.standard.integer(forKey: "jellygo.subtitleFontSize")
+        return v == 0 ? 20 : v
+    }() {
+        didSet { UserDefaults.standard.set(subtitleFontSize, forKey: "jellygo.subtitleFontSize") }
+    }
+    @Published var subtitleBackgroundEnabled: Bool =
+        UserDefaults.standard.bool(forKey: "jellygo.subtitleBg") {
+        didSet { UserDefaults.standard.set(subtitleBackgroundEnabled, forKey: "jellygo.subtitleBg") }
+    }
+    @Published var subtitleBold: Bool =
+        UserDefaults.standard.bool(forKey: "jellygo.subtitleBold") {
+        didSet { UserDefaults.standard.set(subtitleBold, forKey: "jellygo.subtitleBold") }
+    }
+    /// "white" or "yellow"
+    @Published var subtitleColor: String =
+        UserDefaults.standard.string(forKey: "jellygo.subtitleColor") ?? "white" {
+        didSet { UserDefaults.standard.set(subtitleColor, forKey: "jellygo.subtitleColor") }
+    }
+
+    // MARK: App Language
+    @Published var appLanguage: String =
+        UserDefaults.standard.string(forKey: "jellygo.appLanguage") ?? "" {
+        didSet {
+            UserDefaults.standard.set(appLanguage, forKey: "jellygo.appLanguage")
+            AppState.updateLocalizationBundle(appLanguage)
+        }
+    }
+
+    // MARK: - Localization (static, accessible from any thread)
+
+    nonisolated(unsafe) static private(set) var currentBundle: Bundle = {
+        let code = UserDefaults.standard.string(forKey: "jellygo.appLanguage") ?? ""
+        return AppState.bundle(for: code)
+    }()
+
+    var currentLocale: Locale {
+        appLanguage.isEmpty ? .current : Locale(identifier: appLanguage)
+    }
+
+    nonisolated static func bundle(for code: String) -> Bundle {
+        guard !code.isEmpty,
+              let path = Bundle.main.path(forResource: code, ofType: "lproj"),
+              let b = Bundle(path: path) else { return .main }
+        return b
+    }
+
+    nonisolated static func updateLocalizationBundle(_ code: String) {
+        currentBundle = bundle(for: code)
     }
 
     init() {

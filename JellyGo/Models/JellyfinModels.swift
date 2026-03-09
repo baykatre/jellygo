@@ -101,6 +101,9 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
     let mediaStreams: [JellyfinMediaStream]?
     let mediaSources: [JellyfinMediaSource]?
     let childCount: Int?
+    let providerIds: [String: String]?
+    let endDate: String?
+    let productionLocations: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -127,6 +130,9 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
         case mediaStreams = "MediaStreams"
         case mediaSources = "MediaSources"
         case childCount = "ChildCount"
+        case providerIds = "ProviderIds"
+        case endDate = "EndDate"
+        case productionLocations = "ProductionLocations"
     }
 
     var runtimeMinutes: Int? {
@@ -151,7 +157,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
             let out = DateFormatter()
             out.dateStyle = .medium
             out.timeStyle = .none
-            out.locale = Locale(identifier: "tr_TR")
+            out.locale = Locale.current
             return out.string(from: date)
         }
         return String(raw.prefix(10))
@@ -265,6 +271,50 @@ struct JellyfinMediaStream: Codable, Hashable {
     var isSubtitle: Bool { type == "Subtitle" }
     var isVideo: Bool { type == "Video" }
 
+    /// Human-readable language name, preserving accessibility/special tags but stripping codec info.
+    /// e.g. "English - SRT External" → "English", "Japanese - Audio Description - AAC" → "Japanese (AD)"
+    var languageName: String? {
+        let tags = Self.extractTags(from: displayTitle)
+        // Resolve base language name from ISO code
+        var base: String?
+        if let lang = language {
+            let locale = Locale.current
+            if let name = locale.localizedString(forLanguageCode: lang), name != lang {
+                base = name
+            }
+        }
+        // Fallback: take text before first " - " from displayTitle
+        if base == nil, let dt = displayTitle, let dash = dt.range(of: " - ") {
+            let prefix = String(dt[dt.startIndex..<dash.lowerBound]).trimmingCharacters(in: .whitespaces)
+            if !prefix.isEmpty { base = prefix }
+        }
+        if base == nil { base = displayTitle ?? language }
+        guard let name = base else { return nil }
+        return tags.isEmpty ? name : "\(name) (\(tags.joined(separator: ", ")))"
+    }
+
+    /// Detects accessibility/special tags from displayTitle.
+    private static func extractTags(from title: String?) -> [String] {
+        guard let t = title?.lowercased() else { return [] }
+        var tags: [String] = []
+        if t.contains("audio description") || t.contains("descriptive") { tags.append("AD") }
+        if t.contains("commentary") { tags.append("Commentary") }
+        if t.contains("sdh") { tags.append("SDH") }
+        if t.contains("forced") { tags.append("Forced") }
+        if t.contains("hearing impaired") || t.contains("hi)") || t.contains("[hi]") { tags.append("HI") }
+        if t.contains("dubb") { tags.append("Dub") }
+        return tags
+    }
+
+    /// Label for audio stream selection (e.g. "English", "Japanese (AD)", "Turkish - 5.1")
+    var audioLabel: String {
+        let name = languageName ?? displayTitle ?? language ?? "Unknown"
+        if let channels = codec?.lowercased(), channels.contains("truehd") || channels.contains("atmos") {
+            return "\(name) (Atmos)"
+        }
+        return name
+    }
+
     /// True if Jellyfin can serve this subtitle as an external SRT file.
     var canDownloadAsSRT: Bool {
         guard isSubtitle else { return false }
@@ -333,5 +383,8 @@ extension JellyfinItem {
         self.mediaStreams = nil
         self.mediaSources = nil
         self.childCount = nil
+        self.providerIds = nil
+        self.endDate = nil
+        self.productionLocations = nil
     }
 }

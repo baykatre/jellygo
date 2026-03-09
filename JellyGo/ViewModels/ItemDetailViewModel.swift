@@ -15,6 +15,13 @@ final class ItemDetailViewModel: ObservableObject {
         isFavorite = item.userData?.isFavorite ?? false
         isWatched = item.userData?.played ?? false
 
+        // Offline: load cached details immediately
+        if !NetworkMonitor.shared.isConnected {
+            loadOfflineData(item: item)
+            isLoading = false
+            return
+        }
+
         async let detailsTask = JellyfinAPI.shared.getItemDetails(
             serverURL: appState.serverURL,
             itemId: item.id,
@@ -33,10 +40,14 @@ final class ItemDetailViewModel: ObservableObject {
                 sortOrder: "Ascending",
                 limit: 100
             )
-            if let (details, seasonsResponse) = try? await (detailsTask, seasonsTask) {
+            let details = try? await detailsTask
+            let seasonsResponse = try? await seasonsTask
+            if let details {
                 fullItem = details
                 isFavorite = details.userData?.isFavorite ?? isFavorite
                 isWatched = details.userData?.played ?? isWatched
+            }
+            if let seasonsResponse {
                 seasons = seasonsResponse.items
                 if let first = seasons.first {
                     await loadEpisodes(seasonId: first.id, appState: appState)
@@ -55,10 +66,14 @@ final class ItemDetailViewModel: ObservableObject {
                     sortOrder: "Ascending",
                     limit: 100
                 )
-                if let (details, seasonsResponse) = try? await (detailsTask, episodesTask) {
+                let details = try? await detailsTask
+                let seasonsResponse = try? await episodesTask
+                if let details {
                     fullItem = details
                     isFavorite = details.userData?.isFavorite ?? isFavorite
                     isWatched = details.userData?.played ?? isWatched
+                }
+                if let seasonsResponse {
                     seasons = seasonsResponse.items
                     // Find and load the current season
                     if let currentSeason = seasons.first(where: { $0.indexNumber == item.parentIndexNumber }) {
@@ -81,6 +96,23 @@ final class ItemDetailViewModel: ObservableObject {
             }
         }
 
+        // Cache details + people photos + missing subtitles for offline
+        if let details = fullItem {
+            let dm = DownloadManager.shared
+            let isDownloaded = dm.isDownloaded(item.id)
+                || dm.downloads.contains(where: { $0.seriesId == item.id })
+            if isDownloaded {
+                DownloadManager.saveItemDetails(details)
+                if let people = details.people, !people.isEmpty {
+                    dm.downloadPeople(people, serverURL: appState.serverURL, token: appState.token)
+                }
+                // Auto-repair: download missing subtitles for this item
+                if dm.isDownloaded(item.id) {
+                    repairSubtitles(for: details, appState: appState)
+                }
+            }
+        }
+
         isLoading = false
     }
 
@@ -92,6 +124,8 @@ final class ItemDetailViewModel: ObservableObject {
 
     func loadEpisodes(seasonId: String, appState: AppState) async {
         guard episodes[seasonId] == nil else { return }
+        // Offline: episodes already populated by loadOfflineData
+        guard NetworkMonitor.shared.isConnected else { return }
         do {
             let response = try await JellyfinAPI.shared.getItems(
                 serverURL: appState.serverURL,
@@ -104,6 +138,35 @@ final class ItemDetailViewModel: ObservableObject {
                 limit: 200
             )
             episodes[seasonId] = response.items
+            // Cache full details for downloaded episodes (getItems returns minimal fields)
+            let dm = DownloadManager.shared
+            Task.detached(priority: .utility) {
+                for ep in response.items {
+                    let isDownloaded = await dm.isDownloaded(ep.id)
+                    guard isDownloaded else { continue }
+                    // Fetch full details (people, mediaStreams, mediaSources, ratings…)
+                    if let full = try? await JellyfinAPI.shared.getItemDetails(
+                        serverURL: appState.serverURL, itemId: ep.id,
+                        userId: appState.userId, token: appState.token
+                    ) {
+                        DownloadManager.saveItemDetails(full)
+                        // Auto-repair: download missing subtitles
+                        let subs = full.mediaStreams?.filter { $0.canDownloadAsSRT } ?? []
+                        let prefix = "\(ep.id)_"
+                        let dir = DownloadManager.downloadsDirectory
+                        let hasSrt = (try? FileManager.default.contentsOfDirectory(atPath: dir.path))?
+                            .contains { $0.hasPrefix(prefix) && $0.hasSuffix(".srt") } ?? false
+                        if !subs.isEmpty && !hasSrt {
+                            let sourceId = full.mediaSources?.first?.id ?? ep.id
+                            await dm.downloadSubtitles(
+                                itemId: ep.id, mediaSourceId: sourceId,
+                                streams: subs, serverURL: appState.serverURL, token: appState.token
+                            )
+                        }
+                    }
+                    await dm.downloadPoster(itemId: ep.id, serverURL: appState.serverURL, token: appState.token)
+                }
+            }
         } catch {}
     }
 
@@ -163,6 +226,124 @@ final class ItemDetailViewModel: ObservableObject {
             if eps.contains(where: { $0.userData?.played != true }) { return season }
         }
         return seasons.first
+    }
+
+    /// Offline fallback: build synthetic seasons + episodes from downloaded items.
+    /// Called when network is unavailable and seasons would otherwise be empty.
+    func buildOfflineData(from downloads: [DownloadedItem], seriesId: String) {
+        guard seasons.isEmpty else { return }
+        let eps = downloads.filter { ($0.seriesId ?? $0.id) == seriesId && $0.isEpisode }
+        guard !eps.isEmpty else { return }
+
+        // Group by season number
+        let grouped = Dictionary(grouping: eps) { $0.seasonNumber ?? 1 }
+        let seasonNums = grouped.keys.sorted()
+
+        seasons = seasonNums.map { num in
+            let seasonId = "\(seriesId)_offline_s\(num)"
+            return JellyfinItem(
+                id: seasonId, name: "Season \(num)", type: "Season",
+                overview: nil, productionYear: nil,
+                communityRating: nil, criticRating: nil, runTimeTicks: nil,
+                seriesName: eps.first?.seriesName, seriesId: seriesId,
+                seasonName: "Season \(num)", indexNumber: num, parentIndexNumber: nil,
+                userData: nil, imageBlurHashes: nil, primaryImageAspectRatio: nil,
+                genres: nil, officialRating: nil, taglines: nil, people: nil,
+                premiereDate: nil, mediaStreams: nil, mediaSources: nil,
+                childCount: grouped[num]?.count, providerIds: nil,
+                endDate: nil, productionLocations: nil
+            )
+        }
+
+        for num in seasonNums {
+            let seasonId = "\(seriesId)_offline_s\(num)"
+            let seasonEps = (grouped[num] ?? []).sorted {
+                ($0.episodeNumber ?? 0) < ($1.episodeNumber ?? 0)
+            }
+            episodes[seasonId] = seasonEps.map { dl in
+                // Try loading cached full details, fall back to basic conversion
+                DownloadManager.loadItemDetails(itemId: dl.id) ?? dl.toJellyfinItem()
+            }
+        }
+    }
+
+    /// Loads all data from locally cached JSON files for offline viewing.
+    private func loadOfflineData(item: JellyfinItem) {
+        // Load cached full item details
+        if let cached = DownloadManager.loadItemDetails(itemId: item.id) {
+            fullItem = cached
+            isFavorite = cached.userData?.isFavorite ?? isFavorite
+            isWatched = cached.userData?.played ?? isWatched
+        }
+        // For episodes, also try loading series details (ratings, cast live on the series)
+        if item.isEpisode, let seriesId = item.seriesId,
+           fullItem == nil || fullItem?.people == nil {
+            if let seriesDetails = DownloadManager.loadItemDetails(itemId: seriesId) {
+                // Use series details as fullItem if episode details missing or incomplete
+                if fullItem == nil {
+                    fullItem = seriesDetails
+                }
+            }
+        }
+
+        // For series/episodes, build seasons from cached episode details
+        if item.isSeries || item.isEpisode {
+            let seriesId = item.isSeries ? item.id : (item.seriesId ?? item.id)
+            let dm = DownloadManager.shared
+
+            // Find all downloaded episodes for this series
+            let downloadedEps = dm.downloads.filter { ($0.seriesId ?? $0.id) == seriesId && $0.isEpisode }
+            guard !downloadedEps.isEmpty else { return }
+
+            // Group by season
+            let grouped = Dictionary(grouping: downloadedEps) { $0.seasonNumber ?? 1 }
+            let seasonNums = grouped.keys.sorted()
+
+            seasons = seasonNums.map { num in
+                let seasonId = "\(seriesId)_offline_s\(num)"
+                return JellyfinItem(
+                    id: seasonId, name: "Season \(num)", type: "Season",
+                    overview: nil, productionYear: nil,
+                    communityRating: nil, criticRating: nil, runTimeTicks: nil,
+                    seriesName: downloadedEps.first?.seriesName, seriesId: seriesId,
+                    seasonName: "Season \(num)", indexNumber: num, parentIndexNumber: nil,
+                    userData: nil, imageBlurHashes: nil, primaryImageAspectRatio: nil,
+                    genres: nil, officialRating: nil, taglines: nil, people: nil,
+                    premiereDate: nil, mediaStreams: nil, mediaSources: nil,
+                    childCount: grouped[num]?.count, providerIds: nil,
+                    endDate: nil, productionLocations: nil
+                )
+            }
+
+            for num in seasonNums {
+                let seasonId = "\(seriesId)_offline_s\(num)"
+                let seasonEps = (grouped[num] ?? []).sorted {
+                    ($0.episodeNumber ?? 0) < ($1.episodeNumber ?? 0)
+                }
+                episodes[seasonId] = seasonEps.map { dl in
+                    // Try loading cached full details, fall back to basic conversion
+                    DownloadManager.loadItemDetails(itemId: dl.id) ?? dl.toJellyfinItem()
+                }
+            }
+        }
+    }
+
+    /// Downloads missing subtitle files for a downloaded item.
+    private func repairSubtitles(for item: JellyfinItem, appState: AppState) {
+        let subs = item.mediaStreams?.filter { $0.canDownloadAsSRT } ?? []
+        guard !subs.isEmpty else { return }
+        let downloadsDir = DownloadManager.downloadsDirectory
+        let prefix = "\(item.id)_"
+        let existingFiles = (try? FileManager.default.contentsOfDirectory(atPath: downloadsDir.path))?.filter {
+            $0.hasPrefix(prefix) && $0.hasSuffix(".srt")
+        } ?? []
+        // If any subtitle files already exist, skip repair
+        guard existingFiles.isEmpty else { return }
+        let sourceId = item.mediaSources?.first?.id ?? item.id
+        DownloadManager.shared.downloadSubtitles(
+            itemId: item.id, mediaSourceId: sourceId,
+            streams: subs, serverURL: appState.serverURL, token: appState.token
+        )
     }
 
     func toggleFavorite(item: JellyfinItem, appState: AppState) async {

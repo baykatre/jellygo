@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "Thuis";
+"Library" = "Bibliotheek";
+"Search" = "Zoeken";
+"Profile" = "Profiel";
+
+/* Home */
+"Continue Watching" = "Verder kijken";
+"Next Up" = "Volgende";
+"Latest Movies" = "Nieuwste films";
+"Latest TV Shows" = "Nieuwste series";
+"Libraries" = "Bibliotheken";
+"No Content Found" = "Geen inhoud gevonden";
+
+/* Profile */
+"Server" = "Server";
+"Address" = "Adres";
+"Language Settings" = "Taalinstellingen";
+"Sign Out" = "Uitloggen";
+"Are you sure you want to sign out?" = "Weet je zeker dat je wilt uitloggen?";
+"Cancel" = "Annuleren";
+
+/* Search */
+"Recent Searches" = "Recente zoekopdrachten";
+"Clear" = "Wissen";
+"Movies, series..." = "Films, series...";
+"Search for movies or series" = "Zoek naar films of series";
+"Start typing the name" = "Begin met het typen van de naam";
+"All" = "Alles";
+
+/* Actions */
+"Play" = "Afspelen";
+"More Info" = "Meer info";
+"Continue  %@" = "Doorgaan  %@";
+"Play  S%lldE%lld" = "Afspelen  S%lldE%lld";
+"Continue  S%lldE%lld" = "Doorgaan  S%lldE%lld";
+"Add to Favorites" = "Toevoegen aan favorieten";
+"Remove from Favorites" = "Verwijderen uit favorieten";
+"Mark as Watched" = "Markeren als bekeken";
+"Mark as Unwatched" = "Markeren als niet bekeken";
+"Watched" = "Bekeken";
+"Save" = "Opslaan";
+"Rate" = "Beoordelen";
+"Favorite" = "Favoriet";
+"Download" = "Downloaden";
+
+/* Detail */
+"Select Season" = "Seizoen selecteren";
+"Season" = "Seizoen";
+"Cast & Crew" = "Cast en crew";
+
+/* Item Types */
+"Movie" = "Film";
+"Series" = "Serie";
+"Episode" = "Aflevering";
+
+/* Runtime */
+"%lld min." = "%lld min.";
+"%lld min" = "%lld min";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Verbinden met je Jellyfin-server";
+"Server Address" = "Serveradres";
+"Connect" = "Verbinden";
+"Sign in" = "Inloggen";
+"Username" = "Gebruikersnaam";
+"Password" = "Wachtwoord";
+"Sign In" = "Inloggen";
+"Login" = "Inloggen";
+
+/* Library */
+"No Libraries Found" = "Geen bibliotheken gevonden";
+"Movies" = "Films";
+"TV Shows" = "Series";
+"Music" = "Muziek";
+"Books" = "Boeken";
+"Photos" = "Foto's";
+"Playlists" = "Afspeellijsten";
+
+/* Accounts */
+"Accounts" = "Accounts";
+"Add" = "Toevoegen";
+"Tap to switch · Long press to remove" = "Tik om te wisselen · Lang indrukken om te verwijderen";
+"Switch to %@" = "Overschakelen naar %@";
+"Edit Label" = "Label bewerken";
+"Remove Account" = "Account verwijderen";
+"Remove %@ from this device?" = "%@ van dit apparaat verwijderen?";
+"Account Already Added" = "Account al toegevoegd";
+"e.g. Home, Remote, VPN…" = "bijv. Thuis, Extern, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Label getoond in het badge van het startscherm en accountbellen. Laat leeg om het serveradres te gebruiken.";
+
+/* Settings */
+"Settings" = "Instellingen";
+"Playback" = "Afspelen";
+"Player Engine" = "Speler";
+"Default Quality" = "Standaardkwaliteit";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WiFi → Direct, Mobiel → 720p)";
+"Audio" = "Audio";
+"Preferred Language" = "Voorkeurstaal";
+"Subtitles" = "Ondertitels";
+"Enable by Default" = "Standaard inschakelen";
+"About" = "Over";
+"Version" = "Versie";
+"Jellyfin Project" = "Jellyfin-project";
+"Sign out of %@?" = "Uitloggen bij %@?";
+"Remove" = "Verwijderen";
+
+/* Downloads */
+"Downloads" = "Downloads";
+"No Downloads" = "Geen downloads";
+"Downloaded content will appear here." = "Gedownloade inhoud verschijnt hier.";
+
+/* Errors */
+"Invalid server address" = "Ongeldig serveradres";
+"Invalid username or password" = "Ongeldige gebruikersnaam of wachtwoord";
+"This is not a Jellyfin server" = "Dit is geen Jellyfin-server";
+"Could not read server response" = "Serverreactie kon niet worden gelezen";
+"Connection error: %@" = "Verbindingsfout: %@";
+"Server error: %d" = "Serverfout: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Alle afleveringen verwijderen?";
+"Delete Download?" = "Download verwijderen?";
+"Delete" = "Verwijderen";
+"Remove \"%@\" from your downloads?" = "\"%@\" uit je downloads verwijderen?";
+"Remove all downloaded episodes of \"%@\"?" = "Alle gedownloade afleveringen van \"%@\" verwijderen?";
+"Delete all %lld episodes of \"%@\"?" = "Alle %lld afleveringen van \"%@\" verwijderen?";
+"Downloading" = "Downloaden";
+"Failed" = "Mislukt";
+"Transcoding" = "Transcoderen";
+"Direct" = "Direct";
+"Waiting" = "Wachten";
+"Delete Download" = "Download verwijderen";
+"Special Episodes" = "Speciale afleveringen";
+"Episode %lld" = "Aflevering %lld";
+"Delete Episode?" = "Aflevering verwijderen?";
+
+/* Detail Extended */
+"Download This Episode" = "Deze aflevering downloaden";
+"Download Entire Season" = "Volledig seizoen downloaden";
+"Resolution" = "Resolutie";
+"Original (Direct)" = "Origineel (Direct)";
+"Download Details" = "Downloaddetails";
+"Queued" = "In wachtrij";
+"Pause" = "Pauzeren";
+"Cancel Download" = "Download annuleren";
+"Media Info" = "Media-info";
+"1 Season" = "1 seizoen";
+"%lld Seasons" = "%lld seizoenen";
+"1 Episode" = "1 aflevering";
+"%lld Episodes" = "%lld afleveringen";
+"Critic" = "Criticus";
+"Download started" = "Download gestart";
+
+/* Library Extended */
+"Favorites" = "Favorieten";
+"My Favorites" = "Mijn favorieten";
+"No Favorites" = "Geen favorieten";
+"Add content you like to your favorites." = "Voeg inhoud die je leuk vindt toe aan je favorieten.";
+
+/* Auth Extended */
+"Saved Servers" = "Opgeslagen servers";
+"Add existing account" = "Bestaand account toevoegen";
+"Sign in as a different user" = "Inloggen als een andere gebruiker";
+
+/* Player */
+"Quality" = "Kwaliteit";
+"Dismiss" = "Sluiten";
+"Playback error" = "Afspeelfout";
+"Select an episode to play" = "Selecteer een aflevering om af te spelen";
+"No playable source found" = "Geen afspeelbare bron gevonden";
+"Tracks" = "Tracks";
+"Stats" = "Statistieken";
+"Done" = "Klaar";
+
+/* Offline */
+"Offline" = "Offline";
+"You're offline. Download content while connected to browse here." = "Je bent offline. Download inhoud terwijl je verbonden bent om hier te bladeren.";
+"No internet connection — showing downloaded content" = "Geen internetverbinding — gedownloade inhoud wordt getoond";
+
+/* Home Extended */
+"Download Started" = "Download gestart";
+"System Default" = "Systeemstandaard";
+"Off" = "Uit";
+"Active" = "Actief";
+"Session expired. Re-add the account from settings." = "Sessie verlopen. Voeg het account opnieuw toe vanuit instellingen.";
+"App Language" = "App-taal";
+"Restart App" = "App herstarten";
+"The app will close to apply the new language." = "De app wordt gesloten om de nieuwe taal toe te passen.";
+
+/* Overview */
+"Show More" = "Meer weergeven";
+"Show Less" = "Minder weergeven";

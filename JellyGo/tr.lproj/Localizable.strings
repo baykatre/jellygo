@@ -118,3 +118,77 @@
 "Could not read server response" = "Sunucu yanıtı okunamadı";
 "Connection error: %@" = "Bağlantı hatası: %@";
 "Server error: %d" = "Sunucu hatası: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Tüm Bölümleri Sil?";
+"Delete Download?" = "İndirmeyi Sil?";
+"Delete" = "Sil";
+"Remove all downloaded episodes of \"%@\"?" = "\"%@\" dizisinin tüm indirilen bölümleri silinsin mi?";
+"Remove \"%@\" from your downloads?" = "\"%@\" indirilenlerdeki silinsin mi?";
+"Downloading" = "İndiriliyor";
+"Failed" = "Başarısız";
+"Transcoding" = "Dönüştürülüyor";
+"Direct" = "Direkt";
+"Waiting" = "Bekliyor";
+"Delete Download" = "İndirmeyi Sil";
+"Special Episodes" = "Özel Bölümler";
+"Episode %lld" = "Bölüm %lld";
+"Delete Episode?" = "Bölümü Sil?";
+"Delete all %lld episodes of \"%@\"?" = "\"%@\" dizisinin %lld bölümünün tamamı silinsin mi?";
+
+/* Detail Extended */
+"Download This Episode" = "Bu Bölümü İndir";
+"Download Entire Season" = "Tüm Sezonu İndir";
+"Resolution" = "Çözünürlük";
+"Original (Direct)" = "Orijinal (Direkt)";
+"Download Details" = "İndirme Detayları";
+"Queued" = "Sırada";
+"Pause" = "Duraklat";
+"Cancel Download" = "İndirmeyi İptal Et";
+"Media Info" = "Medya Bilgisi";
+"1 Season" = "1 Sezon";
+"%lld Seasons" = "%lld Sezon";
+"1 Episode" = "1 Bölüm";
+"%lld Episodes" = "%lld Bölüm";
+"Critic" = "Eleştirmen";
+"Download started" = "İndirme başladı";
+
+/* Library Extended */
+"Favorites" = "Favoriler";
+"My Favorites" = "Beğendiklerim";
+"No Favorites" = "Favori Yok";
+"Add content you like to your favorites." = "Beğendiğiniz içerikleri favorilere ekleyin.";
+
+/* Auth Extended */
+"Saved Servers" = "Kayıtlı Sunucular";
+"Add existing account" = "Mevcut hesabı ekle";
+"Sign in as a different user" = "Farklı kullanıcı olarak giriş yap";
+
+/* Player */
+"Quality" = "Kalite";
+"Dismiss" = "Kapat";
+"Playback error" = "Oynatma hatası";
+"Select an episode to play" = "Oynatılacak bölümü seçin";
+"No playable source found" = "Oynatılabilir kaynak bulunamadı";
+"Tracks" = "Parçalar";
+"Stats" = "İstatistikler";
+"Done" = "Tamam";
+
+/* Offline */
+"Offline" = "Çevrimdışı";
+"You're offline. Download content while connected to browse here." = "Çevrimdışısınız. İçerik indirmek için bağlantı kurun.";
+"No internet connection — showing downloaded content" = "İnternet bağlantısı yok — indirilen içerikler gösteriliyor";
+
+/* Overview */
+"Show More" = "Daha fazla";
+"Show Less" = "Daha az";
+
+/* Home Extended */
+"Download Started" = "İndirme Başladı";
+"System Default" = "Sistem Varsayılanı";
+"Off" = "Kapalı";
+"Active" = "Aktif";
+"Session expired. Re-add the account from settings." = "Oturum süresi dolmuş. Hesabı ayarlardan yeniden ekleyin.";
+"App Language" = "Uygulama Dili";
+"Restart App" = "Uygulamayı Yeniden Başlat";
+"The app will close to apply the new language." = "Yeni dili uygulamak için uygulama kapanacak.";

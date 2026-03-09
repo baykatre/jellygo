@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "Ana səhifə";
+"Library" = "Kitabxana";
+"Search" = "Axtarış";
+"Profile" = "Profil";
+
+/* Home */
+"Continue Watching" = "İzləməyə davam et";
+"Next Up" = "Növbəti";
+"Latest Movies" = "Son filmlər";
+"Latest TV Shows" = "Son seriallar";
+"Libraries" = "Kitabxanalar";
+"No Content Found" = "Məzmun tapılmadı";
+
+/* Profile */
+"Server" = "Server";
+"Address" = "Ünvan";
+"Language Settings" = "Dil parametrləri";
+"Sign Out" = "Çıxış";
+"Are you sure you want to sign out?" = "Çıxmaq istədiyinizə əminsinizmi?";
+"Cancel" = "Ləğv et";
+
+/* Search */
+"Recent Searches" = "Son axtarışlar";
+"Clear" = "Təmizlə";
+"Movies, series..." = "Filmlər, seriallar...";
+"Search for movies or series" = "Film və ya serial axtar";
+"Start typing the name" = "Adı yazmağa başlayın";
+"All" = "Hamısı";
+
+/* Actions */
+"Play" = "Oynat";
+"More Info" = "Ətraflı";
+"Continue  %@" = "Davam et  %@";
+"Play  S%lldE%lld" = "Oynat  S%lldE%lld";
+"Continue  S%lldE%lld" = "Davam et  S%lldE%lld";
+"Add to Favorites" = "Seçililərə əlavə et";
+"Remove from Favorites" = "Seçililərdən çıxar";
+"Mark as Watched" = "İzlənildi kimi işarələ";
+"Mark as Unwatched" = "İzlənilmədi kimi işarələ";
+"Watched" = "İzlənildi";
+"Save" = "Saxla";
+"Rate" = "Qiymətləndir";
+"Favorite" = "Seçili";
+"Download" = "Yüklə";
+
+/* Detail */
+"Select Season" = "Mövsüm seçin";
+"Season" = "Mövsüm";
+"Cast & Crew" = "Aktyorlar və qrup";
+
+/* Item Types */
+"Movie" = "Film";
+"Series" = "Serial";
+"Episode" = "Bölüm";
+
+/* Runtime */
+"%lld min." = "%lld dəq.";
+"%lld min" = "%lld dəq";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Jellyfin serverinizə qoşulun";
+"Server Address" = "Server ünvanı";
+"Connect" = "Qoşul";
+"Sign in" = "Daxil ol";
+"Username" = "İstifadəçi adı";
+"Password" = "Şifrə";
+"Sign In" = "Daxil ol";
+"Login" = "Giriş";
+
+/* Library */
+"No Libraries Found" = "Kitabxana tapılmadı";
+"Movies" = "Filmlər";
+"TV Shows" = "Seriallar";
+"Music" = "Musiqi";
+"Books" = "Kitablar";
+"Photos" = "Şəkillər";
+"Playlists" = "Pleylistlər";
+
+/* Accounts */
+"Accounts" = "Hesablar";
+"Add" = "Əlavə et";
+"Tap to switch · Long press to remove" = "Keçmək üçün toxunun · Silmək üçün uzun basın";
+"Switch to %@" = "%@-a keç";
+"Edit Label" = "Etiketi redaktə et";
+"Remove Account" = "Hesabı sil";
+"Remove %@ from this device?" = "%@ bu cihazdan silinsin?";
+"Account Already Added" = "Hesab artıq əlavə edilib";
+"e.g. Home, Remote, VPN…" = "məs. Ev, Uzaq, VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Ana ekran nişanında və hesab kabarcıqlarında göstərilən etiket. Server ünvanını istifadə etmək üçün boş saxlayın.";
+
+/* Settings */
+"Settings" = "Parametrlər";
+"Playback" = "Oynatma";
+"Player Engine" = "Pleyər";
+"Default Quality" = "Standart keyfiyyət";
+"Auto (WiFi → Direct, Cellular → 720p)" = "Avtomatik (WiFi → Birbaşa, Mobil → 720p)";
+"Audio" = "Səs";
+"Preferred Language" = "Üstünlük verilən dil";
+"Subtitles" = "Altyazılar";
+"Enable by Default" = "Standart olaraq aktivləşdir";
+"About" = "Haqqında";
+"Version" = "Versiya";
+"Jellyfin Project" = "Jellyfin Layihəsi";
+"Sign out of %@?" = "%@-dan çıxılsın?";
+"Remove" = "Sil";
+
+/* Downloads */
+"Downloads" = "Yükləmələr";
+"No Downloads" = "Yükləmə yoxdur";
+"Downloaded content will appear here." = "Yüklənmiş məzmun burada görünəcək.";
+
+/* Errors */
+"Invalid server address" = "Yanlış server ünvanı";
+"Invalid username or password" = "Yanlış istifadəçi adı və ya şifrə";
+"This is not a Jellyfin server" = "Bu Jellyfin serveri deyil";
+"Could not read server response" = "Server cavabı oxunmadı";
+"Connection error: %@" = "Bağlantı xətası: %@";
+"Server error: %d" = "Server xətası: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "Bütün bölümlər silinsin?";
+"Delete Download?" = "Yükləmə silinsin?";
+"Delete" = "Sil";
+"Remove \"%@\" from your downloads?" = "\"%@\" yükləmələrinizdən çıxarılsın?";
+"Remove all downloaded episodes of \"%@\"?" = "\"%@\" seriyasının yüklənmiş bütün bölümləri silinsin?";
+"Delete all %lld episodes of \"%@\"?" = "\"%@\" seriyasının %lld bölümü silinsin?";
+"Downloading" = "Yüklənir";
+"Failed" = "Uğursuz";
+"Transcoding" = "Çevrilir";
+"Direct" = "Birbaşa";
+"Waiting" = "Gözlənilir";
+"Delete Download" = "Yükləməni sil";
+"Special Episodes" = "Xüsusi bölümlər";
+"Episode %lld" = "Bölüm %lld";
+"Delete Episode?" = "Bölüm silinsin?";
+
+/* Detail Extended */
+"Download This Episode" = "Bu bölümü yüklə";
+"Download Entire Season" = "Bütün mövsümü yüklə";
+"Resolution" = "Həll";
+"Original (Direct)" = "Orijinal (Birbaşa)";
+"Download Details" = "Yükləmə təfərrüatları";
+"Queued" = "Növbədə";
+"Pause" = "Fasilə";
+"Cancel Download" = "Yükləməni ləğv et";
+"Media Info" = "Media məlumatları";
+"1 Season" = "1 mövsüm";
+"%lld Seasons" = "%lld mövsüm";
+"1 Episode" = "1 bölüm";
+"%lld Episodes" = "%lld bölüm";
+"Critic" = "Tənqidçi";
+"Download started" = "Yükləmə başladı";
+
+/* Library Extended */
+"Favorites" = "Seçililər";
+"My Favorites" = "Seçililərim";
+"No Favorites" = "Seçili yoxdur";
+"Add content you like to your favorites." = "Bəyəndiyiniz məzmunu seçililərinizə əlavə edin.";
+
+/* Auth Extended */
+"Saved Servers" = "Saxlanılmış serverlər";
+"Add existing account" = "Mövcud hesab əlavə et";
+"Sign in as a different user" = "Fərqli istifadəçi kimi daxil ol";
+
+/* Player */
+"Quality" = "Keyfiyyət";
+"Dismiss" = "Bağla";
+"Playback error" = "Oynatma xətası";
+"Select an episode to play" = "Oynatmaq üçün bölüm seçin";
+"No playable source found" = "Oynadıla bilən mənbə tapılmadı";
+"Tracks" = "Yollar";
+"Stats" = "Statistika";
+"Done" = "Hazır";
+
+/* Offline */
+"Offline" = "Oflayn";
+"You're offline. Download content while connected to browse here." = "Siz oflayn rejimdesiniz. Burada baxmaq üçün qoşulmuş olarkən məzmun yükləyin.";
+"No internet connection — showing downloaded content" = "İnternet bağlantısı yoxdur — yüklənmiş məzmun göstərilir";
+
+/* Home Extended */
+"Download Started" = "Yükləmə başladı";
+"System Default" = "Sistem standartı";
+"Off" = "Söndür";
+"Active" = "Aktiv";
+"Session expired. Re-add the account from settings." = "Sessiya başa çatdı. Hesabı parametrlərdən yenidən əlavə edin.";
+"App Language" = "Tətbiq dili";
+"Restart App" = "Tətbiqi yenidən başlat";
+"The app will close to apply the new language." = "Yeni dili tətbiq etmək üçün tətbiq bağlanacaq.";
+
+/* Overview */
+"Show More" = "Daha çox göstər";
+"Show Less" = "Daha az göstər";

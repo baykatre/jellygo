@@ -1,20 +1,23 @@
 import SwiftUI
 
-/// Routes playback to the correct player based on AppState.playerEngine.
-/// Use this everywhere instead of manually checking the engine.
+/// Single entry point for playback — always uses JellyGoPlayerView.
 struct PlayerContainerView: View {
     let item: JellyfinItem
     var localURL: URL? = nil
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        switch appState.playerEngine {
-        case .native:
-            PlayerView(item: item, localURL: localURL)
-                .environmentObject(appState)
-        case .vlc:
-            VLCPlayerView(item: item, localURL: localURL)
-                .environmentObject(appState)
-        }
+        JellyGoPlayerView(item: item, localURL: localURL)
+            .environmentObject(appState)
+    }
+
+    /// Requests a device orientation change.
+    static func rotate(to orientation: UIInterfaceOrientation) {
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first else { return }
+        let mask: UIInterfaceOrientationMask = orientation == .portrait ? .portrait : .landscapeRight
+        windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { _ in }
+        windowScene.keyWindow?.rootViewController?
+            .setNeedsUpdateOfSupportedInterfaceOrientations()
     }
 }

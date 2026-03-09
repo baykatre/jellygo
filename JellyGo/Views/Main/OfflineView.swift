@@ -3,8 +3,174 @@ import SwiftUI
 struct OfflineView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
+    @State private var heroPlayItem: JellyfinItem?
+    @State private var showSettings = false
 
-    private let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 140), spacing: 12)]
+    // MARK: - Computed Data
+
+    private var allItems: [JellyfinItem] {
+        dm.downloads.map { dl in
+            DownloadManager.loadItemDetails(itemId: dl.id) ?? dl.toJellyfinItem()
+        }
+    }
+
+    /// Featured items for the hero banner: movies + one per series (with backdrop)
+    private var featuredItems: [JellyfinItem] {
+        var items: [JellyfinItem] = []
+        var seenSeriesIds = Set<String>()
+        var seenSeriesNames = Set<String>()
+
+        // Sort by added date (most recent first)
+        let sorted = dm.downloads.sorted { $0.addedDate > $1.addedDate }
+
+        for dl in sorted {
+            if dl.isMovie {
+                let item = DownloadManager.loadItemDetails(itemId: dl.id) ?? dl.toJellyfinItem()
+                items.append(item)
+            } else if dl.isEpisode {
+                // Dedup by seriesId first, then by seriesName as fallback
+                if let sid = dl.seriesId {
+                    guard !seenSeriesIds.contains(sid) else { continue }
+                    seenSeriesIds.insert(sid)
+                } else if let sname = dl.seriesName {
+                    guard !seenSeriesNames.contains(sname) else { continue }
+                    seenSeriesNames.insert(sname)
+                }
+                let sid = dl.seriesId ?? dl.id
+                // Use series details if cached, otherwise build from episode
+                if let seriesDetails = DownloadManager.loadItemDetails(itemId: sid) {
+                    items.append(seriesDetails)
+                } else {
+                    // Build a synthetic series item
+                    items.append(JellyfinItem(
+                        id: sid, name: dl.seriesName ?? dl.name, type: "Series",
+                        overview: dl.overview, productionYear: dl.productionYear,
+                        communityRating: dl.communityRating, criticRating: nil, runTimeTicks: nil,
+                        seriesName: nil, seriesId: nil,
+                        seasonName: nil, indexNumber: nil, parentIndexNumber: nil,
+                        userData: nil, imageBlurHashes: nil, primaryImageAspectRatio: nil,
+                        genres: dl.genres, officialRating: dl.officialRating, taglines: nil, people: nil,
+                        premiereDate: nil, mediaStreams: nil, mediaSources: nil,
+                        childCount: nil, providerIds: nil,
+                        endDate: nil, productionLocations: nil
+                    ))
+                }
+            }
+        }
+
+        return Array(items.prefix(8))
+    }
+
+    /// Items with a saved playback position (partially watched)
+    private var continueWatching: [JellyfinItem] {
+        dm.downloads.compactMap { dl -> JellyfinItem? in
+            let pos = LocalPlaybackStore.position(for: dl.id)
+            guard pos > 2 else { return nil }
+            let item = DownloadManager.loadItemDetails(itemId: dl.id) ?? dl.toJellyfinItem()
+            // Skip if fully watched
+            if item.userData?.played == true { return nil }
+            return item
+        }
+        .sorted { a, b in
+            // Most recently watched first (higher position = more recent activity, rough heuristic)
+            (a.userData?.playbackPositionTicks ?? 0) > (b.userData?.playbackPositionTicks ?? 0)
+        }
+    }
+
+    /// Next unwatched episode per downloaded series
+    private var nextUp: [JellyfinItem] {
+        let episodes = dm.downloads.filter(\.isEpisode)
+        let grouped = Dictionary(grouping: episodes) { $0.seriesId ?? $0.id }
+        var results: [JellyfinItem] = []
+
+        for (_, eps) in grouped {
+            let sorted = eps.sorted {
+                ($0.seasonNumber ?? 0, $0.episodeNumber ?? 0) < ($1.seasonNumber ?? 0, $1.episodeNumber ?? 0)
+            }
+            // Find first episode that isn't fully watched and has no saved position
+            for ep in sorted {
+                let item = DownloadManager.loadItemDetails(itemId: ep.id) ?? ep.toJellyfinItem()
+                let pos = LocalPlaybackStore.position(for: ep.id)
+                if item.userData?.played != true && pos <= 2 {
+                    results.append(item)
+                    break
+                }
+            }
+        }
+        return results
+    }
+
+    /// Dynamic content sections grouped by Jellyfin type.
+    /// Episodes are collapsed into unique series entries.
+    private var contentSections: [(type: String, title: String, items: [JellyfinItem])] {
+        // Build unique items: standalone items + unique series from episodes
+        var itemsByType: [String: [JellyfinItem]] = [:]
+        var seenSeriesIds = Set<String>()
+        var seenSeriesNames = Set<String>()
+
+        for dl in dm.downloads {
+            if dl.isEpisode {
+                // Dedup by seriesId first, then by seriesName as fallback
+                if let sid = dl.seriesId {
+                    guard !seenSeriesIds.contains(sid) else { continue }
+                    seenSeriesIds.insert(sid)
+                } else if let sname = dl.seriesName {
+                    guard !seenSeriesNames.contains(sname) else { continue }
+                    seenSeriesNames.insert(sname)
+                }
+                let sid = dl.seriesId ?? dl.id
+                let item: JellyfinItem
+                if let details = DownloadManager.loadItemDetails(itemId: sid) {
+                    item = details
+                } else {
+                    item = JellyfinItem(
+                        id: sid, name: dl.seriesName ?? dl.name, type: "Series",
+                        overview: dl.overview, productionYear: dl.productionYear,
+                        communityRating: dl.communityRating, criticRating: nil, runTimeTicks: nil,
+                        seriesName: nil, seriesId: nil,
+                        seasonName: nil, indexNumber: nil, parentIndexNumber: nil,
+                        userData: nil, imageBlurHashes: nil, primaryImageAspectRatio: nil,
+                        genres: dl.genres, officialRating: dl.officialRating, taglines: nil, people: nil,
+                        premiereDate: nil, mediaStreams: nil, mediaSources: nil,
+                        childCount: nil, providerIds: nil,
+                        endDate: nil, productionLocations: nil
+                    )
+                }
+                itemsByType["Series", default: []].append(item)
+            } else {
+                let item = DownloadManager.loadItemDetails(itemId: dl.id) ?? dl.toJellyfinItem()
+                itemsByType[dl.type, default: []].append(item)
+            }
+        }
+
+        // Define display order for known types; unknown types appear at the end
+        let typeOrder: [String] = ["Movie", "Series", "MusicVideo", "BoxSet", "Audio"]
+
+        return itemsByType.keys
+            .sorted { a, b in
+                let ia = typeOrder.firstIndex(of: a) ?? Int.max
+                let ib = typeOrder.firstIndex(of: b) ?? Int.max
+                return ia < ib
+            }
+            .map { type in
+                (type: type, title: Self.sectionTitle(for: type), items: itemsByType[type]!)
+            }
+    }
+
+    /// Maps Jellyfin item type to a user-facing section title.
+    private static func sectionTitle(for type: String) -> String {
+        switch type {
+        case "Movie":      return String(localized: "Movies")
+        case "Series":     return String(localized: "TV Shows")
+        case "MusicVideo": return String(localized: "Music Videos")
+        case "BoxSet":     return String(localized: "Collections")
+        case "Audio":      return String(localized: "Music")
+        case "Book":       return String(localized: "Books")
+        default:           return type + "s"
+        }
+    }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
@@ -13,155 +179,198 @@ struct OfflineView: View {
                     ContentUnavailableView {
                         Label("No Downloads", systemImage: "wifi.slash")
                     } description: {
-                        Text("You're offline. Download content while connected to watch it here.")
+                        Text("You're offline. Download content while connected to browse here.")
                     }
                 } else {
                     ScrollView(showsIndicators: false) {
-                        LazyVStack(alignment: .leading, spacing: 28) {
-                            let movies = dm.downloads.filter { $0.isMovie }
-                            if !movies.isEmpty {
-                                gridSection(title: "Movies", items: movies.map { $0.toJellyfinItem() }, serverURL: movies[0].serverURL)
+                        LazyVStack(alignment: .leading, spacing: 0) {
+
+                            // Hero Banner
+                            if !featuredItems.isEmpty {
+                                HeroBannerView(
+                                    items: featuredItems,
+                                    serverURL: appState.serverURL,
+                                    onPlay: { item in
+                                        // Series banner → navigate to detail, movie → play
+                                        guard item.isMovie || item.isEpisode else { return }
+                                        AppDelegate.orientationLock = .landscape
+                                        PlayerContainerView.rotate(to: .landscapeRight)
+                                        Task {
+                                            try? await Task.sleep(for: .milliseconds(300))
+                                            heroPlayItem = item
+                                        }
+                                    }
+                                )
                             }
 
-                            let episodes = dm.downloads.filter { $0.isEpisode }
-                            if !episodes.isEmpty {
-                                seriesGridSection(episodes: episodes)
+                            // Content sections
+                            VStack(alignment: .leading, spacing: 32) {
+                                if !continueWatching.isEmpty {
+                                    continueWatchingSection
+                                }
+                                if !nextUp.isEmpty {
+                                    nextUpSection
+                                }
+                                ForEach(contentSections, id: \.type) { section in
+                                    contentSection(title: section.title, items: section.items)
+                                }
                             }
+                            .padding(.top, 28)
+                            .padding(.bottom, 40)
                         }
-                        .padding(.vertical, 16)
+                    }
+                    .ignoresSafeArea(edges: .top)
+                    .scrollEdgeEffectStyle(.none, for: .top)
+                    .coordinateSpace(name: "homeScroll")
+                }
+            }
+            .background(Color(.systemBackground).ignoresSafeArea())
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .navigationTitle("")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showSettings = true } label: { offlineBadge }
+                        .buttonStyle(.plain)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
                     }
                 }
             }
-            .navigationTitle("Offline")
-            .navigationBarTitleDisplayMode(.large)
-            .safeAreaInset(edge: .top) {
-                offlineBanner
+            .navigationDestination(isPresented: $showSettings) {
+                SettingsView()
             }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }
-        }
-    }
-
-    // MARK: - Offline Banner
-
-    private var offlineBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "wifi.slash")
-                .font(.caption.weight(.semibold))
-            Text("No internet connection — showing downloaded content")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
-        .background(Color.orange.gradient)
-    }
-
-    // MARK: - Movie Grid
-
-    private func gridSection(title: String, items: [JellyfinItem], serverURL: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.title3.bold())
-                .padding(.horizontal, 20)
-
-            LazyVGrid(columns: gridColumns, spacing: 16) {
-                ForEach(items) { item in
-                    NavigationLink(value: item) {
-                        OfflinePosterCard(item: item, serverURL: serverURL)
-                    }
-                    .buttonStyle(.plain)
-                }
+            .navigationDestination(for: JellyfinPerson.self) { person in
+                PersonDetailView(person: person)
             }
-            .padding(.horizontal, 20)
+            .fullScreenCover(item: $heroPlayItem, onDismiss: {
+                AppDelegate.orientationLock = .portrait
+                PlayerContainerView.rotate(to: .portrait)
+            }) { item in
+                let localURL = dm.downloads.first(where: { $0.id == item.id })
+                    .flatMap { dl -> URL? in
+                        guard let url = dl.localURL, FileManager.default.fileExists(atPath: url.path) else { return nil }
+                        return url
+                    }
+                PlayerContainerView(item: item, localURL: localURL)
+                    .environmentObject(appState)
+            }
         }
     }
 
-    // MARK: - Series Grid (grouped)
+    // MARK: - User Profile Badge
 
-    private func seriesGridSection(episodes: [DownloadedItem]) -> some View {
-        let groups = Dictionary(grouping: episodes) { $0.seriesId ?? $0.id }
-        let seriesIds = groups.keys.sorted {
-            (groups[$0]?.first?.seriesName ?? "") < (groups[$1]?.first?.seriesName ?? "")
+    private var offlineBadge: some View {
+        HStack(spacing: 10) {
+            avatarCircle
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(appState.username)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
+
+                HStack(spacing: 5) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 9, weight: .bold))
+                    Text("Offline")
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(.orange)
+                .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
+            }
         }
+        .padding(.trailing, 16)
+        .fixedSize()
+    }
 
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("TV Shows")
-                .font(.title3.bold())
-                .padding(.horizontal, 20)
+    private var avatarCircle: some View {
+        Group {
+            if let localURL = DownloadManager.localUserAvatarURL(userId: appState.userId) {
+                AsyncImage(url: localURL) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable()
+                            .scaledToFill()
+                            .frame(width: 36, height: 36)
+                            .clipShape(Circle())
+                    default:
+                        avatarFallback
+                    }
+                }
+            } else {
+                avatarFallback
+            }
+        }
+    }
 
-            LazyVGrid(columns: gridColumns, spacing: 16) {
-                ForEach(seriesIds, id: \.self) { sid in
-                    if let first = groups[sid]?.first {
-                        let seriesItem = JellyfinItem(
-                            id: first.seriesId ?? first.id,
-                            name: first.seriesName ?? first.name,
-                            type: "Series",
-                            overview: nil, productionYear: nil,
-                            communityRating: nil, criticRating: nil,
-                            runTimeTicks: nil, seriesName: nil, seriesId: nil,
-                            seasonName: nil, indexNumber: nil, parentIndexNumber: nil,
-                            userData: nil, imageBlurHashes: nil,
-                            primaryImageAspectRatio: nil, genres: nil,
-                            officialRating: nil, taglines: nil, people: nil,
-                            premiereDate: nil, mediaStreams: nil, mediaSources: nil,
-                            childCount: nil
-                        )
-                        NavigationLink(value: seriesItem) {
-                            OfflinePosterCard(item: seriesItem, serverURL: first.serverURL)
+    private var avatarFallback: some View {
+        Circle()
+            .fill(.white.opacity(0.25))
+            .frame(width: 36, height: 36)
+            .overlay {
+                Text(appState.username.prefix(1).uppercased())
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+    }
+
+    // MARK: - Sections
+
+    private var continueWatchingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeaderView(title: "Continue Watching")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(continueWatching) { item in
+                        NavigationLink(value: item) {
+                            BackdropCardView(item: item, serverURL: appState.serverURL)
                         }
                         .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
         }
     }
-}
 
-// MARK: - Offline Poster Card (shows poster with local badge)
-
-private struct OfflinePosterCard: View {
-    let item: JellyfinItem
-    let serverURL: String
-
-    private let width: CGFloat = 100
-    private var height: CGFloat { width * 3 / 2 }
-
-    private var posterURL: URL? {
-        JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: 200)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ZStack(alignment: .bottomTrailing) {
-                AsyncImage(url: posterURL) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().aspectRatio(contentMode: .fill)
-                    default:
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.systemGray5))
-                            .overlay(Image(systemName: "photo").foregroundStyle(.tertiary))
+    private var nextUpSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeaderView(title: "Next Up")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(nextUp) { item in
+                        NavigationLink(value: item) {
+                            BackdropCardView(item: item, serverURL: appState.serverURL)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .frame(width: width, height: height)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .background(Color.black.opacity(0.5), in: Circle())
-                    .padding(5)
+                .padding(.horizontal, 20)
             }
+        }
+    }
 
-            Text(item.name)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .frame(width: width, alignment: .leading)
+    private func contentSection(title: String, items: [JellyfinItem]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeaderView(title: LocalizedStringKey(title))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) {
+                            PosterCardView(item: item, serverURL: appState.serverURL, width: 120)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
         }
     }
 }

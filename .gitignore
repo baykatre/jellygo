@@ -1,0 +1,11 @@
+# Large binary frameworks
+MobileVLCKit-binary/
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+
+# macOS
+.DS_Store

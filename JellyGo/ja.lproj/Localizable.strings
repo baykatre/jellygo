@@ -1,0 +1,193 @@
+/* Tabs */
+"Home" = "ホーム";
+"Library" = "ライブラリ";
+"Search" = "検索";
+"Profile" = "プロフィール";
+
+/* Home */
+"Continue Watching" = "視聴を続ける";
+"Next Up" = "次のエピソード";
+"Latest Movies" = "最新映画";
+"Latest TV Shows" = "最新TVシリーズ";
+"Libraries" = "ライブラリ";
+"No Content Found" = "コンテンツが見つかりません";
+
+/* Profile */
+"Server" = "サーバー";
+"Address" = "アドレス";
+"Language Settings" = "言語設定";
+"Sign Out" = "サインアウト";
+"Are you sure you want to sign out?" = "サインアウトしてもよろしいですか？";
+"Cancel" = "キャンセル";
+
+/* Search */
+"Recent Searches" = "最近の検索";
+"Clear" = "クリア";
+"Movies, series..." = "映画、シリーズ...";
+"Search for movies or series" = "映画またはシリーズを検索";
+"Start typing the name" = "名前を入力してください";
+"All" = "すべて";
+
+/* Actions */
+"Play" = "再生";
+"More Info" = "詳細";
+"Continue  %@" = "続きを見る  %@";
+"Play  S%lldE%lld" = "再生  S%lldE%lld";
+"Continue  S%lldE%lld" = "続きを見る  S%lldE%lld";
+"Add to Favorites" = "お気に入りに追加";
+"Remove from Favorites" = "お気に入りから削除";
+"Mark as Watched" = "視聴済みにする";
+"Mark as Unwatched" = "未視聴にする";
+"Watched" = "視聴済み";
+"Save" = "保存";
+"Rate" = "評価";
+"Favorite" = "お気に入り";
+"Download" = "ダウンロード";
+
+/* Detail */
+"Select Season" = "シーズンを選択";
+"Season" = "シーズン";
+"Cast & Crew" = "キャスト＆スタッフ";
+
+/* Item Types */
+"Movie" = "映画";
+"Series" = "シリーズ";
+"Episode" = "エピソード";
+
+/* Runtime */
+"%lld min." = "%lld 分.";
+"%lld min" = "%lld 分";
+
+/* Auth */
+"Connect to your Jellyfin server" = "Jellyfinサーバーに接続";
+"Server Address" = "サーバーアドレス";
+"Connect" = "接続";
+"Sign in" = "サインイン";
+"Username" = "ユーザー名";
+"Password" = "パスワード";
+"Sign In" = "サインイン";
+"Login" = "ログイン";
+
+/* Library */
+"No Libraries Found" = "ライブラリが見つかりません";
+"Movies" = "映画";
+"TV Shows" = "TVシリーズ";
+"Music" = "音楽";
+"Books" = "本";
+"Photos" = "写真";
+"Playlists" = "プレイリスト";
+
+/* Accounts */
+"Accounts" = "アカウント";
+"Add" = "追加";
+"Tap to switch · Long press to remove" = "タップで切替 · 長押しで削除";
+"Switch to %@" = "%@に切り替え";
+"Edit Label" = "ラベルを編集";
+"Remove Account" = "アカウントを削除";
+"Remove %@ from this device?" = "%@をこのデバイスから削除しますか？";
+"Account Already Added" = "アカウントは既に追加されています";
+"e.g. Home, Remote, VPN…" = "例: ホーム、リモート、VPN…";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "ホーム画面のバッジとアカウントバブルに表示されるラベルです。空白にするとサーバーアドレスが使用されます。";
+
+/* Settings */
+"Settings" = "設定";
+"Playback" = "再生";
+"Player Engine" = "プレーヤーエンジン";
+"Default Quality" = "デフォルト画質";
+"Auto (WiFi → Direct, Cellular → 720p)" = "自動 (WiFi → ダイレクト、モバイル通信 → 720p)";
+"Audio" = "オーディオ";
+"Preferred Language" = "優先言語";
+"Subtitles" = "字幕";
+"Enable by Default" = "デフォルトで有効化";
+"About" = "アプリについて";
+"Version" = "バージョン";
+"Jellyfin Project" = "Jellyfinプロジェクト";
+"Sign out of %@?" = "%@からサインアウトしますか？";
+"Remove" = "削除";
+
+/* Downloads */
+"Downloads" = "ダウンロード";
+"No Downloads" = "ダウンロードなし";
+"Downloaded content will appear here." = "ダウンロードしたコンテンツがここに表示されます。";
+
+/* Errors */
+"Invalid server address" = "無効なサーバーアドレス";
+"Invalid username or password" = "無効なユーザー名またはパスワード";
+"This is not a Jellyfin server" = "これはJellyfinサーバーではありません";
+"Could not read server response" = "サーバーの応答を読み取れませんでした";
+"Connection error: %@" = "接続エラー: %@";
+"Server error: %d" = "サーバーエラー: %d";
+
+/* Downloads Extended */
+"Delete All Episodes?" = "すべてのエピソードを削除しますか？";
+"Delete Download?" = "ダウンロードを削除しますか？";
+"Delete" = "削除";
+"Remove \"%@\" from your downloads?" = "\"%@\"をダウンロードから削除しますか？";
+"Remove all downloaded episodes of \"%@\"?" = "\"%@\"のすべてのダウンロード済みエピソードを削除しますか？";
+"Delete all %lld episodes of \"%@\"?" = "\"%@\"の%lldエピソードをすべて削除しますか？";
+"Downloading" = "ダウンロード中";
+"Failed" = "失敗";
+"Transcoding" = "トランスコード中";
+"Direct" = "ダイレクト";
+"Waiting" = "待機中";
+"Delete Download" = "ダウンロードを削除";
+"Special Episodes" = "スペシャルエピソード";
+"Episode %lld" = "エピソード %lld";
+"Delete Episode?" = "エピソードを削除しますか？";
+
+/* Detail Extended */
+"Download This Episode" = "このエピソードをダウンロード";
+"Download Entire Season" = "シーズン全体をダウンロード";
+"Resolution" = "解像度";
+"Original (Direct)" = "オリジナル（ダイレクト）";
+"Download Details" = "ダウンロード詳細";
+"Queued" = "キュー中";
+"Pause" = "一時停止";
+"Cancel Download" = "ダウンロードをキャンセル";
+"Media Info" = "メディア情報";
+"1 Season" = "1シーズン";
+"%lld Seasons" = "%lldシーズン";
+"1 Episode" = "1エピソード";
+"%lld Episodes" = "%lldエピソード";
+"Critic" = "批評家";
+"Download started" = "ダウンロード開始";
+
+/* Library Extended */
+"Favorites" = "お気に入り";
+"My Favorites" = "マイお気に入り";
+"No Favorites" = "お気に入りなし";
+"Add content you like to your favorites." = "好きなコンテンツをお気に入りに追加しましょう。";
+
+/* Auth Extended */
+"Saved Servers" = "保存済みサーバー";
+"Add existing account" = "既存のアカウントを追加";
+"Sign in as a different user" = "別のユーザーとしてサインイン";
+
+/* Player */
+"Quality" = "画質";
+"Dismiss" = "閉じる";
+"Playback error" = "再生エラー";
+"Select an episode to play" = "再生するエピソードを選択";
+"No playable source found" = "再生可能なソースが見つかりません";
+"Tracks" = "トラック";
+"Stats" = "統計";
+"Done" = "完了";
+
+/* Offline */
+"Offline" = "オフライン";
+"You're offline. Download content while connected to browse here." = "オフラインです。接続時にコンテンツをダウンロードすると、ここで閲覧できます。";
+"No internet connection — showing downloaded content" = "インターネット接続なし — ダウンロード済みコンテンツを表示中";
+
+/* Home Extended */
+"Download Started" = "ダウンロード開始";
+"System Default" = "システムデフォルト";
+"Off" = "オフ";
+"Active" = "アクティブ";
+"Session expired. Re-add the account from settings." = "セッションが期限切れです。設定からアカウントを再追加してください。";
+"App Language" = "アプリの言語";
+"Restart App" = "アプリを再起動";
+"The app will close to apply the new language." = "新しい言語を適用するためにアプリが閉じます。";
+
+/* Overview */
+"Show More" = "もっと見る";
+"Show Less" = "閉じる";

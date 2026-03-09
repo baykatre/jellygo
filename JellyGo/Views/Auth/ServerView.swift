@@ -1,4 +1,100 @@
 import SwiftUI
+import Network
+import Combine
+
+// MARK: - Network Scanner
+
+@MainActor
+final class JellyfinNetworkScanner: ObservableObject {
+    @Published var results: [DiscoveredServer] = []
+    @Published var isScanning = false
+
+    struct DiscoveredServer: Identifiable {
+        let id = UUID()
+        let name: String
+        let url: String
+    }
+
+    private var browser: NWBrowser?
+    private var stopTask: Task<Void, Never>?
+
+    func scan() {
+        results = []
+        isScanning = true
+
+        let params = NWParameters()
+        params.includePeerToPeer = false
+        let b = NWBrowser(for: .bonjourWithTXTRecord(type: "_jellyfin._tcp.", domain: "local."), using: params)
+        browser = b
+
+        b.browseResultsChangedHandler = { [weak self] newResults, _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                for result in newResults {
+                    guard case let .service(name, _, _, _) = result.endpoint else { continue }
+                    self.resolveEndpoint(result.endpoint, name: name)
+                }
+            }
+        }
+
+        b.stateUpdateHandler = { [weak self] state in
+            Task { @MainActor [weak self] in
+                if case .failed = state { self?.isScanning = false }
+            }
+        }
+
+        b.start(queue: .main)
+
+        stopTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            self?.stopScan()
+        }
+    }
+
+    nonisolated private func resolveEndpoint(_ endpoint: NWEndpoint, name: String) {
+        guard case .service = endpoint else { return }
+        let connection = NWConnection(to: endpoint, using: .tcp)
+        connection.stateUpdateHandler = { [weak self] state in
+            if case .ready = state {
+                var url: String?
+                if let remote = connection.currentPath?.remoteEndpoint,
+                   case let .hostPort(host, port) = remote {
+                    let hostStr: String
+                    switch host {
+                    case .name(let n, _): hostStr = n
+                    case .ipv4(let addr): hostStr = "\(addr)"
+                    case .ipv6(let addr): hostStr = "[\(addr)]"
+                    @unknown default: hostStr = ""
+                    }
+                    url = "http://\(hostStr):\(port)"
+                }
+                connection.cancel()
+                if let url {
+                    let server = DiscoveredServer(name: name, url: url)
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        if !self.results.contains(where: { $0.url == url }) {
+                            self.results.append(server)
+                        }
+                    }
+                }
+            } else if case .failed = state {
+                connection.cancel()
+            }
+        }
+        connection.start(queue: .main)
+    }
+
+    func stopScan() {
+        stopTask?.cancel()
+        browser?.cancel()
+        browser = nil
+        isScanning = false
+    }
+}
+
+// MARK: - ServerView
 
 struct ServerView: View {
     @EnvironmentObject private var appState: AppState
@@ -7,6 +103,8 @@ struct ServerView: View {
     @State private var errorMessage: String?
     @State private var navigateToLogin = false
     @State private var serverInfo: JellyfinServerInfo?
+    @FocusState private var isURLFocused: Bool
+    @StateObject private var scanner = JellyfinNetworkScanner()
 
     var body: some View {
         NavigationStack {
@@ -48,29 +146,31 @@ struct ServerView: View {
                                                 serverURL = server.url
                                                 Task { await connect() }
                                             } label: {
-                                                HStack(spacing: 12) {
-                                                    Image(systemName: "server.rack")
-                                                        .foregroundStyle(.tint)
-                                                        .frame(width: 28)
+                                                serverRow(name: server.name, url: server.url, icon: "server.rack")
+                                            }
+                                            .buttonStyle(.plain)
+                                            .disabled(isLoading)
+                                        }
+                                    }
+                                }
+                            }
 
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        Text(server.name)
-                                                            .font(.subheadline.weight(.medium))
-                                                            .foregroundStyle(.primary)
-                                                        Text(server.url)
-                                                            .font(.caption)
-                                                            .foregroundStyle(.secondary)
-                                                            .lineLimit(1)
-                                                    }
+                            // Discovered servers
+                            if !scanner.results.isEmpty {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Found on Network")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 4)
 
-                                                    Spacer()
-
-                                                    Image(systemName: "chevron.right")
-                                                        .font(.caption)
-                                                        .foregroundStyle(.tertiary)
-                                                }
-                                                .padding(14)
-                                                .background(.background, in: RoundedRectangle(cornerRadius: 12))
+                                    VStack(spacing: 8) {
+                                        ForEach(scanner.results) { server in
+                                            Button {
+                                                serverURL = server.url
+                                                scanner.stopScan()
+                                                Task { await connect() }
+                                            } label: {
+                                                serverRow(name: server.name, url: server.url, icon: "wifi")
                                             }
                                             .buttonStyle(.plain)
                                             .disabled(isLoading)
@@ -92,12 +192,15 @@ struct ServerView: View {
                                         .keyboardType(.URL)
                                         .autocorrectionDisabled()
                                         .textInputAutocapitalization(.never)
+                                        .focused($isURLFocused)
                                         .padding(14)
                                         .background(.background, in: RoundedRectangle(cornerRadius: 12))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12)
                                                 .strokeBorder(errorMessage != nil ? Color.red.opacity(0.6) : Color.clear, lineWidth: 1)
                                         )
+                                        .contentShape(RoundedRectangle(cornerRadius: 12))
+                                        .onTapGesture { isURLFocused = true }
 
                                     if let error = errorMessage {
                                         Label(error, systemImage: "exclamationmark.circle.fill")
@@ -107,23 +210,53 @@ struct ServerView: View {
                                             .padding(.horizontal, 4)
                                     }
 
-                                    Button {
-                                        Task { await connect() }
-                                    } label: {
-                                        Group {
-                                            if isLoading {
-                                                ProgressView().tint(.white)
+                                    HStack(spacing: 10) {
+                                        // Scan button
+                                        Button {
+                                            isURLFocused = false
+                                            if scanner.isScanning {
+                                                scanner.stopScan()
                                             } else {
-                                                Text("Connect")
-                                                    .fontWeight(.semibold)
+                                                scanner.scan()
                                             }
+                                        } label: {
+                                            Group {
+                                                if scanner.isScanning {
+                                                    HStack(spacing: 6) {
+                                                        ProgressView().tint(.primary)
+                                                        Text("Scanning…")
+                                                    }
+                                                } else {
+                                                    Label("Scan", systemImage: "wifi.circle")
+                                                }
+                                            }
+                                            .frame(height: 50)
+                                            .frame(maxWidth: .infinity)
                                         }
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 50)
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.large)
+                                        .disabled(isLoading)
+
+                                        // Connect button
+                                        Button {
+                                            isURLFocused = false
+                                            Task { await connect() }
+                                        } label: {
+                                            Group {
+                                                if isLoading {
+                                                    ProgressView().tint(.white)
+                                                } else {
+                                                    Text("Connect")
+                                                        .fontWeight(.semibold)
+                                                }
+                                            }
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 50)
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .controlSize(.large)
+                                        .disabled(serverURL.isEmpty || isLoading)
                                     }
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.large)
-                                    .disabled(serverURL.isEmpty || isLoading)
                                 }
                             }
                         }
@@ -131,6 +264,7 @@ struct ServerView: View {
                         .padding(.bottom, 48)
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationDestination(isPresented: $navigateToLogin) {
                 if let info = serverInfo {
@@ -140,7 +274,32 @@ struct ServerView: View {
         }
     }
 
-    /// All saved server URLs, deduplicated by URL
+    private func serverRow(name: String, url: String, icon: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(.tint)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                Text(url)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(14)
+        .background(.background, in: RoundedRectangle(cornerRadius: 12))
+    }
+
     private var uniqueServers: [(url: String, name: String)] {
         var seen = Set<String>()
         var result: [(url: String, name: String)] = []
