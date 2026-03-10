@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/icon.png" width="128" alt="JellyGo Icon" />
+</p>
+
 <h1 align="center">JellyGo</h1>
 
 <p align="center">
