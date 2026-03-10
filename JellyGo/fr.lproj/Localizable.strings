@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "Continuer  S%lldE%lld";
 "Add to Favorites" = "Ajouter aux favoris";
 "Remove from Favorites" = "Retirer des favoris";
-"Mark as Watched" = "Marquer comme vu";
-"Mark as Unwatched" = "Marquer comme non vu";
 "Watched" = "Vu";
+"Unwatched" = "Non vu";
+"Go to Detail" = "Voir les détails";
 "Save" = "Enregistrer";
 "Rate" = "Noter";
 "Favorite" = "Favori";
@@ -86,8 +86,6 @@
 "Remove Account" = "Supprimer le compte";
 "Remove %@ from this device?" = "Supprimer %@ de cet appareil ?";
 "Account Already Added" = "Compte déjà ajouté";
-"e.g. Home, Remote, VPN…" = "ex. Maison, Distant, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Étiquette sur l'écran d'accueil et les bulles de compte. Laisser vide pour l'adresse du serveur.";
 
 /* Settings */
 "Settings" = "Paramètres";
@@ -96,13 +94,24 @@
 "Default Quality" = "Qualité par défaut";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WiFi → Direct, Mobile → 720p)";
 "Audio" = "Audio";
+"Audio & Subtitles" = "Audio et sous-titres";
 "Preferred Language" = "Langue préférée";
 "Subtitles" = "Sous-titres";
 "Enable by Default" = "Activer par défaut";
+"Appearance" = "Apparence";
+"Theme" = "Thème";
+"Light" = "Clair";
+"Dark" = "Sombre";
+"Home Screen" = "Écran d'accueil";
+"Choose which sections appear on the home screen." = "Choisissez les sections affichées sur l'écran d'accueil.";
+"Storage" = "Stockage";
+"Downloaded Content" = "Contenu téléchargé";
+"Image Cache" = "Cache d'images";
+"Clear Cache" = "Vider le cache";
+"Cache" = "Cache";
 "About" = "À propos";
 "Version" = "Version";
 "Jellyfin Project" = "Projet Jellyfin";
-"Sign out of %@?" = "Se déconnecter de %@ ?";
 "Remove" = "Supprimer";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "Supprimer tous les épisodes ?";
 "Delete Download?" = "Supprimer le téléchargement ?";
 "Delete" = "Supprimer";
-"Remove \"%@\" from your downloads?" = "Supprimer \"%@\" de vos téléchargements ?";
-"Remove all downloaded episodes of \"%@\"?" = "Supprimer tous les épisodes téléchargés de \"%@\" ?";
-"Delete all %lld episodes of \"%@\"?" = "Supprimer les %lld épisodes de \"%@\" ?";
 "Downloading" = "Téléchargement";
 "Failed" = "Échec";
 "Transcoding" = "Transcodage";
@@ -144,6 +150,7 @@
 "Queued" = "En file d'attente";
 "Pause" = "Pause";
 "Cancel Download" = "Annuler le téléchargement";
+"Resume Download" = "Reprendre le téléchargement";
 "Media Info" = "Infos média";
 "1 Season" = "1 saison";
 "%lld Seasons" = "%lld saisons";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "Voir plus";
 "Show Less" = "Voir moins";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Apparence des sous-titres";
+"Font Size" = "Taille de police";
+"Size" = "Taille";
+"Small" = "Petit";
+"Medium" = "Moyen";
+"Large" = "Grand";
+"Extra Large" = "Très grand";
+"Style" = "Style";
+"Bold" = "Gras";
+"Color" = "Couleur";
+"White" = "Blanc";
+"Yellow" = "Jaune";
+"Background" = "Arrière-plan";
+"Opacity" = "Opacité";
+"Layout" = "Disposition";
+"Line Spacing" = "Interligne";
+"Bottom Offset" = "Décalage bas";
+"Preview" = "Aperçu";
+
+/* Player Extended */
+"Slow Scrubbing" = "Défilement lent";
+"Subtitle Delay" = "Délai des sous-titres";
+"Secondary Language" = "Langue secondaire";
+
+/* Misc */
+"Found on Network" = "Trouvé sur le réseau";
+"Scan" = "Scanner";
+"Scanning…" = "Analyse en cours…";
+"Add New Server" = "Ajouter un nouveau serveur";
+"Hide" = "Masquer";
+"OK" = "OK";
+"Music Videos" = "Clips musicaux";
+"Collections" = "Collections";
+"Known For" = "Connu pour";
+"Biography" = "Biographie";
+"Delete All" = "Tout supprimer";
+
+/* Stats HUD */
+"Video codec not supported" = "Codec vidéo non pris en charge";
+"Audio codec not supported" = "Codec audio non pris en charge";
+"Container not supported" = "Conteneur non pris en charge";
+"Bit depth not supported" = "Profondeur de bits non prise en charge";
+"HDR → SDR conversion" = "Conversion HDR → SDR";
+"Video profile not supported" = "Profil vidéo non pris en charge";
+"Video level not supported" = "Niveau vidéo non pris en charge";
+"Audio profile not supported" = "Profil audio non pris en charge";
+"Bitrate limit exceeded" = "Limite de bitrate dépassée";
+"Video bitrate too high" = "Bitrate vidéo trop élevé";
+"Audio bitrate too high" = "Bitrate audio trop élevé";
+"Audio channels not supported" = "Canaux audio non pris en charge";
+"Subtitle codec not supported" = "Codec de sous-titres non pris en charge";
+"Direct play error" = "Erreur de lecture directe";
+"Resolution not supported" = "Résolution non prise en charge";
+"Sample rate not supported" = "Fréquence d'échantillonnage non prise en charge";
+"Reason" = "Raison";
+"Reason: Manual quality (%@)" = "Raison : Qualité manuelle (%@)";
+"Connecting" = "Connexion";
+"Poor" = "Mauvaise";
+"Slow" = "Lente";
+"Fair" = "Correcte";
+"Good" = "Bonne";
+
+/* Missing */
+"Recommendations" = "Recommandations";
+"Select" = "Sélectionner";

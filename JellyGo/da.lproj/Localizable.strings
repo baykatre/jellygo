@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "Fortsæt  S%lldE%lld";
 "Add to Favorites" = "Tilføj til favoritter";
 "Remove from Favorites" = "Fjern fra favoritter";
-"Mark as Watched" = "Markér som set";
-"Mark as Unwatched" = "Markér som ikke set";
 "Watched" = "Set";
+"Unwatched" = "Ikke set";
+"Go to Detail" = "Gå til detaljer";
 "Save" = "Gem";
 "Rate" = "Bedøm";
 "Favorite" = "Favorit";
@@ -86,8 +86,6 @@
 "Remove Account" = "Fjern konto";
 "Remove %@ from this device?" = "Fjern %@ fra denne enhed?";
 "Account Already Added" = "Konto allerede tilføjet";
-"e.g. Home, Remote, VPN…" = "f.eks. Hjem, Fjern, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Etiket vist i hjemmeskærmens badge og kontoboblerne. Lad stå tomt for at bruge serveradressen.";
 
 /* Settings */
 "Settings" = "Indstillinger";
@@ -96,13 +94,24 @@
 "Default Quality" = "Standardkvalitet";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WiFi → Direkte, Mobil → 720p)";
 "Audio" = "Lyd";
+"Audio & Subtitles" = "Lyd og undertekster";
 "Preferred Language" = "Foretrukket sprog";
 "Subtitles" = "Undertekster";
 "Enable by Default" = "Aktivér som standard";
+"Appearance" = "Udseende";
+"Theme" = "Tema";
+"Light" = "Lyst";
+"Dark" = "Mørkt";
+"Home Screen" = "Startskærm";
+"Choose which sections appear on the home screen." = "Vælg hvilke sektioner der vises på startskærmen.";
+"Storage" = "Lagring";
+"Downloaded Content" = "Downloadet indhold";
+"Image Cache" = "Billedcache";
+"Clear Cache" = "Ryd cache";
+"Cache" = "Cache";
 "About" = "Om";
 "Version" = "Version";
 "Jellyfin Project" = "Jellyfin-projektet";
-"Sign out of %@?" = "Log ud af %@?";
 "Remove" = "Fjern";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "Slet alle afsnit?";
 "Delete Download?" = "Slet download?";
 "Delete" = "Slet";
-"Remove \"%@\" from your downloads?" = "Fjern \"%@\" fra dine downloads?";
-"Remove all downloaded episodes of \"%@\"?" = "Fjern alle downloadede afsnit af \"%@\"?";
-"Delete all %lld episodes of \"%@\"?" = "Slet alle %lld afsnit af \"%@\"?";
 "Downloading" = "Downloader";
 "Failed" = "Mislykkedes";
 "Transcoding" = "Transkodning";
@@ -144,6 +150,7 @@
 "Queued" = "I kø";
 "Pause" = "Pause";
 "Cancel Download" = "Annuller download";
+"Resume Download" = "Genoptag download";
 "Media Info" = "Medieinfo";
 "1 Season" = "1 sæson";
 "%lld Seasons" = "%lld sæsoner";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "Vis mere";
 "Show Less" = "Vis mindre";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Undertekstudseende";
+"Font Size" = "Skriftstørrelse";
+"Size" = "Størrelse";
+"Small" = "Lille";
+"Medium" = "Mellem";
+"Large" = "Stor";
+"Extra Large" = "Ekstra stor";
+"Style" = "Stil";
+"Bold" = "Fed";
+"Color" = "Farve";
+"White" = "Hvid";
+"Yellow" = "Gul";
+"Background" = "Baggrund";
+"Opacity" = "Gennemsigtighed";
+"Layout" = "Layout";
+"Line Spacing" = "Linjeafstand";
+"Bottom Offset" = "Bundforskydning";
+"Preview" = "Forhåndsvisning";
+
+/* Player Extended */
+"Slow Scrubbing" = "Langsom søgning";
+"Subtitle Delay" = "Undertekstforsinkelse";
+"Secondary Language" = "Sekundært sprog";
+
+/* Misc */
+"Found on Network" = "Fundet på netværk";
+"Scan" = "Scan";
+"Scanning…" = "Scanner…";
+"Add New Server" = "Tilføj ny server";
+"Hide" = "Skjul";
+"OK" = "OK";
+"Music Videos" = "Musikvideoer";
+"Collections" = "Samlinger";
+"Known For" = "Kendt for";
+"Biography" = "Biografi";
+"Delete All" = "Slet alle";
+
+/* Stats HUD */
+"Video codec not supported" = "Video-codec ikke understøttet";
+"Audio codec not supported" = "Lyd-codec ikke understøttet";
+"Container not supported" = "Container ikke understøttet";
+"Bit depth not supported" = "Bitdybde ikke understøttet";
+"HDR → SDR conversion" = "HDR → SDR konvertering";
+"Video profile not supported" = "Videoprofil ikke understøttet";
+"Video level not supported" = "Videoniveau ikke understøttet";
+"Audio profile not supported" = "Lydprofil ikke understøttet";
+"Bitrate limit exceeded" = "Bitrate-grænse overskredet";
+"Video bitrate too high" = "Video-bitrate for høj";
+"Audio bitrate too high" = "Lyd-bitrate for høj";
+"Audio channels not supported" = "Lydkanaler ikke understøttet";
+"Subtitle codec not supported" = "Undertekst-codec ikke understøttet";
+"Direct play error" = "Fejl ved direkte afspilning";
+"Resolution not supported" = "Opløsning ikke understøttet";
+"Sample rate not supported" = "Samplerate ikke understøttet";
+"Reason" = "Årsag";
+"Reason: Manual quality (%@)" = "Årsag: Manuel kvalitet (%@)";
+"Connecting" = "Forbinder";
+"Poor" = "Dårlig";
+"Slow" = "Langsom";
+"Fair" = "Middel";
+"Good" = "God";
+
+/* Missing */
+"Recommendations" = "Anbefalinger";
+"Select" = "Vælg";

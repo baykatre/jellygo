@@ -31,29 +31,34 @@ final class PersonDetailViewModel: ObservableObject {
 
     func load(person: JellyfinPerson, appState: AppState) async {
         isLoading = true
-        async let detailsTask = JellyfinAPI.shared.getItemDetails(
+
+        if let details = try? await JellyfinAPI.shared.getItemDetails(
             serverURL: appState.serverURL,
             itemId: person.id,
             userId: appState.userId,
             token: appState.token
-        )
-        async let filmographyTask = JellyfinAPI.shared.getPersonFilmography(
-            serverURL: appState.serverURL,
-            personId: person.id,
-            userId: appState.userId,
-            token: appState.token
-        )
-        if let details = try? await detailsTask {
+        ) {
             biography = details.overview
             birthDate = PersonDetailViewModel.parseDate(details.premiereDate)
             deathDate = PersonDetailViewModel.parseDate(details.endDate)
             birthPlace = details.productionLocations?.first
         }
         knownForDepartment = person.type.isEmpty || person.type == "Unknown" ? nil : person.type
-        if let items = try? await filmographyTask {
+
+        if let items = try? await JellyfinAPI.shared.getPersonFilmography(
+            serverURL: appState.serverURL,
+            personId: person.id,
+            userId: appState.userId,
+            token: appState.token
+        ) {
             filmography = items
         }
+
         isLoading = false
+
+        guard !Task.isCancelled else {
+            return
+        }
 
         // Always trigger a server-side metadata refresh so Jellyfin downloads
         // the person's photo from external providers (TMDb etc.) if missing.
@@ -62,9 +67,19 @@ final class PersonDetailViewModel: ObservableObject {
             itemId: person.id,
             token: appState.token
         )
+
+        guard !Task.isCancelled else {
+            return
+        }
+
         // Wait for Jellyfin to download the image, then increment imageVersion
         // so PersonDetailView uses a cache-busted URL for a fresh network request.
         try? await Task.sleep(for: .seconds(3))
+
+        guard !Task.isCancelled else {
+            return
+        }
+
         imageVersion += 1
     }
 }

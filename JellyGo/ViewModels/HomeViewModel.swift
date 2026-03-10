@@ -48,23 +48,34 @@ final class HomeViewModel: ObservableObject {
         continueWatching = (try? await cwTask)  ?? []
         nextUp           = (try? await nuTask)  ?? []
 
+        var networkFailed = false
+
         do {
             latestMovies = try await lmTask.items
         } catch JellyfinAPIError.unauthorized {
             error = NSLocalizedString("Session expired. Re-add the account from settings.", comment: "")
+        } catch JellyfinAPIError.networkError {
+            networkFailed = true
         } catch let err as JellyfinAPIError {
             error = err.errorDescription
-        } catch {}
+        } catch { /* non-API errors intentionally ignored */ }
 
         do {
             latestShows = try await lsTask.items
         } catch JellyfinAPIError.unauthorized {
             if error == nil { error = NSLocalizedString("Session expired. Re-add the account from settings.", comment: "") }
+        } catch JellyfinAPIError.networkError {
+            networkFailed = true
         } catch let err as JellyfinAPIError {
             if error == nil { error = err.errorDescription }
-        } catch {}
+        } catch { /* non-API errors intentionally ignored */ }
 
         libraries = (try? await libsTask) ?? []
         buildFeatured()
+
+        // Server became unreachable mid-session → try fallback
+        if networkFailed {
+            await appState.validateAndFallback()
+        }
     }
 }

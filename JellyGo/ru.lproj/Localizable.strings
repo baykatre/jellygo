@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "Продолжить  S%lldE%lld";
 "Add to Favorites" = "Добавить в избранное";
 "Remove from Favorites" = "Удалить из избранного";
-"Mark as Watched" = "Отметить как просмотренное";
-"Mark as Unwatched" = "Отметить как непросмотренное";
 "Watched" = "Просмотрено";
+"Unwatched" = "Не просмотрено";
+"Go to Detail" = "К деталям";
 "Save" = "Сохранить";
 "Rate" = "Оценить";
 "Favorite" = "Избранное";
@@ -86,8 +86,6 @@
 "Remove Account" = "Удалить аккаунт";
 "Remove %@ from this device?" = "Удалить %@ с этого устройства?";
 "Account Already Added" = "Аккаунт уже добавлен";
-"e.g. Home, Remote, VPN…" = "например: Дом, Удалённый, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Метка отображается на значке главного экрана и в пузырях аккаунтов. Оставьте пустым, чтобы использовать адрес сервера.";
 
 /* Settings */
 "Settings" = "Настройки";
@@ -96,13 +94,24 @@
 "Default Quality" = "Качество по умолчанию";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Авто (WiFi → Прямой, Сотовая → 720p)";
 "Audio" = "Аудио";
+"Audio & Subtitles" = "Аудио и субтитры";
 "Preferred Language" = "Предпочтительный язык";
 "Subtitles" = "Субтитры";
 "Enable by Default" = "Включить по умолчанию";
+"Appearance" = "Внешний вид";
+"Theme" = "Тема";
+"Light" = "Светлая";
+"Dark" = "Тёмная";
+"Home Screen" = "Главный экран";
+"Choose which sections appear on the home screen." = "Выберите, какие разделы отображать на главном экране.";
+"Storage" = "Хранилище";
+"Downloaded Content" = "Загруженный контент";
+"Image Cache" = "Кэш изображений";
+"Clear Cache" = "Очистить кэш";
+"Cache" = "Кэш";
 "About" = "О приложении";
 "Version" = "Версия";
 "Jellyfin Project" = "Проект Jellyfin";
-"Sign out of %@?" = "Выйти из %@?";
 "Remove" = "Удалить";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "Удалить все эпизоды?";
 "Delete Download?" = "Удалить загрузку?";
 "Delete" = "Удалить";
-"Remove \"%@\" from your downloads?" = "Удалить \"%@\" из загрузок?";
-"Remove all downloaded episodes of \"%@\"?" = "Удалить все загруженные эпизоды \"%@\"?";
-"Delete all %lld episodes of \"%@\"?" = "Удалить все %lld эпизодов \"%@\"?";
 "Downloading" = "Загрузка";
 "Failed" = "Ошибка";
 "Transcoding" = "Перекодирование";
@@ -144,6 +150,7 @@
 "Queued" = "В очереди";
 "Pause" = "Пауза";
 "Cancel Download" = "Отменить загрузку";
+"Resume Download" = "Возобновить загрузку";
 "Media Info" = "Информация о медиа";
 "1 Season" = "1 сезон";
 "%lld Seasons" = "%lld сезонов";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "Показать больше";
 "Show Less" = "Показать меньше";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Внешний вид субтитров";
+"Font Size" = "Размер шрифта";
+"Size" = "Размер";
+"Small" = "Маленький";
+"Medium" = "Средний";
+"Large" = "Большой";
+"Extra Large" = "Очень большой";
+"Style" = "Стиль";
+"Bold" = "Жирный";
+"Color" = "Цвет";
+"White" = "Белый";
+"Yellow" = "Жёлтый";
+"Background" = "Фон";
+"Opacity" = "Прозрачность";
+"Layout" = "Расположение";
+"Line Spacing" = "Межстрочный интервал";
+"Bottom Offset" = "Отступ снизу";
+"Preview" = "Предпросмотр";
+
+/* Player Extended */
+"Slow Scrubbing" = "Медленная перемотка";
+"Subtitle Delay" = "Задержка субтитров";
+"Secondary Language" = "Второй язык";
+
+/* Misc */
+"Found on Network" = "Найдено в сети";
+"Scan" = "Сканировать";
+"Scanning…" = "Сканирование…";
+"Add New Server" = "Добавить новый сервер";
+"Hide" = "Скрыть";
+"OK" = "ОК";
+"Music Videos" = "Музыкальные видео";
+"Collections" = "Коллекции";
+"Known For" = "Известен по";
+"Biography" = "Биография";
+"Delete All" = "Удалить всё";
+
+/* Stats HUD */
+"Video codec not supported" = "Видеокодек не поддерживается";
+"Audio codec not supported" = "Аудиокодек не поддерживается";
+"Container not supported" = "Контейнер не поддерживается";
+"Bit depth not supported" = "Глубина бит не поддерживается";
+"HDR → SDR conversion" = "Преобразование HDR → SDR";
+"Video profile not supported" = "Профиль видео не поддерживается";
+"Video level not supported" = "Уровень видео не поддерживается";
+"Audio profile not supported" = "Профиль аудио не поддерживается";
+"Bitrate limit exceeded" = "Превышен лимит битрейта";
+"Video bitrate too high" = "Битрейт видео слишком высокий";
+"Audio bitrate too high" = "Битрейт аудио слишком высокий";
+"Audio channels not supported" = "Аудиоканалы не поддерживаются";
+"Subtitle codec not supported" = "Кодек субтитров не поддерживается";
+"Direct play error" = "Ошибка прямого воспроизведения";
+"Resolution not supported" = "Разрешение не поддерживается";
+"Sample rate not supported" = "Частота дискретизации не поддерживается";
+"Reason" = "Причина";
+"Reason: Manual quality (%@)" = "Причина: Ручной выбор качества (%@)";
+"Connecting" = "Подключение";
+"Poor" = "Плохое";
+"Slow" = "Медленное";
+"Fair" = "Среднее";
+"Good" = "Хорошее";
+
+/* Missing */
+"Recommendations" = "Рекомендации";
+"Select" = "Выбрать";

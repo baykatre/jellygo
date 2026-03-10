@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "متابعة  S%lldE%lld";
 "Add to Favorites" = "إضافة إلى المفضلة";
 "Remove from Favorites" = "إزالة من المفضلة";
-"Mark as Watched" = "تعليم كمُشاهَد";
-"Mark as Unwatched" = "تعليم كغير مُشاهَد";
-"Watched" = "مُشاهَد";
+"Watched" = "تمت المشاهدة";
+"Unwatched" = "لم تتم المشاهدة";
+"Go to Detail" = "الذهاب للتفاصيل";
 "Save" = "حفظ";
 "Rate" = "تقييم";
 "Favorite" = "مفضلة";
@@ -86,8 +86,6 @@
 "Remove Account" = "إزالة الحساب";
 "Remove %@ from this device?" = "إزالة %@ من هذا الجهاز؟";
 "Account Already Added" = "الحساب مضاف بالفعل";
-"e.g. Home, Remote, VPN…" = "مثل: المنزل، بعيد، VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "التسمية المعروضة في شارة الشاشة الرئيسية وفقاعات الحساب. اتركها فارغة لاستخدام عنوان الخادم.";
 
 /* Settings */
 "Settings" = "الإعدادات";
@@ -96,13 +94,24 @@
 "Default Quality" = "الجودة الافتراضية";
 "Auto (WiFi → Direct, Cellular → 720p)" = "تلقائي (WiFi → مباشر، شبكة خلوية → 720p)";
 "Audio" = "الصوت";
+"Audio & Subtitles" = "الصوت والترجمة";
 "Preferred Language" = "اللغة المفضلة";
 "Subtitles" = "الترجمة";
 "Enable by Default" = "تفعيل افتراضياً";
+"Appearance" = "المظهر";
+"Theme" = "السمة";
+"Light" = "فاتح";
+"Dark" = "داكن";
+"Home Screen" = "الشاشة الرئيسية";
+"Choose which sections appear on the home screen." = "اختر الأقسام التي تظهر على الشاشة الرئيسية.";
+"Storage" = "التخزين";
+"Downloaded Content" = "المحتوى المحمّل";
+"Image Cache" = "ذاكرة الصور";
+"Clear Cache" = "مسح الذاكرة المؤقتة";
+"Cache" = "الذاكرة المؤقتة";
 "About" = "حول";
 "Version" = "الإصدار";
 "Jellyfin Project" = "مشروع Jellyfin";
-"Sign out of %@?" = "تسجيل الخروج من %@؟";
 "Remove" = "إزالة";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "حذف جميع الحلقات؟";
 "Delete Download?" = "حذف التنزيل؟";
 "Delete" = "حذف";
-"Remove \"%@\" from your downloads?" = "إزالة \"%@\" من تنزيلاتك؟";
-"Remove all downloaded episodes of \"%@\"?" = "إزالة جميع حلقات \"%@\" التي تم تنزيلها؟";
-"Delete all %lld episodes of \"%@\"?" = "حذف جميع حلقات %lld من \"%@\"؟";
 "Downloading" = "جارٍ التنزيل";
 "Failed" = "فشل";
 "Transcoding" = "جارٍ التحويل";
@@ -144,6 +150,7 @@
 "Queued" = "في الطابور";
 "Pause" = "إيقاف مؤقت";
 "Cancel Download" = "إلغاء التنزيل";
+"Resume Download" = "استئناف التنزيل";
 "Media Info" = "معلومات الوسائط";
 "1 Season" = "موسم واحد";
 "%lld Seasons" = "%lld مواسم";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "عرض المزيد";
 "Show Less" = "عرض أقل";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "مظهر الترجمة";
+"Font Size" = "حجم الخط";
+"Size" = "الحجم";
+"Small" = "صغير";
+"Medium" = "متوسط";
+"Large" = "كبير";
+"Extra Large" = "كبير جداً";
+"Style" = "النمط";
+"Bold" = "عريض";
+"Color" = "اللون";
+"White" = "أبيض";
+"Yellow" = "أصفر";
+"Background" = "الخلفية";
+"Opacity" = "الشفافية";
+"Layout" = "التخطيط";
+"Line Spacing" = "تباعد الأسطر";
+"Bottom Offset" = "إزاحة سفلية";
+"Preview" = "معاينة";
+
+/* Player Extended */
+"Slow Scrubbing" = "تمرير بطيء";
+"Subtitle Delay" = "تأخير الترجمة";
+"Secondary Language" = "اللغة الثانوية";
+
+/* Misc */
+"Found on Network" = "موجود على الشبكة";
+"Scan" = "بحث";
+"Scanning…" = "جارٍ البحث…";
+"Add New Server" = "إضافة خادم جديد";
+"Hide" = "إخفاء";
+"OK" = "موافق";
+"Music Videos" = "فيديوهات موسيقية";
+"Collections" = "مجموعات";
+"Known For" = "معروف بـ";
+"Biography" = "السيرة الذاتية";
+"Delete All" = "حذف الكل";
+
+/* Stats HUD */
+"Video codec not supported" = "ترميز الفيديو غير مدعوم";
+"Audio codec not supported" = "ترميز الصوت غير مدعوم";
+"Container not supported" = "الحاوية غير مدعومة";
+"Bit depth not supported" = "عمق البت غير مدعوم";
+"HDR → SDR conversion" = "تحويل HDR → SDR";
+"Video profile not supported" = "ملف تعريف الفيديو غير مدعوم";
+"Video level not supported" = "مستوى الفيديو غير مدعوم";
+"Audio profile not supported" = "ملف تعريف الصوت غير مدعوم";
+"Bitrate limit exceeded" = "تم تجاوز حد معدل البت";
+"Video bitrate too high" = "معدل بت الفيديو مرتفع جداً";
+"Audio bitrate too high" = "معدل بت الصوت مرتفع جداً";
+"Audio channels not supported" = "قنوات الصوت غير مدعومة";
+"Subtitle codec not supported" = "ترميز الترجمة غير مدعوم";
+"Direct play error" = "خطأ في التشغيل المباشر";
+"Resolution not supported" = "الدقة غير مدعومة";
+"Sample rate not supported" = "معدل العينات غير مدعوم";
+"Reason" = "السبب";
+"Reason: Manual quality (%@)" = "السبب: جودة يدوية (%@)";
+"Connecting" = "جارٍ الاتصال";
+"Poor" = "ضعيف";
+"Slow" = "بطيء";
+"Fair" = "مقبول";
+"Good" = "جيد";
+
+/* Missing */
+"Recommendations" = "توصيات";
+"Select" = "تحديد";

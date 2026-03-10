@@ -11,26 +11,23 @@ struct DownloadsView: View {
             Group {
                 if dm.downloads.isEmpty && dm.downloadOrder.isEmpty {
                     ContentUnavailableView {
-                        Label("No Downloads", systemImage: "arrow.down.circle")
+                        Label(String(localized: "No Downloads", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
                     } description: {
-                        Text("Downloaded content will appear here.")
+                        Text(String(localized: "Downloaded content will appear here.", bundle: AppState.currentBundle))
                     }
                 } else {
                     downloadsList
                 }
             }
-            .navigationTitle("Downloads")
+            .navigationTitle(String(localized: "Downloads", bundle: AppState.currentBundle))
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }
-            .navigationDestination(for: JellyfinPerson.self) { person in
-                PersonDetailView(person: person)
-            }
-            .alert("Delete All Episodes?", isPresented: Binding(
+            .alert(String(localized: "Delete All Episodes?", bundle: AppState.currentBundle), isPresented: Binding(
                 get: { showDeleteSeriesConfirm != nil },
                 set: { if !$0 { showDeleteSeriesConfirm = nil } }
             )) {
-                Button("Delete", role: .destructive) {
+                Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) {
                     if let sid = showDeleteSeriesConfirm {
                         dm.downloads
                             .filter { $0.seriesId == sid }
@@ -38,20 +35,20 @@ struct DownloadsView: View {
                     }
                     showDeleteSeriesConfirm = nil
                 }
-                Button("Cancel", role: .cancel) { showDeleteSeriesConfirm = nil }
+                Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { showDeleteSeriesConfirm = nil }
             } message: {
                 let name = dm.downloads.first { $0.seriesId == showDeleteSeriesConfirm }?.seriesName ?? ""
                 Text("Remove all downloaded episodes of \"\(name)\"?")
             }
-            .alert("Delete Download?", isPresented: Binding(
+            .alert(String(localized: "Delete Download?", bundle: AppState.currentBundle), isPresented: Binding(
                 get: { showDeleteMovieConfirm != nil },
                 set: { if !$0 { showDeleteMovieConfirm = nil } }
             )) {
-                Button("Delete", role: .destructive) {
+                Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) {
                     if let id = showDeleteMovieConfirm { dm.deleteDownload(id) }
                     showDeleteMovieConfirm = nil
                 }
-                Button("Cancel", role: .cancel) { showDeleteMovieConfirm = nil }
+                Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { showDeleteMovieConfirm = nil }
             } message: {
                 let name = dm.downloads.first { $0.id == showDeleteMovieConfirm }?.name ?? ""
                 Text("Remove \"\(name)\" from your downloads?")
@@ -71,7 +68,7 @@ struct DownloadsView: View {
 
                 let movies = dm.downloads.filter { $0.isMovie }
                 if !movies.isEmpty {
-                    posterSection(title: "Movies", items: movies)
+                    posterSection(title: String(localized: "Movies", bundle: AppState.currentBundle), items: movies)
                 }
 
                 let episodes = dm.downloads.filter { $0.isEpisode }
@@ -95,7 +92,7 @@ struct DownloadsView: View {
             (groups[$0]?.first?.seriesName ?? "") < (groups[$1]?.first?.seriesName ?? "")
         }
         return VStack(alignment: .leading, spacing: 12) {
-            Text("TV Shows")
+            Text(String(localized: "TV Shows", bundle: AppState.currentBundle))
                 .font(.title3.bold())
                 .padding(.horizontal, 20)
 
@@ -111,7 +108,7 @@ struct DownloadsView: View {
                             Button(role: .destructive) {
                                 showDeleteSeriesConfirm = sid
                             } label: {
-                                Label("Delete All (\(groupEps.count) episodes)", systemImage: "trash")
+                                Label(String(localized: "Delete All (\(groupEps.count) episodes)", bundle: AppState.currentBundle), systemImage: "trash")
                             }
                         }
                     }
@@ -157,7 +154,7 @@ struct DownloadsView: View {
                         Button(role: .destructive) {
                             showDeleteMovieConfirm = item.id
                         } label: {
-                            Label("Delete Download", systemImage: "trash")
+                            Label(String(localized: "Delete Download", bundle: AppState.currentBundle), systemImage: "trash")
                         }
                     }
                 }
@@ -170,7 +167,7 @@ struct DownloadsView: View {
 
     private var activeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Downloading")
+            Text(String(localized: "Downloading", bundle: AppState.currentBundle))
                 .font(.title3.bold())
                 .padding(.horizontal, 20)
 
@@ -232,11 +229,11 @@ struct DownloadsView: View {
                                 .lineLimit(1)
 
                             if task.isFailed {
-                                Label("Failed", systemImage: "exclamationmark.circle.fill")
+                                Label(String(localized: "Failed", bundle: AppState.currentBundle), systemImage: "exclamationmark.circle.fill")
                                     .font(.caption)
                                     .foregroundStyle(.red)
                             } else if task.isTranscoding {
-                                Label("Transcoding", systemImage: "gearshape.fill")
+                                Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
                                     .font(.caption2.weight(.medium))
                                     .foregroundStyle(.orange)
                                 HStack(spacing: 4) {
@@ -250,7 +247,7 @@ struct DownloadsView: View {
                                 }
                             } else {
                                 if task.isDirect {
-                                    Label("Direct", systemImage: "bolt.fill")
+                                    Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
                                         .font(.caption2.weight(.medium))
                                         .foregroundStyle(.green)
                                 }
@@ -325,11 +322,11 @@ struct DownloadsView: View {
                                 .font(.subheadline.weight(.medium))
                                 .lineLimit(1)
                             if entry.isDirect {
-                                Label("Direct", systemImage: "bolt.fill")
+                                Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
                                     .font(.caption2.weight(.medium))
                                     .foregroundStyle(.green)
                             } else if entry.isTranscoding {
-                                Label("Transcoding", systemImage: "gearshape.fill")
+                                Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
                                     .font(.caption2.weight(.medium))
                                     .foregroundStyle(.orange)
                             }
@@ -389,7 +386,7 @@ struct DownloadsView: View {
                         Text(entry.name)
                             .font(.subheadline.weight(.medium))
                             .lineLimit(1)
-                        Label("Waiting", systemImage: "clock")
+                        Label(String(localized: "Waiting", bundle: AppState.currentBundle), systemImage: "clock")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

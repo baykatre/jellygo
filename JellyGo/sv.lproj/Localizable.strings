@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "Fortsätt  S%lldE%lld";
 "Add to Favorites" = "Lägg till i favoriter";
 "Remove from Favorites" = "Ta bort från favoriter";
-"Mark as Watched" = "Markera som sedd";
-"Mark as Unwatched" = "Markera som osedd";
 "Watched" = "Sedd";
+"Unwatched" = "Inte sedd";
+"Go to Detail" = "Gå till detaljer";
 "Save" = "Spara";
 "Rate" = "Betygsätt";
 "Favorite" = "Favorit";
@@ -86,8 +86,6 @@
 "Remove Account" = "Ta bort konto";
 "Remove %@ from this device?" = "Ta bort %@ från den här enheten?";
 "Account Already Added" = "Konto redan tillagt";
-"e.g. Home, Remote, VPN…" = "t.ex. Hem, Fjärr, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Etikett som visas i hemskärmens badge och kontobubblor. Lämna tomt för att använda serveradressen.";
 
 /* Settings */
 "Settings" = "Inställningar";
@@ -96,13 +94,24 @@
 "Default Quality" = "Standardkvalitet";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WiFi → Direkt, Mobil → 720p)";
 "Audio" = "Ljud";
+"Audio & Subtitles" = "Ljud och undertexter";
 "Preferred Language" = "Föredraget språk";
 "Subtitles" = "Undertexter";
 "Enable by Default" = "Aktivera som standard";
+"Appearance" = "Utseende";
+"Theme" = "Tema";
+"Light" = "Ljust";
+"Dark" = "Mörkt";
+"Home Screen" = "Startskärm";
+"Choose which sections appear on the home screen." = "Välj vilka sektioner som visas på startskärmen.";
+"Storage" = "Lagring";
+"Downloaded Content" = "Nedladdat innehåll";
+"Image Cache" = "Bildcache";
+"Clear Cache" = "Rensa cache";
+"Cache" = "Cache";
 "About" = "Om";
 "Version" = "Version";
 "Jellyfin Project" = "Jellyfin-projektet";
-"Sign out of %@?" = "Logga ut från %@?";
 "Remove" = "Ta bort";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "Ta bort alla avsnitt?";
 "Delete Download?" = "Ta bort nedladdning?";
 "Delete" = "Ta bort";
-"Remove \"%@\" from your downloads?" = "Ta bort \"%@\" från dina nedladdningar?";
-"Remove all downloaded episodes of \"%@\"?" = "Ta bort alla nedladdade avsnitt av \"%@\"?";
-"Delete all %lld episodes of \"%@\"?" = "Ta bort alla %lld avsnitt av \"%@\"?";
 "Downloading" = "Laddar ned";
 "Failed" = "Misslyckades";
 "Transcoding" = "Omkodning";
@@ -144,6 +150,7 @@
 "Queued" = "I kö";
 "Pause" = "Pausa";
 "Cancel Download" = "Avbryt nedladdning";
+"Resume Download" = "Återuppta nedladdning";
 "Media Info" = "Medieinfo";
 "1 Season" = "1 säsong";
 "%lld Seasons" = "%lld säsonger";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "Visa mer";
 "Show Less" = "Visa mindre";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Undertextutseende";
+"Font Size" = "Teckenstorlek";
+"Size" = "Storlek";
+"Small" = "Liten";
+"Medium" = "Mellan";
+"Large" = "Stor";
+"Extra Large" = "Extra stor";
+"Style" = "Stil";
+"Bold" = "Fet";
+"Color" = "Färg";
+"White" = "Vit";
+"Yellow" = "Gul";
+"Background" = "Bakgrund";
+"Opacity" = "Opacitet";
+"Layout" = "Layout";
+"Line Spacing" = "Radavstånd";
+"Bottom Offset" = "Nedre förskjutning";
+"Preview" = "Förhandsgranskning";
+
+/* Player Extended */
+"Slow Scrubbing" = "Långsam sökning";
+"Subtitle Delay" = "Undertextfördröjning";
+"Secondary Language" = "Sekundärt språk";
+
+/* Misc */
+"Found on Network" = "Hittad på nätverket";
+"Scan" = "Skanna";
+"Scanning…" = "Skannar…";
+"Add New Server" = "Lägg till ny server";
+"Hide" = "Dölj";
+"OK" = "OK";
+"Music Videos" = "Musikvideor";
+"Collections" = "Samlingar";
+"Known For" = "Känd för";
+"Biography" = "Biografi";
+"Delete All" = "Ta bort alla";
+
+/* Stats HUD */
+"Video codec not supported" = "Video-codec stöds inte";
+"Audio codec not supported" = "Ljud-codec stöds inte";
+"Container not supported" = "Container stöds inte";
+"Bit depth not supported" = "Bitdjup stöds inte";
+"HDR → SDR conversion" = "HDR → SDR konvertering";
+"Video profile not supported" = "Videoprofil stöds inte";
+"Video level not supported" = "Videonivå stöds inte";
+"Audio profile not supported" = "Ljudprofil stöds inte";
+"Bitrate limit exceeded" = "Bitrate-gräns överskriden";
+"Video bitrate too high" = "Video-bitrate för hög";
+"Audio bitrate too high" = "Ljud-bitrate för hög";
+"Audio channels not supported" = "Ljudkanaler stöds inte";
+"Subtitle codec not supported" = "Undertext-codec stöds inte";
+"Direct play error" = "Fel vid direktuppspelning";
+"Resolution not supported" = "Upplösning stöds inte";
+"Sample rate not supported" = "Samplingsfrekvens stöds inte";
+"Reason" = "Orsak";
+"Reason: Manual quality (%@)" = "Orsak: Manuell kvalitet (%@)";
+"Connecting" = "Ansluter";
+"Poor" = "Dålig";
+"Slow" = "Långsam";
+"Fair" = "Medel";
+"Good" = "Bra";
+
+/* Missing */
+"Recommendations" = "Rekommendationer";
+"Select" = "Välj";

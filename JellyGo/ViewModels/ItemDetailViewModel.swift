@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import os
 
 @MainActor
 final class ItemDetailViewModel: ObservableObject {
@@ -9,6 +10,7 @@ final class ItemDetailViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isFavorite = false
     @Published var isWatched = false
+    @Published var similarItems: [JellyfinItem] = []
 
     func load(item: JellyfinItem, appState: AppState) async {
         isLoading = true
@@ -114,6 +116,53 @@ final class ItemDetailViewModel: ObservableObject {
         }
 
         isLoading = false
+
+        // Load similar items for movies (only once)
+        if item.isMovie, similarItems.isEmpty {
+            var items = (try? await JellyfinAPI.shared.getSimilarItems(
+                serverURL: appState.serverURL, itemId: item.id,
+                userId: appState.userId, token: appState.token
+            )) ?? []
+            // Fallback: fill with random movies if similar list is short
+            if items.count < 10 {
+                let existingIds = Set(items.map(\.id) + [item.id])
+                if let random = try? await JellyfinAPI.shared.getItems(
+                    serverURL: appState.serverURL,
+                    userId: appState.userId,
+                    token: appState.token,
+                    itemTypes: ["Movie"],
+                    sortBy: "Random",
+                    limit: 10 - items.count + 5,
+                    recursive: true
+                ) {
+                    let unique = random.items.filter { !existingIds.contains($0.id) }
+                    let needed = 10 - items.count
+                    items.append(contentsOf: unique.prefix(needed))
+                }
+            }
+            similarItems = items
+        }
+
+        // If no community rating, trigger metadata refresh and reload
+        if fullItem?.communityRating == nil && !item.isEpisode {
+            await JellyfinAPI.shared.refreshItemMetadata(
+                serverURL: appState.serverURL,
+                itemId: item.id,
+                token: appState.token
+            )
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            if let updated = try? await JellyfinAPI.shared.getItemDetails(
+                serverURL: appState.serverURL,
+                itemId: item.id,
+                userId: appState.userId,
+                token: appState.token
+            ) {
+                if updated.communityRating != nil {
+                    fullItem = updated
+                }
+            }
+        }
     }
 
     func reloadAfterPlayback(item: JellyfinItem, appState: AppState) async {
@@ -140,9 +189,9 @@ final class ItemDetailViewModel: ObservableObject {
             episodes[seasonId] = response.items
             // Cache full details for downloaded episodes (getItems returns minimal fields)
             let dm = DownloadManager.shared
-            Task.detached(priority: .utility) {
+            Task {
                 for ep in response.items {
-                    let isDownloaded = await dm.isDownloaded(ep.id)
+                    let isDownloaded = dm.isDownloaded(ep.id)
                     guard isDownloaded else { continue }
                     // Fetch full details (people, mediaStreams, mediaSources, ratings…)
                     if let full = try? await JellyfinAPI.shared.getItemDetails(
@@ -158,16 +207,18 @@ final class ItemDetailViewModel: ObservableObject {
                             .contains { $0.hasPrefix(prefix) && $0.hasSuffix(".srt") } ?? false
                         if !subs.isEmpty && !hasSrt {
                             let sourceId = full.mediaSources?.first?.id ?? ep.id
-                            await dm.downloadSubtitles(
+                            dm.downloadSubtitles(
                                 itemId: ep.id, mediaSourceId: sourceId,
                                 streams: subs, serverURL: appState.serverURL, token: appState.token
                             )
                         }
                     }
-                    await dm.downloadPoster(itemId: ep.id, serverURL: appState.serverURL, token: appState.token)
+                    dm.downloadPoster(itemId: ep.id, serverURL: appState.serverURL, token: appState.token)
                 }
             }
-        } catch {}
+        } catch {
+            Logger(subsystem: "JellyGo", category: "ItemDetailViewModel").error("load failed: \(error)")
+        }
     }
 
     /// Returns the episode to highlight and resume-play for a given season.

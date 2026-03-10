@@ -2,6 +2,7 @@ import SwiftUI
 import MobileVLCKit
 import MediaPlayer
 import AVFoundation
+import os
 
 // MARK: - JellyGoPlayerView
 
@@ -40,13 +41,20 @@ struct JellyGoPlayerView: View {
     @State private var swipeStartVolume: Float = 0
     @State private var adjustMode: AdjustMode?
     @State private var adjustHideTask: Task<Void, Never>?
-    @State private var brightnessValue: CGFloat = UIScreen.main.brightness
+    private static var currentScreen: UIScreen {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first!.screen
+    }
+
+    @State private var brightnessValue: CGFloat = JellyGoPlayerView.currentScreen.brightness
     @State private var volumeValue: Float = 0.5
     @State private var mpVolView: MPVolumeView?
     enum AdjustMode { case brightness, volume }
 
     // Subtitle delay bar
     @State private var showDelayBar = false
+    @State private var showHUD = false
 
     // Skip accumulator
     @State private var skipAccum: Int = 0
@@ -75,6 +83,7 @@ struct JellyGoPlayerView: View {
 
                     VLCVideoSurface(player: vm.player)
                         .scaleEffect(videoScale)
+                        .opacity(vm.isLoading ? 0 : 1)
                         .ignoresSafeArea()
 
                     // Dim overlay: 0.5 when overlay visible & not scrubbing
@@ -100,8 +109,39 @@ struct JellyGoPlayerView: View {
                         .ignoresSafeArea()
 
                     if vm.isLoading {
-                        ProgressView().tint(.white).scaleEffect(1.5)
-                            .allowsHitTesting(false)
+                        // Show backdrop image while loading (local cache first, then server)
+                        let activeItem = resolvedItem ?? item
+                        let backdropId = activeItem.seriesId ?? activeItem.id
+                        GeometryReader { loadGeo in
+                            ZStack {
+                                if let localURL = DownloadManager.localBackdropURL(itemId: backdropId) {
+                                    Image(uiImage: UIImage(contentsOfFile: localURL.path) ?? UIImage())
+                                        .resizable().scaledToFill()
+                                        .frame(width: loadGeo.size.width, height: loadGeo.size.height)
+                                        .clipped()
+                                } else if let url = JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: backdropId) {
+                                    AsyncImage(url: url) { img in
+                                        img.resizable().scaledToFill()
+                                            .frame(width: loadGeo.size.width, height: loadGeo.size.height)
+                                            .clipped()
+                                    } placeholder: {
+                                        Color.black
+                                    }
+                                }
+                                Color.black.opacity(0.5)
+                                VStack(spacing: 12) {
+                                    ProgressView().tint(.white).scaleEffect(1.5)
+                                    if vm.statsIsTranscoding {
+                                        Text(String(localized: "Transcoding", bundle: AppState.currentBundle))
+                                            .font(.caption)
+                                            .foregroundStyle(.white.opacity(0.7))
+                                    }
+                                }
+                            }
+                            .frame(width: loadGeo.size.width, height: loadGeo.size.height)
+                        }
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
                     }
 
                     if let err = vm.error {
@@ -141,10 +181,21 @@ struct JellyGoPlayerView: View {
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.bottom, geo.safeAreaInsets.bottom + geo.size.height * 0.04 + 60)
-                    .padding(.horizontal, geo.safeAreaInsets.leading + geo.size.width * 0.05)
+                    .padding(.trailing, geo.safeAreaInsets.trailing + geo.size.width * 0.05)
                     .animation(.spring(duration: 0.4, bounce: 0.15), value: showDelayBar)
+
+                    // Stats HUD (bottom-left, always visible when enabled)
+                    if showHUD {
+                        statsHUD
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            .padding(.bottom, geo.safeAreaInsets.bottom + 60)
+                            .padding(.leading, geo.safeAreaInsets.leading + 52)
+                            .allowsHitTesting(false)
+                            .transition(.opacity)
+                            .animation(.easeInOut(duration: 0.2), value: showHUD)
+                    }
                 }
                 .frame(width: showEpisodeList ? geo.size.width * 0.6 : geo.size.width)
                 .clipShape(RoundedRectangle(cornerRadius: showEpisodeList ? 16 : 0))
@@ -182,7 +233,7 @@ struct JellyGoPlayerView: View {
                         if !isSwipeActive {
                             guard v > h * 1.2 else { return }
                             isSwipeActive = true
-                            swipeStartBrightness = UIScreen.main.brightness
+                            swipeStartBrightness = Self.currentScreen.brightness
                             swipeStartVolume = AVAudioSession.sharedInstance().outputVolume
                             volumeValue = swipeStartVolume
                             brightnessValue = swipeStartBrightness
@@ -191,7 +242,7 @@ struct JellyGoPlayerView: View {
                         if val.startLocation.x < geo.size.width / 2 {
                             adjustMode = .brightness
                             let bri = max(0, min(1, swipeStartBrightness + delta))
-                            UIScreen.main.brightness = bri; brightnessValue = bri
+                            Self.currentScreen.brightness = bri; brightnessValue = bri
                         } else {
                             adjustMode = .volume
                             let vol = max(0, min(1, Float(swipeStartVolume) + Float(delta)))
@@ -222,23 +273,34 @@ struct JellyGoPlayerView: View {
         .statusBarHidden(true)
         .animation(.linear(duration: 0.1), value: isScrubbing)
         .animation(.bouncy(duration: 0.25), value: showOverlay)
+        .onChange(of: vm.isLoading) { _, loading in
+            if loading {
+                hideTask?.cancel()
+                showOverlay = true
+            } else {
+                scheduleHide()
+            }
+        }
+        .background(Color.black.ignoresSafeArea())
         .animation(.spring(duration: 0.4, bounce: 0.15), value: showEpisodeList)
         .task {
             vm.disableVLCSubtitles = true
-            // Fetch item details, episode list, and video in parallel
-            async let _ = autoSelectSubtitle()
-            async let _ = loadEpisodeList()
+            // Start subtitle fetch and episode list in parallel with video load
+            async let subtitleTask: () = autoSelectSubtitle()
+            async let episodeTask: () = loadEpisodeList()
             if let url = localURL {
                 await vm.loadLocal(url: url, item: item, appState: appState)
             } else {
                 await vm.load(item: item, appState: appState, qualityOverride: qualityOverride)
             }
+            // Ensure subtitle fetch completes before we consider player ready
+            _ = await (subtitleTask, episodeTask)
         }
         .onDisappear { vm.stop() }
         .onAppear {
             // Orientation already set before fullScreenCover presentation
             scheduleHide()
-            brightnessValue = UIScreen.main.brightness
+            brightnessValue = Self.currentScreen.brightness
             volumeValue = AVAudioSession.sharedInstance().outputVolume
             // Init MPVolumeView off-screen in background to avoid first-tap stutter
             if mpVolView == nil {
@@ -258,8 +320,8 @@ struct JellyGoPlayerView: View {
         ZStack {
             VStack {
                 sfNavigationBar
-                    .sfVisible(!isScrubbing && showOverlay)
-                    .offset(y: showOverlay ? 0 : -20)
+                    .sfVisible(!isScrubbing && (showOverlay || vm.isLoading))
+                    .offset(y: (showOverlay || vm.isLoading) ? 0 : -20)
                     .padding(.top, geo.safeAreaInsets.top + geo.size.height * 0.03)
                     .padding(.leading, geo.safeAreaInsets.leading + geo.size.width * 0.05)
                     .padding(.trailing, geo.safeAreaInsets.trailing + geo.size.width * 0.05)
@@ -267,7 +329,7 @@ struct JellyGoPlayerView: View {
                 Spacer().allowsHitTesting(false)
 
                 sfPlaybackProgress
-                    .sfVisible(showOverlay)
+                    .sfVisible(showOverlay && !vm.isLoading)
                     .padding(.bottom, geo.safeAreaInsets.bottom + geo.size.height * 0.04)
                     .padding(.leading, geo.safeAreaInsets.leading + geo.size.width * 0.05)
                     .padding(.trailing, geo.safeAreaInsets.trailing + geo.size.width * 0.05)
@@ -283,7 +345,7 @@ struct JellyGoPlayerView: View {
             }
 
             sfPlaybackButtons
-                .sfVisible(!isScrubbing && showOverlay)
+                .sfVisible(!isScrubbing && showOverlay && !vm.isLoading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -309,7 +371,7 @@ struct JellyGoPlayerView: View {
                 sfQualityButton
 
                 if item.type == "Episode" {
-                    sfGlassButton("list.bullet") {
+                    sfGlassButton("rectangle.stack.fill") {
                         withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
                             showEpisodeList.toggle()
                         }
@@ -350,7 +412,11 @@ struct JellyGoPlayerView: View {
             Menu {
                 ForEach(VideoQuality.allCases) { q in
                     Button {
-                        Task { await vm.changeQuality(to: q) }
+                        Task {
+                            subtitleManager.reset()
+                            await vm.changeQuality(to: q)
+                            await autoSelectSubtitle()
+                        }
                     } label: {
                         if vm.selectedQuality == q {
                             Label(q.rawValue, systemImage: "checkmark")
@@ -361,9 +427,10 @@ struct JellyGoPlayerView: View {
                 }
             } label: {
                 sfQualityLabel
+                    .glassEffect(.regular.tint(Color.black.opacity(0.05)), in: .capsule)
             }
-            .glassEffect(.regular.tint(Color.black.opacity(0.05)), in: .capsule)
             .buttonStyle(.plain)
+            .menuStyle(.borderlessButton)
         }
     }
 
@@ -380,7 +447,6 @@ struct JellyGoPlayerView: View {
         }
         .glassEffect(.regular.tint(Color.black.opacity(0.15)), in: .circle)
         .buttonStyle(.plain)
-        .contentShape(Circle())
     }
 
     /// Standalone nav bar button
@@ -445,12 +511,10 @@ struct JellyGoPlayerView: View {
                         Label("Play", systemImage: "play.fill")
                     }
                 }
-                .transition(.opacity.combined(with: .scale)
-                    .animation(.bouncy(duration: 0.7, extraBounce: 0.2)))
                 .font(.system(size: 44, weight: .bold))
-                .contentShape(Rectangle())
                 .labelStyle(.iconOnly)
                 .padding(20)
+                .contentShape(Circle())
             }
 
             // Forward
@@ -504,7 +568,7 @@ struct JellyGoPlayerView: View {
             if isSlowScrubbing {
                 HStack {
                     Image(systemName: "backward.fill")
-                    Text("Slow Scrubbing")
+                    Text(String(localized: "Slow Scrubbing", bundle: AppState.currentBundle))
                     Image(systemName: "forward.fill")
                 }.font(.caption).offset(y: 32)
                     .transition(.opacity.animation(.linear(duration: 0.1)))
@@ -624,6 +688,124 @@ struct JellyGoPlayerView: View {
         .foregroundStyle(isScrubbing ? .primary : .secondary, .secondary)
     }
 
+    // MARK: - Stats HUD
+
+    private var statsHUD: some View {
+        let isLocal = localURL != nil
+        return VStack(alignment: .leading, spacing: 3) {
+            // ── Source ──
+            Text(isLocal ? "LOCAL FILE" : appState.serverURL)
+                .foregroundStyle(.gray)
+
+            // ── Media info ──
+            Text("\(vm.statsVideoCodec) \(vm.statsVideoProfile) \(vm.statsVideoResolution) \(vm.statsVideoBitDepth) \(vm.statsVideoRange)")
+            Text("\(vm.statsAudioCodec) \(vm.statsAudioLabel)")
+                .foregroundStyle(.white.opacity(0.7))
+
+            // ── Playback ──
+            HStack(spacing: 4) {
+                if isLocal {
+                    Text("LOCAL PLAY").foregroundStyle(.cyan).bold()
+                } else if vm.statsIsTranscoding {
+                    Text("TRANSCODE").foregroundStyle(.orange).bold()
+                } else {
+                    Text("DIRECT PLAY").foregroundStyle(.green).bold()
+                }
+                if !vm.statsContainer.isEmpty && vm.statsContainer != "—" {
+                    Text("· \(vm.statsContainer)").foregroundStyle(.white.opacity(0.5))
+                }
+            }
+            if !isLocal && vm.statsIsTranscoding {
+                if vm.statsIsManualQuality {
+                    Text(String(localized: "Reason: Manual quality (\(vm.selectedQuality.rawValue))", bundle: Self.bundle))
+                        .foregroundStyle(.orange.opacity(0.9))
+                } else if !vm.statsTranscodeReasons.isEmpty {
+                    Text("\(String(localized: "Reason", bundle: Self.bundle)): \(vm.statsTranscodeReasons.map { Self.readableReason($0) }.joined(separator: ", "))")
+                        .foregroundStyle(.orange.opacity(0.9))
+                }
+            }
+
+            // ── Network / Disk ──
+            HStack(spacing: 6) {
+                if isLocal {
+                    Circle().fill(.cyan).frame(width: 6, height: 6)
+                    Text("Disk").foregroundStyle(.cyan)
+                } else {
+                    let quality = Self.networkQuality(
+                        inputBitrate: vm.statsBitrateMbps,
+                        demuxBitrate: vm.statsDemuxBitrateMbps,
+                        dropped: vm.statsDroppedFrames,
+                        decoded: vm.statsDecodedFrames
+                    )
+                    Circle().fill(quality.color).frame(width: 6, height: 6)
+                    Text(quality.label).foregroundStyle(quality.color)
+                    if vm.statsBitrateMbps > 0 {
+                        Text(String(format: "%.1f Mbps", vm.statsBitrateMbps))
+                    }
+                }
+                Text("· \(Self.formatBytes(vm.statsReadBytes))")
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            if vm.statsDroppedFrames > 0 {
+                Text("Dropped: \(vm.statsDroppedFrames) frames")
+                    .foregroundStyle(.red.opacity(0.8))
+            }
+        }
+        .font(.system(size: 10, weight: .medium, design: .monospaced))
+        .foregroundStyle(.white)
+        .padding(8)
+        .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    /// Network quality based on current input bitrate.
+    /// inputBitrate = how fast data arrives from network. 0 means buffer is full (good) or no data (bad).
+    /// demuxBitrate = how fast player consumes data. If input < demux consistently, buffering will happen.
+    private static func networkQuality(inputBitrate: Double, demuxBitrate: Double, dropped: Int32, decoded: Int32) -> (label: String, color: Color) {
+        // No data yet
+        let b = AppState.currentBundle
+        if decoded == 0 { return (String(localized: "Connecting", bundle: b), .yellow) }
+        let dropRate = decoded > 100 ? Double(dropped) / Double(decoded) : 0
+        if dropRate > 0.03 { return (String(localized: "Poor", bundle: b), .red) }
+        if demuxBitrate > 0 && inputBitrate > 0 && inputBitrate < demuxBitrate * 0.5 {
+            return (String(localized: "Slow", bundle: b), .orange)
+        }
+        if dropRate > 0.005 { return (String(localized: "Fair", bundle: b), .yellow) }
+        return (String(localized: "Good", bundle: b), .green)
+    }
+
+    private static func formatBytes(_ bytes: Int) -> String {
+        if bytes < 1024 { return "\(bytes) B" }
+        let kb = Double(bytes) / 1024
+        if kb < 1024 { return String(format: "%.0f KB", kb) }
+        let mb = kb / 1024
+        if mb < 1024 { return String(format: "%.1f MB", mb) }
+        let gb = mb / 1024
+        return String(format: "%.2f GB", gb)
+    }
+
+    private static let bundle = AppState.currentBundle
+    private static func readableReason(_ reason: String) -> String {
+        switch reason {
+        case "VideoCodecNotSupported": return String(localized: "Video codec not supported", bundle: bundle)
+        case "AudioCodecNotSupported": return String(localized: "Audio codec not supported", bundle: bundle)
+        case "ContainerNotSupported": return String(localized: "Container not supported", bundle: bundle)
+        case "VideoBitDepthNotSupported": return String(localized: "Bit depth not supported", bundle: bundle)
+        case "VideoRangeTypeNotSupported": return String(localized: "HDR → SDR conversion", bundle: bundle)
+        case "VideoProfileNotSupported": return String(localized: "Video profile not supported", bundle: bundle)
+        case "VideoLevelNotSupported": return String(localized: "Video level not supported", bundle: bundle)
+        case "AudioProfileNotSupported": return String(localized: "Audio profile not supported", bundle: bundle)
+        case "ContainerBitrateExceedsLimit": return String(localized: "Bitrate limit exceeded", bundle: bundle)
+        case "VideoBitrateNotSupported": return String(localized: "Video bitrate too high", bundle: bundle)
+        case "AudioBitrateNotSupported": return String(localized: "Audio bitrate too high", bundle: bundle)
+        case "AudioChannelsNotSupported": return String(localized: "Audio channels not supported", bundle: bundle)
+        case "SubtitleCodecNotSupported": return String(localized: "Subtitle codec not supported", bundle: bundle)
+        case "DirectPlayError": return String(localized: "Direct play error", bundle: bundle)
+        case "VideoResolutionNotSupported": return String(localized: "Resolution not supported", bundle: bundle)
+        case "AudioSampleRateNotSupported": return String(localized: "Sample rate not supported", bundle: bundle)
+        default: return reason
+        }
+    }
+
     // MARK: - More Menu (native Menu with accordion sub-menus)
 
     private var sfMoreMenu: some View {
@@ -650,9 +832,15 @@ struct JellyGoPlayerView: View {
             subtitleDelay: vm.subtitleDelaySecs,
             onSubtitleChanged: { selectSubtitle(index: $0) },
             onAudioChanged: { vm.setAudio(index: $0) },
-            onQualityChanged: { q in Task { await vm.changeQuality(to: q) } },
+            onQualityChanged: { q in Task {
+                subtitleManager.reset()
+                await vm.changeQuality(to: q)
+                await autoSelectSubtitle()
+            } },
             onDelayChanged: { vm.setSubtitleDelay($0); subtitleManager.delaySecs = vm.subtitleDelaySecs },
             onShowDelayBar: { showDelayBar = true },
+            showHUD: showHUD,
+            onToggleHUD: { showHUD.toggle() },
             onPressed: { p in if p { stopTimer() } else { pokeTimer() } }
         ).equatable()
     }
@@ -854,7 +1042,9 @@ struct JellyGoPlayerView: View {
                 )
                 episodeListItems = epsResp.items
             }
-        } catch {}
+        } catch {
+            Logger(subsystem: "JellyGo", category: "JellyGoPlayerView").error("loadEpisodeList failed: \(error)")
+        }
     }
 
     // MARK: - Media Info Card
@@ -862,11 +1052,8 @@ struct JellyGoPlayerView: View {
     private var mediaInfoCard: some View {
         let isEpisode = item.type == "Episode"
         let logoId = isEpisode ? (item.seriesId ?? item.id) : item.id
-        let logoURL = JellyfinAPI.shared.logoURL(
-            serverURL: appState.serverURL,
-            itemId: logoId,
-            maxWidth: 300
-        )
+        let logoURL: URL? = DownloadManager.localLogoURL(itemId: logoId)
+            ?? JellyfinAPI.shared.logoURL(serverURL: appState.serverURL, itemId: logoId, maxWidth: 300)
 
         return HStack(spacing: 12) {
             AsyncImage(url: logoURL) { phase in
@@ -988,7 +1175,7 @@ struct JellyGoPlayerView: View {
                         .onChanged { val in
                             let frac = 1.0 - (val.location.y / barH)
                             let clamped = max(0, min(1, frac))
-                            UIScreen.main.brightness = clamped
+                            Self.currentScreen.brightness = clamped
                             brightnessValue = clamped
                         }
                 )
@@ -1049,7 +1236,7 @@ struct JellyGoPlayerView: View {
                 .font(.system(size: 44)).foregroundStyle(.yellow)
             Text(message).font(.subheadline).foregroundStyle(.white)
                 .multilineTextAlignment(.center).padding(.horizontal, 32)
-            Button("Dismiss") { dismiss() }.buttonStyle(.bordered).tint(.white)
+            Button(String(localized: "Dismiss", bundle: AppState.currentBundle)) { dismiss() }.buttonStyle(.bordered).tint(.white)
         }
     }
 
@@ -1077,6 +1264,7 @@ struct JellyGoPlayerView: View {
         hideTask = Task {
             try? await Task.sleep(for: .seconds(5))
             guard !Task.isCancelled else { return }
+            guard !vm.isLoading else { return } // Don't hide while loading
             withAnimation(.spring(duration: 0.3, bounce: 0.2)) { dismissAllPanels() }
             withAnimation { showOverlay = false }
         }
@@ -1087,7 +1275,7 @@ struct JellyGoPlayerView: View {
     private var aspectFillScale: CGFloat {
         let v = vm.videoSize
         guard v.width > 0, v.height > 0 else { return 1.33 }
-        let screen = UIScreen.main.bounds.size
+        let screen = Self.currentScreen.bounds.size
         let sw = max(screen.width, screen.height)
         let sh = min(screen.width, screen.height)
         guard sh > 0 else { return 1.33 }
@@ -1125,79 +1313,90 @@ struct JellyGoPlayerView: View {
         // item from list views may not have mediaStreams — fetch full details if needed
         var richItem = item
         if (richItem.mediaStreams ?? []).isEmpty {
-            print("[Player] item.mediaStreams is empty — fetching full item details")
             // Try cached details first (works offline)
             if let cached = DownloadManager.loadItemDetails(itemId: item.id),
                !(cached.mediaStreams ?? []).isEmpty {
                 richItem = cached
                 resolvedItem = cached
-                print("[Player] Loaded cached details: mediaStreams=\(cached.mediaStreams?.count ?? 0)")
-            } else if let detailed = try? await JellyfinAPI.shared.getItemDetails(
-                serverURL: appState.serverURL, itemId: item.id,
-                userId: appState.userId, token: appState.token
-            ) {
-                richItem = detailed
-                resolvedItem = detailed
-                print("[Player] Fetched details: mediaStreams=\(detailed.mediaStreams?.count ?? 0)")
+            } else {
+                // Try up to 3 times with delay — server may not be ready yet
+                for attempt in 1...3 {
+                    if let detailed = try? await JellyfinAPI.shared.getItemDetails(
+                        serverURL: appState.serverURL, itemId: item.id,
+                        userId: appState.userId, token: appState.token
+                    ), !(detailed.mediaStreams ?? []).isEmpty {
+                        richItem = detailed
+                        resolvedItem = detailed
+                        break
+                    }
+                    try? await Task.sleep(for: .milliseconds(500 * attempt))
+                }
             }
         }
         let subtitleStreams = richItem.mediaStreams?.filter(\.isSubtitle) ?? []
-        print("[Player] autoSelectSubtitle: \(subtitleStreams.count) subtitle streams, mediaStreams total: \(richItem.mediaStreams?.count ?? 0)")
-        for (i, s) in subtitleStreams.enumerated() {
-            print("[Player]   sub[\(i)]: index=\(s.index) lang=\(s.language ?? "nil") codec=\(s.codec ?? "nil") default=\(s.isDefault ?? false) external=\(s.isExternal ?? false) canSRT=\(s.canDownloadAsSRT) title=\(s.displayTitle ?? "nil")")
-        }
         guard !subtitleStreams.isEmpty else {
-            print("[Player] No subtitle streams found — trying local SRT files directly")
             // Fallback: if no mediaStreams but local SRT files exist, load the first one
             if localURL != nil {
                 let downloadsDir = DownloadManager.downloadsDirectory
                 let prefix = "\(item.id)_"
                 if let files = try? FileManager.default.contentsOfDirectory(atPath: downloadsDir.path),
                    let srtFile = files.first(where: { $0.hasPrefix(prefix) && $0.hasSuffix(".srt") }) {
-                    print("[Player] Fallback: loading local SRT: \(srtFile)")
                     subtitleManager.loadLocal(from: downloadsDir.appendingPathComponent(srtFile))
                 }
             }
             return
         }
 
-        // Pick default or preferred language subtitle
+        // Build candidate list: preferred → secondary → default (no random fallback)
         let preferred = appState.preferredSubtitleLanguage.lowercased()
-        let defaultSub = subtitleStreams.first(where: { $0.isDefault == true })
-        let preferredSub = !preferred.isEmpty
-            ? subtitleStreams.first(where: { $0.language?.lowercased() == preferred })
-            : nil
+        let secondary = appState.secondarySubtitleLanguage.lowercased()
+        var candidates: [JellyfinMediaStream] = []
 
-        print("[Player] preferred='\(preferred)' defaultSub=\(defaultSub?.language ?? "nil") preferredSub=\(preferredSub?.language ?? "nil") subtitlesEnabled=\(appState.subtitlesEnabledByDefault)")
-        guard let target = preferredSub ?? defaultSub ?? (appState.subtitlesEnabledByDefault ? subtitleStreams.first : nil) else {
-            print("[Player] No subtitle target found (none default, none preferred, subtitlesEnabledByDefault=\(appState.subtitlesEnabledByDefault))")
-            return
-        }
-        print("[Player] Selected target: index=\(target.index) lang=\(target.language ?? "nil") canSRT=\(target.canDownloadAsSRT)")
-
-        guard target.canDownloadAsSRT else {
-            print("[Player] Target is image-based (PGS/VobSub) — delegating to VLC")
-            vm.currentSubtitleIndex = Int32(target.index)
-            vm.setVLCSubtitleTrack(Int32(target.index))
-            return
+        // Helper to add streams for a language (text-based first, then image-based)
+        func addLang(_ lang: String) {
+            guard !lang.isEmpty else { return }
+            let langStreams = subtitleStreams.filter { $0.language?.lowercased() == lang }
+            // Non-forced text first, then non-forced image, then forced
+            let nonForced = langStreams.filter { $0.isForced != true }
+            let forced = langStreams.filter { $0.isForced == true }
+            let sorted = nonForced.sorted { $0.canDownloadAsSRT && !$1.canDownloadAsSRT } + forced
+            for s in sorted where !candidates.contains(where: { $0.index == s.index }) { candidates.append(s) }
         }
 
-        vm.currentSubtitleIndex = Int32(target.index)
+        // 1. Preferred language
+        addLang(preferred)
+        // 2. Secondary language
+        addLang(secondary)
+        // 3. Default subtitle (if not already in list)
+        if let def = subtitleStreams.first(where: { $0.isDefault == true }), !candidates.contains(where: { $0.index == def.index }) {
+            candidates.append(def)
+        }
 
-        // Local playback
-        if localURL != nil {
-            print("[Player] Local playback — looking for SRT: itemId=\(item.id) lang=\(target.language ?? "nil") index=\(target.index)")
-            if let srtURL = Self.findLocalSubtitle(itemId: item.id, stream: target) {
-                print("[Player] Found local SRT: \(srtURL.lastPathComponent)")
-                subtitleManager.loadLocal(from: srtURL)
+        guard !candidates.isEmpty else {
+            return
+        }
+
+        let mediaSourceId = richItem.mediaSources?.first?.id ?? richItem.id
+
+        // Try each candidate until one loads successfully
+        for candidate in candidates {
+            vm.currentSubtitleIndex = Int32(candidate.index)
+
+            // Local playback
+            if localURL != nil {
+                if let srtURL = Self.findLocalSubtitle(itemId: item.id, stream: candidate) {
+                    subtitleManager.loadLocal(from: srtURL)
+                    return
+                }
+                continue
+            }
+
+            // Remote: try fetching as text
+            let success = await fetchSubtitleWithFallback(itemId: richItem.id, mediaSourceId: mediaSourceId, streamIndex: candidate.index)
+            if success {
                 return
             }
-            print("[Player] No local SRT found")
         }
-
-        // Remote: try SRT first, then VTT as fallback
-        let mediaSourceId = richItem.mediaSources?.first?.id ?? richItem.id
-        await fetchSubtitleWithFallback(itemId: richItem.id, mediaSourceId: mediaSourceId, streamIndex: target.index)
     }
 
     /// Try fetching subtitle as SRT, fall back to VTT if server returns error.
@@ -1212,20 +1411,15 @@ struct JellyGoPlayerView: View {
                 streamIndex: streamIndex, token: appState.token,
                 format: format
             ) else { continue }
-            print("[Player] Trying \(format.uppercased()) from: \(url.absoluteString)")
             let success = await subtitleManager.load(from: url, token: appState.token)
             if success {
-                print("[Player] \(format.uppercased()) loaded: \(subtitleManager.entries.count) entries")
                 return true
             }
-            print("[Player] \(format.uppercased()) failed, trying next format...")
         }
-        print("[Player] All subtitle formats failed")
         return false
     }
 
     private func selectSubtitle(index: Int32) {
-        print("[Player] selectSubtitle called: index=\(index)")
         vm.currentSubtitleIndex = index
 
         if index == -1 {
@@ -1250,7 +1444,7 @@ struct JellyGoPlayerView: View {
             return
         }
 
-        // Remote — fetch with SRT→VTT fallback
+        // Remote — fetch as text from server (handles both text and image-based)
         let mediaSourceId = activeItem.mediaSources?.first?.id ?? activeItem.id
         Task {
             await fetchSubtitleWithFallback(itemId: activeItem.id, mediaSourceId: mediaSourceId, streamIndex: stream.index)
@@ -1299,16 +1493,11 @@ private struct JGOverlayButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(isEnabled ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(Color.gray))
             .labelStyle(.iconOnly)
-            .scaleEffect(configuration.isPressed ? 0.8 : 1)
-            .animation(.bouncy(duration: 0.25, extraBounce: 0.25), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.85 : 1)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
             .padding(8)
             .contentShape(Rectangle())
-            .background {
-                Circle()
-                    .foregroundStyle(Color.white.opacity(configuration.isPressed ? 0.25 : 0))
-                    .scaleEffect(configuration.isPressed ? 1 : 0.8)
-                    .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-            }
             .onChange(of: configuration.isPressed) { _, p in onPressed(p) }
     }
 }
@@ -1365,6 +1554,8 @@ private struct JGMoreMenuView: View {
     let onQualityChanged: (VideoQuality) -> Void
     let onDelayChanged: (Double) -> Void
     let onShowDelayBar: () -> Void
+    let showHUD: Bool
+    let onToggleHUD: () -> Void
     let onPressed: (Bool) -> Void
 
     @State private var selectedSub: Int32 = -1
@@ -1375,14 +1566,26 @@ private struct JGMoreMenuView: View {
             subtitleSection
             subtitleDelaySection
             audioSection
+
+            Divider()
+
+            Button {
+                onToggleHUD()
+            } label: {
+                Label(
+                    String(localized: "Stats", bundle: AppState.currentBundle),
+                    systemImage: showHUD ? "info.circle.fill" : "info.circle"
+                )
+            }
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .padding(10)
+                .glassEffect(.regular.tint(Color.black.opacity(0.15)), in: .circle)
         }
-        .glassEffect(.regular.tint(Color.black.opacity(0.15)), in: .circle)
         .buttonStyle(.plain)
+        .menuStyle(.borderlessButton)
         .onAppear {
             selectedSub = currentSubIdx
             selectedAudio = currentAudioIdx
@@ -1403,18 +1606,18 @@ private struct JGMoreMenuView: View {
     private var subtitleSection: some View {
         if !subtitleStreams.isEmpty {
             let label = selectedSub >= 0
-                ? (subtitleStreams.first(where: { Int32($0.index) == selectedSub })?.languageName ?? "On")
-                : "Off"
+                ? (subtitleStreams.first(where: { Int32($0.index) == selectedSub })?.languageName ?? String(localized: "On", bundle: AppState.currentBundle))
+                : String(localized: "Off", bundle: AppState.currentBundle)
             Menu {
-                Picker("Subtitles", selection: $selectedSub) {
-                    Text("Off").tag(Int32(-1))
+                Picker(String(localized: "Subtitles", bundle: AppState.currentBundle), selection: $selectedSub) {
+                    Text(String(localized: "Off", bundle: AppState.currentBundle)).tag(Int32(-1))
                     ForEach(subtitleStreams, id: \.index) { s in
                         Text(s.languageName ?? "Track \(s.index)")
                             .tag(Int32(s.index))
                     }
                 }
             } label: {
-                Label("Subtitles \u{2022} \(label)", systemImage: "captions.bubble")
+                Label("\(String(localized: "Subtitles", bundle: AppState.currentBundle)) \u{2022} \(label)", systemImage: "captions.bubble")
             }
         }
     }
@@ -1428,7 +1631,7 @@ private struct JGMoreMenuView: View {
                 let delayStr = subtitleDelay == 0
                     ? "0s"
                     : String(format: "%+.1fs", subtitleDelay)
-                Label("Subtitle Delay \u{2022} \(delayStr)", systemImage: "timer")
+                Label("\(String(localized: "Subtitle Delay", bundle: AppState.currentBundle)) \u{2022} \(delayStr)", systemImage: "timer")
             }
         }
     }
@@ -1438,13 +1641,13 @@ private struct JGMoreMenuView: View {
         if audioTracks.count > 1 {
             let label = audioTracks.first(where: { $0.index == selectedAudio })?.name ?? ""
             Menu {
-                Picker("Audio", selection: $selectedAudio) {
+                Picker(String(localized: "Audio", bundle: AppState.currentBundle), selection: $selectedAudio) {
                     ForEach(audioTracks) { t in
                         Text(t.name).tag(t.index)
                     }
                 }
             } label: {
-                Label("Audio \u{2022} \(label)", systemImage: "waveform")
+                Label("\(String(localized: "Audio", bundle: AppState.currentBundle)) \u{2022} \(label)", systemImage: "waveform")
             }
         }
     }
@@ -1476,7 +1679,8 @@ extension JGMoreMenuView: Equatable {
         lhs.currentQuality == rhs.currentQuality &&
         lhs.subtitleDelay == rhs.subtitleDelay &&
         lhs.subtitleStreams.count == rhs.subtitleStreams.count &&
-        lhs.audioTracks == rhs.audioTracks
+        lhs.audioTracks == rhs.audioTracks &&
+        lhs.showHUD == rhs.showHUD
     }
 }
 

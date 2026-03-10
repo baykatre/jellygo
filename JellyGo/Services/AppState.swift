@@ -61,7 +61,7 @@ final class NetworkMonitor: ObservableObject {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "jellygo.network", qos: .utility)
 
-    private(set) var isWiFi: Bool = true
+    @Published private(set) var isWiFi: Bool = true
     @Published var isConnected: Bool = true
 
     private init() {
@@ -82,8 +82,17 @@ final class NetworkMonitor: ObservableObject {
 @MainActor
 final class AppState: ObservableObject {
 
+    // MARK: Singleton reference for non-UI access (e.g. JellyfinAPI)
+    nonisolated(unsafe) static var shared: AppState?
+
     // MARK: Session
     @Published var isAuthenticated = false
+    @Published var serverUnreachable = false   // true = authenticated but no server reachable → offline
+    @Published var manualOffline: Bool =
+        UserDefaults.standard.bool(forKey: "jellygo.manualOffline") {
+        didSet { UserDefaults.standard.set(manualOffline, forKey: "jellygo.manualOffline") }
+    }
+    @Published var isPlayerActive = false      // true while player is presented
     @Published var sessionId: UUID = UUID()   // changes on every account switch → triggers reloads
     @Published var serverURL: String = ""
     @Published var serverName: String = ""
@@ -115,6 +124,10 @@ final class AppState: ObservableObject {
         UserDefaults.standard.string(forKey: "jellygo.subtitleLang") ?? "" {
         didSet { UserDefaults.standard.set(preferredSubtitleLanguage, forKey: "jellygo.subtitleLang") }
     }
+    @Published var secondarySubtitleLanguage: String =
+        UserDefaults.standard.string(forKey: "jellygo.subtitleLang2") ?? "" {
+        didSet { UserDefaults.standard.set(secondarySubtitleLanguage, forKey: "jellygo.subtitleLang2") }
+    }
     @Published var subtitlesEnabledByDefault: Bool =
         UserDefaults.standard.bool(forKey: "jellygo.subtitleEnabled") {
         didSet { UserDefaults.standard.set(subtitlesEnabledByDefault, forKey: "jellygo.subtitleEnabled") }
@@ -130,6 +143,13 @@ final class AppState: ObservableObject {
         UserDefaults.standard.bool(forKey: "jellygo.subtitleBg") {
         didSet { UserDefaults.standard.set(subtitleBackgroundEnabled, forKey: "jellygo.subtitleBg") }
     }
+    /// Background opacity 0.0–1.0, default 0.6
+    @Published var subtitleBackgroundOpacity: Double = {
+        let v = UserDefaults.standard.double(forKey: "jellygo.subtitleBgOpacity")
+        return v == 0 ? 0.6 : v
+    }() {
+        didSet { UserDefaults.standard.set(subtitleBackgroundOpacity, forKey: "jellygo.subtitleBgOpacity") }
+    }
     @Published var subtitleBold: Bool =
         UserDefaults.standard.bool(forKey: "jellygo.subtitleBold") {
         didSet { UserDefaults.standard.set(subtitleBold, forKey: "jellygo.subtitleBold") }
@@ -138,6 +158,52 @@ final class AppState: ObservableObject {
     @Published var subtitleColor: String =
         UserDefaults.standard.string(forKey: "jellygo.subtitleColor") ?? "white" {
         didSet { UserDefaults.standard.set(subtitleColor, forKey: "jellygo.subtitleColor") }
+    }
+    /// Line spacing multiplier, default 1.0
+    @Published var subtitleLineSpacing: Double = {
+        let v = UserDefaults.standard.double(forKey: "jellygo.subtitleLineSpacing")
+        return v == 0 ? 1.0 : v
+    }() {
+        didSet { UserDefaults.standard.set(subtitleLineSpacing, forKey: "jellygo.subtitleLineSpacing") }
+    }
+    /// Bottom padding in points, default 40
+    @Published var subtitleBottomPadding: Double = {
+        let v = UserDefaults.standard.double(forKey: "jellygo.subtitleBottomPad")
+        return v == 0 ? 40 : v
+    }() {
+        didSet { UserDefaults.standard.set(subtitleBottomPadding, forKey: "jellygo.subtitleBottomPad") }
+    }
+
+    // MARK: Appearance
+    @Published var appTheme: String =
+        UserDefaults.standard.string(forKey: "jellygo.appTheme") ?? "system" {
+        didSet { UserDefaults.standard.set(appTheme, forKey: "jellygo.appTheme") }
+    }
+
+    // MARK: Home Sections
+    @Published var showContinueWatching: Bool = {
+        let key = "jellygo.showContinueWatching"
+        return UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
+    }() {
+        didSet { UserDefaults.standard.set(showContinueWatching, forKey: "jellygo.showContinueWatching") }
+    }
+    @Published var showNextUp: Bool = {
+        let key = "jellygo.showNextUp"
+        return UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
+    }() {
+        didSet { UserDefaults.standard.set(showNextUp, forKey: "jellygo.showNextUp") }
+    }
+    @Published var showLatestMovies: Bool = {
+        let key = "jellygo.showLatestMovies"
+        return UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
+    }() {
+        didSet { UserDefaults.standard.set(showLatestMovies, forKey: "jellygo.showLatestMovies") }
+    }
+    @Published var showLatestShows: Bool = {
+        let key = "jellygo.showLatestShows"
+        return UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
+    }() {
+        didSet { UserDefaults.standard.set(showLatestShows, forKey: "jellygo.showLatestShows") }
     }
 
     // MARK: App Language
@@ -172,6 +238,7 @@ final class AppState: ObservableObject {
     }
 
     init() {
+        AppState.shared = self
         restore()
     }
 
@@ -314,6 +381,68 @@ final class AppState: ObservableObject {
             } else {
                 clearSession()
             }
+        }
+    }
+
+    // MARK: - Startup Connectivity
+
+    /// Try to reach the current server; if it fails, try other saved accounts.
+    /// If none are reachable, set `serverUnreachable = true` (shows offline mode).
+    func validateAndFallback() async {
+        guard isAuthenticated else { return }
+
+        // Try current server first (fast 2s timeout)
+        if await isServerReachable(serverURL) {
+            serverUnreachable = false
+            return
+        }
+
+        // Ping all other servers in parallel, pick the first reachable one
+        let currentId = "\(userId)@\(serverURL)"
+        let others = savedAccounts.filter { $0.id != currentId }
+        if let winner = await firstReachableAccount(others) {
+            switchAccount(winner)
+            sessionId = UUID()   // force HomeView reload even if same user
+            serverUnreachable = false
+            return
+        }
+
+        // Nothing reachable → offline
+        serverUnreachable = true
+    }
+
+    /// Pings all accounts in parallel, returns the first one that responds.
+    private func firstReachableAccount(_ accounts: [SavedAccount]) async -> SavedAccount? {
+        // Deduplicate by serverURL to avoid redundant pings
+        var seen = Set<String>()
+        var unique: [SavedAccount] = []
+        for a in accounts where seen.insert(a.serverURL).inserted { unique.append(a) }
+
+        return await withTaskGroup(of: SavedAccount?.self) { group in
+            for account in unique {
+                group.addTask { [self] in
+                    await self.isServerReachable(account.serverURL) ? account : nil
+                }
+            }
+            for await result in group {
+                if let account = result { return account }
+            }
+            return nil
+        }
+    }
+
+    /// Lightweight reachability ping with a short timeout.
+    /// Any HTTP response (even 403) means the server is reachable.
+    private nonisolated func isServerReachable(_ url: String) async -> Bool {
+        guard let base = URL(string: url) else { return false }
+        let endpoint = base.appendingPathComponent("System/Info/Public")
+        var req = URLRequest(url: endpoint, timeoutInterval: 1)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do {
+            let (_, response) = try await URLSession.shared.data(for: req)
+            return (response as? HTTPURLResponse)?.statusCode != nil
+        } catch {
+            return false
         }
     }
 

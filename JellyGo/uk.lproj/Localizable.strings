@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "Продовжити  S%lldE%lld";
 "Add to Favorites" = "Додати до обраного";
 "Remove from Favorites" = "Видалити з обраного";
-"Mark as Watched" = "Позначити як переглянуте";
-"Mark as Unwatched" = "Позначити як непереглянуте";
 "Watched" = "Переглянуто";
+"Unwatched" = "Не переглянуто";
+"Go to Detail" = "До деталей";
 "Save" = "Зберегти";
 "Rate" = "Оцінити";
 "Favorite" = "Обране";
@@ -86,8 +86,6 @@
 "Remove Account" = "Видалити обліковий запис";
 "Remove %@ from this device?" = "Видалити %@ з цього пристрою?";
 "Account Already Added" = "Обліковий запис вже додано";
-"e.g. Home, Remote, VPN…" = "наприклад: Дім, Віддалений, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Мітка відображається на значку головного екрана та в бульбашках облікових записів. Залиште порожнім, щоб використовувати адресу сервера.";
 
 /* Settings */
 "Settings" = "Налаштування";
@@ -96,13 +94,24 @@
 "Default Quality" = "Якість за замовчуванням";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Авто (WiFi → Пряме, Мобільна мережа → 720p)";
 "Audio" = "Аудіо";
+"Audio & Subtitles" = "Аудіо та субтитри";
 "Preferred Language" = "Бажана мова";
 "Subtitles" = "Субтитри";
 "Enable by Default" = "Увімкнути за замовчуванням";
+"Appearance" = "Зовнішній вигляд";
+"Theme" = "Тема";
+"Light" = "Світла";
+"Dark" = "Темна";
+"Home Screen" = "Головний екран";
+"Choose which sections appear on the home screen." = "Оберіть, які розділи відображати на головному екрані.";
+"Storage" = "Сховище";
+"Downloaded Content" = "Завантажений контент";
+"Image Cache" = "Кеш зображень";
+"Clear Cache" = "Очистити кеш";
+"Cache" = "Кеш";
 "About" = "Про застосунок";
 "Version" = "Версія";
 "Jellyfin Project" = "Проект Jellyfin";
-"Sign out of %@?" = "Вийти з %@?";
 "Remove" = "Видалити";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "Видалити всі епізоди?";
 "Delete Download?" = "Видалити завантаження?";
 "Delete" = "Видалити";
-"Remove \"%@\" from your downloads?" = "Видалити \"%@\" із завантажень?";
-"Remove all downloaded episodes of \"%@\"?" = "Видалити всі завантажені епізоди \"%@\"?";
-"Delete all %lld episodes of \"%@\"?" = "Видалити всі %lld епізодів \"%@\"?";
 "Downloading" = "Завантаження";
 "Failed" = "Помилка";
 "Transcoding" = "Перекодування";
@@ -144,6 +150,7 @@
 "Queued" = "У черзі";
 "Pause" = "Пауза";
 "Cancel Download" = "Скасувати завантаження";
+"Resume Download" = "Відновити завантаження";
 "Media Info" = "Інформація про медіа";
 "1 Season" = "1 сезон";
 "%lld Seasons" = "%lld сезонів";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "Показати більше";
 "Show Less" = "Показати менше";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Зовнішній вигляд субтитрів";
+"Font Size" = "Розмір шрифту";
+"Size" = "Розмір";
+"Small" = "Малий";
+"Medium" = "Середній";
+"Large" = "Великий";
+"Extra Large" = "Дуже великий";
+"Style" = "Стиль";
+"Bold" = "Жирний";
+"Color" = "Колір";
+"White" = "Білий";
+"Yellow" = "Жовтий";
+"Background" = "Фон";
+"Opacity" = "Прозорість";
+"Layout" = "Розташування";
+"Line Spacing" = "Міжрядковий інтервал";
+"Bottom Offset" = "Відступ знизу";
+"Preview" = "Попередній перегляд";
+
+/* Player Extended */
+"Slow Scrubbing" = "Повільна перемотка";
+"Subtitle Delay" = "Затримка субтитрів";
+"Secondary Language" = "Друга мова";
+
+/* Misc */
+"Found on Network" = "Знайдено в мережі";
+"Scan" = "Сканувати";
+"Scanning…" = "Сканування…";
+"Add New Server" = "Додати новий сервер";
+"Hide" = "Сховати";
+"OK" = "ОК";
+"Music Videos" = "Музичні відео";
+"Collections" = "Колекції";
+"Known For" = "Відомий за";
+"Biography" = "Біографія";
+"Delete All" = "Видалити все";
+
+/* Stats HUD */
+"Video codec not supported" = "Відеокодек не підтримується";
+"Audio codec not supported" = "Аудіокодек не підтримується";
+"Container not supported" = "Контейнер не підтримується";
+"Bit depth not supported" = "Глибина біт не підтримується";
+"HDR → SDR conversion" = "Перетворення HDR → SDR";
+"Video profile not supported" = "Профіль відео не підтримується";
+"Video level not supported" = "Рівень відео не підтримується";
+"Audio profile not supported" = "Профіль аудіо не підтримується";
+"Bitrate limit exceeded" = "Перевищено ліміт бітрейту";
+"Video bitrate too high" = "Бітрейт відео занадто високий";
+"Audio bitrate too high" = "Бітрейт аудіо занадто високий";
+"Audio channels not supported" = "Аудіоканали не підтримуються";
+"Subtitle codec not supported" = "Кодек субтитрів не підтримується";
+"Direct play error" = "Помилка прямого відтворення";
+"Resolution not supported" = "Роздільна здатність не підтримується";
+"Sample rate not supported" = "Частота дискретизації не підтримується";
+"Reason" = "Причина";
+"Reason: Manual quality (%@)" = "Причина: Ручний вибір якості (%@)";
+"Connecting" = "Підключення";
+"Poor" = "Погане";
+"Slow" = "Повільне";
+"Fair" = "Середнє";
+"Good" = "Добре";
+
+/* Missing */
+"Recommendations" = "Рекомендації";
+"Select" = "Вибрати";

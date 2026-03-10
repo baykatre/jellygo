@@ -124,7 +124,7 @@ struct ServerView: View {
                             Text("JellyGo")
                                 .font(.largeTitle.bold())
 
-                            Text("Connect to your Jellyfin server")
+                            Text(String(localized: "Connect to your Jellyfin server", bundle: AppState.currentBundle))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -135,7 +135,7 @@ struct ServerView: View {
                             // Saved servers quick-select
                             if !uniqueServers.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
-                                    Text("Saved Servers")
+                                    Text(String(localized: "Saved Servers", bundle: AppState.currentBundle))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .padding(.horizontal, 4)
@@ -158,7 +158,7 @@ struct ServerView: View {
                             // Discovered servers
                             if !scanner.results.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
-                                    Text("Found on Network")
+                                    Text(String(localized: "Found on Network", bundle: AppState.currentBundle))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .padding(.horizontal, 4)
@@ -181,7 +181,7 @@ struct ServerView: View {
 
                             // Manual form
                             VStack(alignment: .leading, spacing: 10) {
-                                Text(uniqueServers.isEmpty ? "Server Address" : "Add New Server")
+                                Text(uniqueServers.isEmpty ? String(localized: "Server Address", bundle: AppState.currentBundle) : String(localized: "Add New Server", bundle: AppState.currentBundle))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 4)
@@ -224,10 +224,10 @@ struct ServerView: View {
                                                 if scanner.isScanning {
                                                     HStack(spacing: 6) {
                                                         ProgressView().tint(.primary)
-                                                        Text("Scanning…")
+                                                        Text(String(localized: "Scanning\u{2026}", bundle: AppState.currentBundle))
                                                     }
                                                 } else {
-                                                    Label("Scan", systemImage: "wifi.circle")
+                                                    Label(String(localized: "Scan", bundle: AppState.currentBundle), systemImage: "wifi.circle")
                                                 }
                                             }
                                             .frame(height: 50)
@@ -246,7 +246,7 @@ struct ServerView: View {
                                                 if isLoading {
                                                     ProgressView().tint(.white)
                                                 } else {
-                                                    Text("Connect")
+                                                    Text(String(localized: "Connect", bundle: AppState.currentBundle))
                                                         .fontWeight(.semibold)
                                                 }
                                             }

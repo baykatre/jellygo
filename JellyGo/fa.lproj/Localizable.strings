@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "ادامه  S%lldE%lld";
 "Add to Favorites" = "افزودن به علاقه‌مندی‌ها";
 "Remove from Favorites" = "حذف از علاقه‌مندی‌ها";
-"Mark as Watched" = "علامت‌گذاری به عنوان دیده‌شده";
-"Mark as Unwatched" = "علامت‌گذاری به عنوان ندیده‌شده";
 "Watched" = "دیده‌شده";
+"Unwatched" = "دیده‌نشده";
+"Go to Detail" = "رفتن به جزئیات";
 "Save" = "ذخیره";
 "Rate" = "امتیاز";
 "Favorite" = "علاقه‌مندی";
@@ -86,8 +86,6 @@
 "Remove Account" = "حذف حساب";
 "Remove %@ from this device?" = "حذف %@ از این دستگاه؟";
 "Account Already Added" = "حساب قبلاً اضافه شده است";
-"e.g. Home, Remote, VPN…" = "مثلاً: خانه، ریموت، VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "برچسب نمایش داده شده در نشان صفحه اصلی و حباب‌های حساب. برای استفاده از آدرس سرور خالی بگذارید.";
 
 /* Settings */
 "Settings" = "تنظیمات";
@@ -96,13 +94,24 @@
 "Default Quality" = "کیفیت پیش‌فرض";
 "Auto (WiFi → Direct, Cellular → 720p)" = "خودکار (WiFi → مستقیم، شبکه موبایل → 720p)";
 "Audio" = "صدا";
+"Audio & Subtitles" = "صدا و زیرنویس";
 "Preferred Language" = "زبان ترجیحی";
 "Subtitles" = "زیرنویس";
 "Enable by Default" = "فعال‌سازی پیش‌فرض";
+"Appearance" = "ظاهر";
+"Theme" = "پوسته";
+"Light" = "روشن";
+"Dark" = "تاریک";
+"Home Screen" = "صفحه اصلی";
+"Choose which sections appear on the home screen." = "انتخاب کنید کدام بخش‌ها در صفحه اصلی نمایش داده شوند.";
+"Storage" = "فضای ذخیره‌سازی";
+"Downloaded Content" = "محتوای دانلود شده";
+"Image Cache" = "حافظه تصاویر";
+"Clear Cache" = "پاک کردن حافظه";
+"Cache" = "حافظه موقت";
 "About" = "درباره";
 "Version" = "نسخه";
 "Jellyfin Project" = "پروژه Jellyfin";
-"Sign out of %@?" = "خروج از %@؟";
 "Remove" = "حذف";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "حذف همه قسمت‌ها؟";
 "Delete Download?" = "حذف دانلود؟";
 "Delete" = "حذف";
-"Remove \"%@\" from your downloads?" = "حذف \"%@\" از دانلودهای شما؟";
-"Remove all downloaded episodes of \"%@\"?" = "حذف همه قسمت‌های دانلودشده \"%@\"؟";
-"Delete all %lld episodes of \"%@\"?" = "حذف همه %lld قسمت از \"%@\"؟";
 "Downloading" = "در حال دانلود";
 "Failed" = "ناموفق";
 "Transcoding" = "در حال تبدیل";
@@ -144,6 +150,7 @@
 "Queued" = "در صف";
 "Pause" = "توقف موقت";
 "Cancel Download" = "لغو دانلود";
+"Resume Download" = "ادامه دانلود";
 "Media Info" = "اطلاعات رسانه";
 "1 Season" = "۱ فصل";
 "%lld Seasons" = "%lld فصل";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "نمایش بیشتر";
 "Show Less" = "نمایش کمتر";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "ظاهر زیرنویس";
+"Font Size" = "اندازه فونت";
+"Size" = "اندازه";
+"Small" = "کوچک";
+"Medium" = "متوسط";
+"Large" = "بزرگ";
+"Extra Large" = "بسیار بزرگ";
+"Style" = "سبک";
+"Bold" = "پررنگ";
+"Color" = "رنگ";
+"White" = "سفید";
+"Yellow" = "زرد";
+"Background" = "پس‌زمینه";
+"Opacity" = "شفافیت";
+"Layout" = "چیدمان";
+"Line Spacing" = "فاصله خطوط";
+"Bottom Offset" = "فاصله از پایین";
+"Preview" = "پیش‌نمایش";
+
+/* Player Extended */
+"Slow Scrubbing" = "مرور آهسته";
+"Subtitle Delay" = "تأخیر زیرنویس";
+"Secondary Language" = "زبان دوم";
+
+/* Misc */
+"Found on Network" = "یافت شده در شبکه";
+"Scan" = "جستجو";
+"Scanning…" = "در حال جستجو…";
+"Add New Server" = "افزودن سرور جدید";
+"Hide" = "پنهان";
+"OK" = "تأیید";
+"Music Videos" = "ویدیوهای موسیقی";
+"Collections" = "مجموعه‌ها";
+"Known For" = "شناخته شده برای";
+"Biography" = "زندگی‌نامه";
+"Delete All" = "حذف همه";
+
+/* Stats HUD */
+"Video codec not supported" = "کدک ویدیو پشتیبانی نمی‌شود";
+"Audio codec not supported" = "کدک صدا پشتیبانی نمی‌شود";
+"Container not supported" = "فرمت فایل پشتیبانی نمی‌شود";
+"Bit depth not supported" = "عمق بیت پشتیبانی نمی‌شود";
+"HDR → SDR conversion" = "تبدیل HDR → SDR";
+"Video profile not supported" = "پروفایل ویدیو پشتیبانی نمی‌شود";
+"Video level not supported" = "سطح ویدیو پشتیبانی نمی‌شود";
+"Audio profile not supported" = "پروفایل صدا پشتیبانی نمی‌شود";
+"Bitrate limit exceeded" = "حد بیت‌ریت فراتر رفته";
+"Video bitrate too high" = "بیت‌ریت ویدیو بیش از حد بالا";
+"Audio bitrate too high" = "بیت‌ریت صدا بیش از حد بالا";
+"Audio channels not supported" = "کانال‌های صدا پشتیبانی نمی‌شود";
+"Subtitle codec not supported" = "کدک زیرنویس پشتیبانی نمی‌شود";
+"Direct play error" = "خطای پخش مستقیم";
+"Resolution not supported" = "وضوح تصویر پشتیبانی نمی‌شود";
+"Sample rate not supported" = "نرخ نمونه‌برداری پشتیبانی نمی‌شود";
+"Reason" = "دلیل";
+"Reason: Manual quality (%@)" = "دلیل: کیفیت دستی (%@)";
+"Connecting" = "در حال اتصال";
+"Poor" = "ضعیف";
+"Slow" = "کند";
+"Fair" = "متوسط";
+"Good" = "خوب";
+
+/* Missing */
+"Recommendations" = "پیشنهادها";
+"Select" = "انتخاب";

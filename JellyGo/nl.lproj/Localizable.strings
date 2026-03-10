@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "Doorgaan  S%lldE%lld";
 "Add to Favorites" = "Toevoegen aan favorieten";
 "Remove from Favorites" = "Verwijderen uit favorieten";
-"Mark as Watched" = "Markeren als bekeken";
-"Mark as Unwatched" = "Markeren als niet bekeken";
 "Watched" = "Bekeken";
+"Unwatched" = "Niet bekeken";
+"Go to Detail" = "Ga naar details";
 "Save" = "Opslaan";
 "Rate" = "Beoordelen";
 "Favorite" = "Favoriet";
@@ -86,8 +86,6 @@
 "Remove Account" = "Account verwijderen";
 "Remove %@ from this device?" = "%@ van dit apparaat verwijderen?";
 "Account Already Added" = "Account al toegevoegd";
-"e.g. Home, Remote, VPN…" = "bijv. Thuis, Extern, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Label getoond in het badge van het startscherm en accountbellen. Laat leeg om het serveradres te gebruiken.";
 
 /* Settings */
 "Settings" = "Instellingen";
@@ -96,13 +94,24 @@
 "Default Quality" = "Standaardkwaliteit";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Auto (WiFi → Direct, Mobiel → 720p)";
 "Audio" = "Audio";
+"Audio & Subtitles" = "Audio en ondertitels";
 "Preferred Language" = "Voorkeurstaal";
 "Subtitles" = "Ondertitels";
 "Enable by Default" = "Standaard inschakelen";
+"Appearance" = "Weergave";
+"Theme" = "Thema";
+"Light" = "Licht";
+"Dark" = "Donker";
+"Home Screen" = "Startscherm";
+"Choose which sections appear on the home screen." = "Kies welke secties op het startscherm worden weergegeven.";
+"Storage" = "Opslag";
+"Downloaded Content" = "Gedownloade inhoud";
+"Image Cache" = "Afbeeldingscache";
+"Clear Cache" = "Cache wissen";
+"Cache" = "Cache";
 "About" = "Over";
 "Version" = "Versie";
 "Jellyfin Project" = "Jellyfin-project";
-"Sign out of %@?" = "Uitloggen bij %@?";
 "Remove" = "Verwijderen";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "Alle afleveringen verwijderen?";
 "Delete Download?" = "Download verwijderen?";
 "Delete" = "Verwijderen";
-"Remove \"%@\" from your downloads?" = "\"%@\" uit je downloads verwijderen?";
-"Remove all downloaded episodes of \"%@\"?" = "Alle gedownloade afleveringen van \"%@\" verwijderen?";
-"Delete all %lld episodes of \"%@\"?" = "Alle %lld afleveringen van \"%@\" verwijderen?";
 "Downloading" = "Downloaden";
 "Failed" = "Mislukt";
 "Transcoding" = "Transcoderen";
@@ -144,6 +150,7 @@
 "Queued" = "In wachtrij";
 "Pause" = "Pauzeren";
 "Cancel Download" = "Download annuleren";
+"Resume Download" = "Download hervatten";
 "Media Info" = "Media-info";
 "1 Season" = "1 seizoen";
 "%lld Seasons" = "%lld seizoenen";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "Meer weergeven";
 "Show Less" = "Minder weergeven";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Uiterlijk ondertitels";
+"Font Size" = "Lettergrootte";
+"Size" = "Grootte";
+"Small" = "Klein";
+"Medium" = "Gemiddeld";
+"Large" = "Groot";
+"Extra Large" = "Extra groot";
+"Style" = "Stijl";
+"Bold" = "Vet";
+"Color" = "Kleur";
+"White" = "Wit";
+"Yellow" = "Geel";
+"Background" = "Achtergrond";
+"Opacity" = "Dekking";
+"Layout" = "Indeling";
+"Line Spacing" = "Regelafstand";
+"Bottom Offset" = "Onderste verschuiving";
+"Preview" = "Voorbeeld";
+
+/* Player Extended */
+"Slow Scrubbing" = "Langzaam scrubben";
+"Subtitle Delay" = "Ondertitelvertraging";
+"Secondary Language" = "Tweede taal";
+
+/* Misc */
+"Found on Network" = "Gevonden op netwerk";
+"Scan" = "Scannen";
+"Scanning…" = "Bezig met scannen…";
+"Add New Server" = "Nieuwe server toevoegen";
+"Hide" = "Verbergen";
+"OK" = "OK";
+"Music Videos" = "Muziekvideo's";
+"Collections" = "Collecties";
+"Known For" = "Bekend van";
+"Biography" = "Biografie";
+"Delete All" = "Alles verwijderen";
+
+/* Stats HUD */
+"Video codec not supported" = "Videocodec niet ondersteund";
+"Audio codec not supported" = "Audiocodec niet ondersteund";
+"Container not supported" = "Container niet ondersteund";
+"Bit depth not supported" = "Bitdiepte niet ondersteund";
+"HDR → SDR conversion" = "HDR → SDR conversie";
+"Video profile not supported" = "Videoprofiel niet ondersteund";
+"Video level not supported" = "Videoniveau niet ondersteund";
+"Audio profile not supported" = "Audioprofiel niet ondersteund";
+"Bitrate limit exceeded" = "Bitrate-limiet overschreden";
+"Video bitrate too high" = "Video-bitrate te hoog";
+"Audio bitrate too high" = "Audio-bitrate te hoog";
+"Audio channels not supported" = "Audiokanalen niet ondersteund";
+"Subtitle codec not supported" = "Ondertitelcodec niet ondersteund";
+"Direct play error" = "Fout bij direct afspelen";
+"Resolution not supported" = "Resolutie niet ondersteund";
+"Sample rate not supported" = "Samplerate niet ondersteund";
+"Reason" = "Reden";
+"Reason: Manual quality (%@)" = "Reden: Handmatige kwaliteit (%@)";
+"Connecting" = "Verbinden";
+"Poor" = "Slecht";
+"Slow" = "Traag";
+"Fair" = "Matig";
+"Good" = "Goed";
+
+/* Missing */
+"Recommendations" = "Aanbevelingen";
+"Select" = "Selecteer";

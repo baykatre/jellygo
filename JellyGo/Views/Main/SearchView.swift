@@ -26,9 +26,9 @@ struct SearchView: View {
                     resultsGrid
                 }
             }
-            .navigationTitle("Search")
+            .navigationTitle(String(localized: "Search", bundle: AppState.currentBundle))
             .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $query, isPresented: $isSearchFocused, placement: .navigationBarDrawer(displayMode: .always), prompt: "Movies, series...")
+            .searchable(text: $query, isPresented: $isSearchFocused, placement: .navigationBarDrawer(displayMode: .always), prompt: String(localized: "Movies, series...", bundle: AppState.currentBundle))
             .onAppear { isSearchFocused = true }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -40,9 +40,6 @@ struct SearchView: View {
             }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
-            }
-            .navigationDestination(for: JellyfinPerson.self) { person in
-                PersonDetailView(person: person)
             }
         }
     }
@@ -73,10 +70,10 @@ struct SearchView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Text("Recent Searches")
+                    Text(String(localized: "Recent Searches", bundle: AppState.currentBundle))
                         .font(.title3.bold())
                     Spacer()
-                    Button("Clear") { vm.clearRecent() }
+                    Button(String(localized: "Clear", bundle: AppState.currentBundle)) { vm.clearRecent() }
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -123,10 +120,10 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 52))
                 .foregroundStyle(.tertiary)
-            Text("Search for movies or series")
+            Text(String(localized: "Search for movies or series", bundle: AppState.currentBundle))
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("Start typing the name")
+            Text(String(localized: "Start typing the name", bundle: AppState.currentBundle))
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
         }

@@ -160,12 +160,12 @@ struct OfflineView: View {
     /// Maps Jellyfin item type to a user-facing section title.
     private static func sectionTitle(for type: String) -> String {
         switch type {
-        case "Movie":      return String(localized: "Movies")
-        case "Series":     return String(localized: "TV Shows")
-        case "MusicVideo": return String(localized: "Music Videos")
-        case "BoxSet":     return String(localized: "Collections")
-        case "Audio":      return String(localized: "Music")
-        case "Book":       return String(localized: "Books")
+        case "Movie":      return String(localized: "Movies", bundle: AppState.currentBundle)
+        case "Series":     return String(localized: "TV Shows", bundle: AppState.currentBundle)
+        case "MusicVideo": return String(localized: "Music Videos", bundle: AppState.currentBundle)
+        case "BoxSet":     return String(localized: "Collections", bundle: AppState.currentBundle)
+        case "Audio":      return String(localized: "Music", bundle: AppState.currentBundle)
+        case "Book":       return String(localized: "Books", bundle: AppState.currentBundle)
         default:           return type + "s"
         }
     }
@@ -177,9 +177,9 @@ struct OfflineView: View {
             Group {
                 if dm.downloads.isEmpty {
                     ContentUnavailableView {
-                        Label("No Downloads", systemImage: "wifi.slash")
+                        Label(String(localized: "No Downloads", bundle: AppState.currentBundle), systemImage: "wifi.slash")
                     } description: {
-                        Text("You're offline. Download content while connected to browse here.")
+                        Text(String(localized: "You're offline. Download content while connected to browse here.", bundle: AppState.currentBundle))
                     }
                 } else {
                     ScrollView(showsIndicators: false) {
@@ -246,10 +246,8 @@ struct OfflineView: View {
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }
-            .navigationDestination(for: JellyfinPerson.self) { person in
-                PersonDetailView(person: person)
-            }
             .fullScreenCover(item: $heroPlayItem, onDismiss: {
+                appState.isPlayerActive = false
                 AppDelegate.orientationLock = .portrait
                 PlayerContainerView.rotate(to: .portrait)
             }) { item in
@@ -260,6 +258,7 @@ struct OfflineView: View {
                     }
                 PlayerContainerView(item: item, localURL: localURL)
                     .environmentObject(appState)
+                    .onAppear { appState.isPlayerActive = true }
             }
         }
     }
@@ -279,7 +278,7 @@ struct OfflineView: View {
                 HStack(spacing: 5) {
                     Image(systemName: "wifi.slash")
                         .font(.system(size: 9, weight: .bold))
-                    Text("Offline")
+                    Text(String(localized: "Offline", bundle: AppState.currentBundle))
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.orange)
@@ -325,7 +324,7 @@ struct OfflineView: View {
 
     private var continueWatchingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Continue Watching")
+            SectionHeaderView(title: "\(String(localized: "Continue Watching", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(continueWatching) { item in
@@ -342,7 +341,7 @@ struct OfflineView: View {
 
     private var nextUpSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Next Up")
+            SectionHeaderView(title: "\(String(localized: "Next Up", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(nextUp) { item in

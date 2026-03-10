@@ -73,18 +73,18 @@ var body: some View {
             if isEmpty { dismiss() }
         }
         .toolbar(.hidden, for: .tabBar)
-        .alert("Delete Episode?", isPresented: Binding(
+        .alert(String(localized: "Delete Episode?", bundle: AppState.currentBundle), isPresented: Binding(
             get: { showDeleteConfirm != nil },
             set: { if !$0 { showDeleteConfirm = nil } }
         )) {
-            Button("Delete", role: .destructive) {
+            Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) {
                 if let id = showDeleteConfirm { dm.deleteDownload(id) }
                 showDeleteConfirm = nil
             }
-            Button("Cancel", role: .cancel) { showDeleteConfirm = nil }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { showDeleteConfirm = nil }
         } message: {
             let name = episodes.first { $0.id == showDeleteConfirm }?.name ?? ""
-            Text("Remove \"\(name)\" from your downloads?")
+            Text(String(format: String(localized: "Remove \u{201C}%@\u{201D} from your downloads?", bundle: AppState.currentBundle), name))
         }
     }
 

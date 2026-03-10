@@ -57,7 +57,7 @@ struct LoginView: View {
                         }
 
                         if !(isAddingMode && !knownUsers.isEmpty) {
-                            Text("Sign in")
+                            Text(String(localized: "Sign in", bundle: AppState.currentBundle))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -68,7 +68,7 @@ struct LoginView: View {
                         // Known users — instant add without password
                         if isAddingMode && !knownUsers.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Add existing account")
+                                Text(String(localized: "Add existing account", bundle: AppState.currentBundle))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 4)
@@ -115,7 +115,7 @@ struct LoginView: View {
                             } label: {
                                 HStack {
                                     VStack { Divider() }
-                                    Text(showLoginForm ? "Hide" : "Sign in as a different user")
+                                    Text(showLoginForm ? String(localized: "Hide", bundle: AppState.currentBundle) : String(localized: "Sign in as a different user", bundle: AppState.currentBundle))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .fixedSize()
@@ -135,15 +135,15 @@ struct LoginView: View {
                 }
             }
         }
-        .navigationTitle("Login")
+        .navigationTitle(String(localized: "Login", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if !isAddingMode || knownUsers.isEmpty { focusedField = .username }
         }
-        .alert("Account Already Added", isPresented: $showDuplicateAlert) {
-            Button("OK") { appState.closeAddAccountSheet = true }
+        .alert(String(localized: "Account Already Added", bundle: AppState.currentBundle), isPresented: $showDuplicateAlert) {
+            Button(String(localized: "OK", bundle: AppState.currentBundle)) { appState.closeAddAccountSheet = true }
         } message: {
-            Text("\(username) on \(serverInfo.serverName) is already in your account list.")
+            Text(String(localized: "\(username) on \(serverInfo.serverName) is already in your account list.", bundle: AppState.currentBundle))
         }
     }
 
@@ -152,7 +152,7 @@ struct LoginView: View {
     private var loginForm: some View {
         VStack(spacing: 12) {
             VStack(spacing: 8) {
-                TextField("Username", text: $username)
+                TextField(String(localized: "Username", bundle: AppState.currentBundle), text: $username)
                     .textFieldStyle(.plain)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -162,7 +162,7 @@ struct LoginView: View {
                     .background(.background, in: RoundedRectangle(cornerRadius: 12))
                     .onSubmit { focusedField = .password }
 
-                SecureField("Password", text: $password)
+                SecureField(String(localized: "Password", bundle: AppState.currentBundle), text: $password)
                     .textFieldStyle(.plain)
                     .submitLabel(.go)
                     .focused($focusedField, equals: .password)
@@ -193,7 +193,7 @@ struct LoginView: View {
                     if isLoading {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Sign In").fontWeight(.semibold)
+                        Text(String(localized: "Sign In", bundle: AppState.currentBundle)).fontWeight(.semibold)
                     }
                 }
                 .frame(maxWidth: .infinity)

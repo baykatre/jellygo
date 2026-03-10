@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "続きを見る  S%lldE%lld";
 "Add to Favorites" = "お気に入りに追加";
 "Remove from Favorites" = "お気に入りから削除";
-"Mark as Watched" = "視聴済みにする";
-"Mark as Unwatched" = "未視聴にする";
 "Watched" = "視聴済み";
+"Unwatched" = "未視聴";
+"Go to Detail" = "詳細へ";
 "Save" = "保存";
 "Rate" = "評価";
 "Favorite" = "お気に入り";
@@ -86,8 +86,6 @@
 "Remove Account" = "アカウントを削除";
 "Remove %@ from this device?" = "%@をこのデバイスから削除しますか？";
 "Account Already Added" = "アカウントは既に追加されています";
-"e.g. Home, Remote, VPN…" = "例: ホーム、リモート、VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "ホーム画面のバッジとアカウントバブルに表示されるラベルです。空白にするとサーバーアドレスが使用されます。";
 
 /* Settings */
 "Settings" = "設定";
@@ -96,13 +94,24 @@
 "Default Quality" = "デフォルト画質";
 "Auto (WiFi → Direct, Cellular → 720p)" = "自動 (WiFi → ダイレクト、モバイル通信 → 720p)";
 "Audio" = "オーディオ";
+"Audio & Subtitles" = "音声と字幕";
 "Preferred Language" = "優先言語";
 "Subtitles" = "字幕";
 "Enable by Default" = "デフォルトで有効化";
+"Appearance" = "外観";
+"Theme" = "テーマ";
+"Light" = "ライト";
+"Dark" = "ダーク";
+"Home Screen" = "ホーム画面";
+"Choose which sections appear on the home screen." = "ホーム画面に表示するセクションを選択します。";
+"Storage" = "ストレージ";
+"Downloaded Content" = "ダウンロード済みコンテンツ";
+"Image Cache" = "画像キャッシュ";
+"Clear Cache" = "キャッシュを消去";
+"Cache" = "キャッシュ";
 "About" = "アプリについて";
 "Version" = "バージョン";
 "Jellyfin Project" = "Jellyfinプロジェクト";
-"Sign out of %@?" = "%@からサインアウトしますか？";
 "Remove" = "削除";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "すべてのエピソードを削除しますか？";
 "Delete Download?" = "ダウンロードを削除しますか？";
 "Delete" = "削除";
-"Remove \"%@\" from your downloads?" = "\"%@\"をダウンロードから削除しますか？";
-"Remove all downloaded episodes of \"%@\"?" = "\"%@\"のすべてのダウンロード済みエピソードを削除しますか？";
-"Delete all %lld episodes of \"%@\"?" = "\"%@\"の%lldエピソードをすべて削除しますか？";
 "Downloading" = "ダウンロード中";
 "Failed" = "失敗";
 "Transcoding" = "トランスコード中";
@@ -144,6 +150,7 @@
 "Queued" = "キュー中";
 "Pause" = "一時停止";
 "Cancel Download" = "ダウンロードをキャンセル";
+"Resume Download" = "ダウンロードを再開";
 "Media Info" = "メディア情報";
 "1 Season" = "1シーズン";
 "%lld Seasons" = "%lldシーズン";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "もっと見る";
 "Show Less" = "閉じる";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "字幕の外観";
+"Font Size" = "フォントサイズ";
+"Size" = "サイズ";
+"Small" = "小";
+"Medium" = "中";
+"Large" = "大";
+"Extra Large" = "特大";
+"Style" = "スタイル";
+"Bold" = "太字";
+"Color" = "色";
+"White" = "白";
+"Yellow" = "黄色";
+"Background" = "背景";
+"Opacity" = "不透明度";
+"Layout" = "レイアウト";
+"Line Spacing" = "行間";
+"Bottom Offset" = "下部オフセット";
+"Preview" = "プレビュー";
+
+/* Player Extended */
+"Slow Scrubbing" = "スロースクラブ";
+"Subtitle Delay" = "字幕遅延";
+"Secondary Language" = "第二言語";
+
+/* Misc */
+"Found on Network" = "ネットワーク上で検出";
+"Scan" = "スキャン";
+"Scanning…" = "スキャン中…";
+"Add New Server" = "新しいサーバーを追加";
+"Hide" = "非表示";
+"OK" = "OK";
+"Music Videos" = "ミュージックビデオ";
+"Collections" = "コレクション";
+"Known For" = "代表作";
+"Biography" = "経歴";
+"Delete All" = "すべて削除";
+
+/* Stats HUD */
+"Video codec not supported" = "映像コーデック非対応";
+"Audio codec not supported" = "音声コーデック非対応";
+"Container not supported" = "コンテナ非対応";
+"Bit depth not supported" = "ビット深度非対応";
+"HDR → SDR conversion" = "HDR → SDR 変換";
+"Video profile not supported" = "映像プロファイル非対応";
+"Video level not supported" = "映像レベル非対応";
+"Audio profile not supported" = "音声プロファイル非対応";
+"Bitrate limit exceeded" = "ビットレート上限超過";
+"Video bitrate too high" = "映像ビットレートが高すぎます";
+"Audio bitrate too high" = "音声ビットレートが高すぎます";
+"Audio channels not supported" = "オーディオチャンネル非対応";
+"Subtitle codec not supported" = "字幕コーデック非対応";
+"Direct play error" = "ダイレクト再生エラー";
+"Resolution not supported" = "解像度非対応";
+"Sample rate not supported" = "サンプルレート非対応";
+"Reason" = "理由";
+"Reason: Manual quality (%@)" = "理由: 手動画質選択 (%@)";
+"Connecting" = "接続中";
+"Poor" = "悪い";
+"Slow" = "遅い";
+"Fair" = "普通";
+"Good" = "良好";
+
+/* Missing */
+"Recommendations" = "おすすめ";
+"Select" = "選択";

@@ -36,6 +36,7 @@ struct FallbackAsyncImage<Placeholder: View>: View {
             placeholder
         }
     }
+
 }
 
 // MARK: - Hero Banner
@@ -268,7 +269,7 @@ struct BannerPageView: View {
 
                     // Bilgi Al — her zaman detail
                     NavigationLink(value: item) {
-                        Label("More Info", systemImage: "info.circle")
+                        Label(String(localized: "More Info", bundle: AppState.currentBundle), systemImage: "info.circle")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
                             .frame(width: 126, height: 44)
@@ -290,7 +291,7 @@ struct BannerPageView: View {
     }
 
     private var playLabel: some View {
-        Label("Play", systemImage: "play.fill")
+        Label(String(localized: "Play", bundle: AppState.currentBundle), systemImage: "play.fill")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.black)
             .frame(width: 126, height: 44)
@@ -318,6 +319,8 @@ struct PosterCardView: View {
     let item: JellyfinItem
     let serverURL: String
     var width: CGFloat = 120
+    var showYear: Bool = true
+    var showShadow: Bool = true
 
     var height: CGFloat { width * 3 / 2 }
 
@@ -354,9 +357,9 @@ struct PosterCardView: View {
                 }
                 .frame(width: width, height: height)
             }
-            .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
+            .shadow(color: showShadow ? .black.opacity(0.3) : .clear, radius: 6, y: 3)
 
-            if let year = item.productionYear {
+            if showYear, let year = item.productionYear {
                 Text(String(year))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -450,7 +453,7 @@ struct BackdropCardView: View {
                     .frame(width: width, alignment: .leading)
 
                 if item.isEpisode, let season = item.parentIndexNumber, let ep = item.indexNumber {
-                    Text("S\(season) · B\(ep) — \(item.name)")
+                    Text(String(localized: "S\(season) · B\(ep) — \(item.name)", bundle: AppState.currentBundle))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -470,6 +473,7 @@ struct BackdropCardView: View {
             return local
         }
         if item.isEpisode {
+            // Always try episode's own thumbnail first
             return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: Int(width * 2))
         }
         return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: Int(width * 2))
@@ -477,9 +481,12 @@ struct BackdropCardView: View {
     }
 
     private var backdropFallbackURL: URL? {
-        guard item.isEpisode, let seriesId = item.seriesId else { return nil }
-        return DownloadManager.localBackdropURL(itemId: seriesId)
-            ?? JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: seriesId, maxWidth: Int(width * 2))
+        if item.isEpisode, let seriesId = item.seriesId {
+            // Fallback to series backdrop
+            return DownloadManager.localBackdropURL(itemId: seriesId)
+                ?? JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: seriesId, maxWidth: Int(width * 2))
+        }
+        return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, maxWidth: Int(width * 2))
     }
 
     private var backdropImage: some View {
@@ -549,7 +556,7 @@ struct SectionHeaderView: View {
             if let action {
                 Button(action: action) {
                     HStack(spacing: 3) {
-                        Text("All")
+                        Text(String(localized: "All", bundle: AppState.currentBundle))
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                     }

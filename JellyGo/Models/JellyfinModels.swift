@@ -224,6 +224,7 @@ struct JellyfinMediaSource: Codable, Identifiable, Hashable {
     let supportsDirectPlay: Bool?
     let supportsDirectStream: Bool?
     let transcodingUrl: String?
+    let transcodeReasons: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -235,6 +236,7 @@ struct JellyfinMediaSource: Codable, Identifiable, Hashable {
         case supportsDirectPlay = "SupportsDirectPlay"
         case supportsDirectStream = "SupportsDirectStream"
         case transcodingUrl = "TranscodingUrl"
+        case transcodeReasons = "TranscodeReasons"
     }
 }
 
@@ -245,12 +247,19 @@ struct JellyfinMediaStream: Codable, Hashable {
     let displayTitle: String?
     let codec: String?
     let isDefault: Bool?
+    let isForced: Bool?
     let isExternal: Bool?
     let supportsExternalStream: Bool?
     let deliveryMethod: String?
     let height: Int?
     let width: Int?
     let bitRate: Int?
+    let bitDepth: Int?
+    let videoRange: String?
+    let videoRangeType: String?
+    let colorSpace: String?
+    let colorTransfer: String?
+    let profile: String?
 
     enum CodingKeys: String, CodingKey {
         case type = "Type"
@@ -259,12 +268,19 @@ struct JellyfinMediaStream: Codable, Hashable {
         case displayTitle = "DisplayTitle"
         case codec = "Codec"
         case isDefault = "IsDefault"
+        case isForced = "IsForced"
         case isExternal = "IsExternal"
         case supportsExternalStream = "SupportsExternalStream"
         case deliveryMethod = "DeliveryMethod"
         case height = "Height"
         case width = "Width"
         case bitRate = "BitRate"
+        case bitDepth = "BitDepth"
+        case videoRange = "VideoRange"
+        case videoRangeType = "VideoRangeType"
+        case colorSpace = "ColorSpace"
+        case colorTransfer = "ColorTransfer"
+        case profile = "Profile"
     }
 
     var isAudio: Bool { type == "Audio" }

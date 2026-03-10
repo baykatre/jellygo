@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 private enum LibraryNav: Hashable { case favorites }
 
@@ -36,7 +37,7 @@ struct LibraryBrowseView: View {
                     }
                 }
             }
-            .navigationTitle("Library")
+            .navigationTitle(String(localized: "Library", bundle: AppState.currentBundle))
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: LibraryNav.self) { _ in
                 FavoritesView()
@@ -46,9 +47,6 @@ struct LibraryBrowseView: View {
             }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
-            }
-            .navigationDestination(for: JellyfinPerson.self) { person in
-                PersonDetailView(person: person)
             }
             .task {
                 guard libraries.isEmpty else { return }
@@ -188,10 +186,10 @@ struct LibraryBrowseView: View {
             )
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Favorites")
+                Text(String(localized: "Favorites", bundle: AppState.currentBundle))
                     .font(.title3.bold())
                     .foregroundStyle(.white)
-                Text("My Favorites")
+                Text(String(localized: "My Favorites", bundle: AppState.currentBundle))
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.75))
             }
@@ -247,9 +245,9 @@ struct FavoritesView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if items.isEmpty {
                 ContentUnavailableView(
-                    "No Favorites",
+                    String(localized: "No Favorites", bundle: AppState.currentBundle),
                     systemImage: "heart.slash",
-                    description: Text("Add content you like to your favorites.")
+                    description: Text(String(localized: "Add content you like to your favorites.", bundle: AppState.currentBundle))
                 )
             } else {
                 ScrollView(showsIndicators: false) {
@@ -275,7 +273,7 @@ struct FavoritesView: View {
                 }
             }
         }
-        .navigationTitle("Favorites")
+        .navigationTitle(String(localized: "Favorites", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.large)
         .task { await loadInitial() }
         .refreshable { await loadInitial() }
@@ -296,7 +294,9 @@ struct FavoritesView: View {
             )
             items = response.items
             totalCount = response.totalRecordCount
-        } catch {}
+        } catch {
+            Logger(subsystem: "JellyGo", category: "LibraryBrowseView").error("loadItems failed: \(error)")
+        }
         isLoading = false
     }
 
@@ -316,7 +316,9 @@ struct FavoritesView: View {
             )
             items.append(contentsOf: response.items)
             totalCount = response.totalRecordCount
-        } catch {}
+        } catch {
+            Logger(subsystem: "JellyGo", category: "LibraryBrowseView").error("loadMore failed: \(error)")
+        }
         isLoading = false
     }
 }

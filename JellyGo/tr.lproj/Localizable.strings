@@ -30,16 +30,16 @@
 
 /* Actions */
 "Play" = "Oynat";
-"More Info" = "Bilgi Al";
+"More Info" = "Detay";
 "Continue  %@" = "Devam Et  %@";
 "Play  S%lldE%lld" = "Oynat  S%lldB%lld";
 "Continue  S%lldE%lld" = "Devam Et  S%lldB%lld";
 "Add to Favorites" = "Favorilere Ekle";
 "Remove from Favorites" = "Favorilerden Çıkar";
-"Mark as Watched" = "İzlendi İşaretle";
-"Mark as Unwatched" = "İzlenmedi İşaretle";
 "Watched" = "İzlendi";
-"Save" = "Listele";
+"Unwatched" = "İzlenmedi";
+"Go to Detail" = "Detaya Git";
+"Save" = "Kaydet";
 "Rate" = "Puan";
 "Favorite" = "Favori";
 "Download" = "İndir";
@@ -86,8 +86,6 @@
 "Remove Account" = "Hesabı Kaldır";
 "Remove %@ from this device?" = "%@ bu cihazdan kaldırılsın mı?";
 "Account Already Added" = "Hesap Zaten Ekli";
-"e.g. Home, Remote, VPN…" = "ör. Ev, Uzak, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Ana ekran rozeti ve hesap balonlarında gösterilen etiket. Sunucu adresini kullanmak için boş bırak.";
 
 /* Settings */
 "Settings" = "Ayarlar";
@@ -96,15 +94,26 @@
 "Default Quality" = "Varsayılan Kalite";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Otomatik (WiFi → Direkt, Hücresel → 720p)";
 "Audio" = "Ses";
+"Audio & Subtitles" = "Ses ve Altyazı";
 "Preferred Language" = "Tercih Edilen Dil";
 "Subtitles" = "Altyazılar";
 "Enable by Default" = "Varsayılan Olarak Etkin";
+"Appearance" = "Görünüm";
+"Theme" = "Tema";
+"Light" = "Açık";
+"Dark" = "Koyu";
+"Home Screen" = "Ana Ekran";
+"Choose which sections appear on the home screen." = "Ana ekranda hangi bölümlerin görüneceğini seçin.";
+"Storage" = "Depolama";
+"Downloaded Content" = "İndirilen İçerik";
+"Image Cache" = "Görsel Önbellek";
+"Clear Cache" = "Önbelleği Temizle";
+"Select" = "Seç";
+"Cache" = "Önbellek";
 "About" = "Hakkında";
 "Version" = "Sürüm";
 "Jellyfin Project" = "Jellyfin Projesi";
-"Sign out of %@?" = "%@ hesabından çıkılsın mı?";
 "Remove" = "Kaldır";
-"Save" = "Kaydet";
 
 /* Downloads */
 "Downloads" = "İndirilenler";
@@ -123,8 +132,6 @@
 "Delete All Episodes?" = "Tüm Bölümleri Sil?";
 "Delete Download?" = "İndirmeyi Sil?";
 "Delete" = "Sil";
-"Remove all downloaded episodes of \"%@\"?" = "\"%@\" dizisinin tüm indirilen bölümleri silinsin mi?";
-"Remove \"%@\" from your downloads?" = "\"%@\" indirilenlerdeki silinsin mi?";
 "Downloading" = "İndiriliyor";
 "Failed" = "Başarısız";
 "Transcoding" = "Dönüştürülüyor";
@@ -134,7 +141,6 @@
 "Special Episodes" = "Özel Bölümler";
 "Episode %lld" = "Bölüm %lld";
 "Delete Episode?" = "Bölümü Sil?";
-"Delete all %lld episodes of \"%@\"?" = "\"%@\" dizisinin %lld bölümünün tamamı silinsin mi?";
 
 /* Detail Extended */
 "Download This Episode" = "Bu Bölümü İndir";
@@ -145,6 +151,7 @@
 "Queued" = "Sırada";
 "Pause" = "Duraklat";
 "Cancel Download" = "İndirmeyi İptal Et";
+"Resume Download" = "İndirmeye Devam Et";
 "Media Info" = "Medya Bilgisi";
 "1 Season" = "1 Sezon";
 "%lld Seasons" = "%lld Sezon";
@@ -192,3 +199,67 @@
 "App Language" = "Uygulama Dili";
 "Restart App" = "Uygulamayı Yeniden Başlat";
 "The app will close to apply the new language." = "Yeni dili uygulamak için uygulama kapanacak.";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Altyazı Görünümü";
+"Font Size" = "Yazı Boyutu";
+"Size" = "Boyut";
+"Small" = "Küçük";
+"Medium" = "Orta";
+"Large" = "Büyük";
+"Extra Large" = "Çok Büyük";
+"Style" = "Stil";
+"Bold" = "Kalın";
+"Color" = "Renk";
+"White" = "Beyaz";
+"Yellow" = "Sarı";
+"Background" = "Arka Plan";
+"Opacity" = "Saydamlık";
+"Layout" = "Yerleşim";
+"Line Spacing" = "Satır Aralığı";
+"Bottom Offset" = "Alt Boşluk";
+"Preview" = "Önizleme";
+
+/* Player Extended */
+"Slow Scrubbing" = "Yavaş Sarma";
+"Subtitle Delay" = "Altyazı Gecikmesi";
+"Secondary Language" = "İkincil Dil";
+
+/* Misc */
+"Found on Network" = "Ağda Bulunanlar";
+"Scan" = "Tara";
+"Scanning…" = "Taranıyor…";
+"Add New Server" = "Yeni Sunucu Ekle";
+"Hide" = "Gizle";
+"OK" = "Tamam";
+"Music Videos" = "Müzik Videoları";
+"Collections" = "Koleksiyonlar";
+"Known For" = "Bilinen Rolleri";
+"Biography" = "Biyografi";
+"Delete All" = "Tümünü Sil";
+"Recommendations" = "Öneriler";
+
+/* Stats HUD */
+"Video codec not supported" = "Video codec desteklenmiyor";
+"Audio codec not supported" = "Ses codec desteklenmiyor";
+"Container not supported" = "Container formatı desteklenmiyor";
+"Bit depth not supported" = "Bit derinliği desteklenmiyor";
+"HDR → SDR conversion" = "HDR → SDR dönüşümü";
+"Video profile not supported" = "Video profili desteklenmiyor";
+"Video level not supported" = "Video seviyesi desteklenmiyor";
+"Audio profile not supported" = "Ses profili desteklenmiyor";
+"Bitrate limit exceeded" = "Bitrate limiti aşıldı";
+"Video bitrate too high" = "Video bitrate çok yüksek";
+"Audio bitrate too high" = "Ses bitrate çok yüksek";
+"Audio channels not supported" = "Ses kanalları desteklenmiyor";
+"Subtitle codec not supported" = "Altyazı codec desteklenmiyor";
+"Direct play error" = "Direkt oynatma hatası";
+"Resolution not supported" = "Çözünürlük desteklenmiyor";
+"Sample rate not supported" = "Örnekleme hızı desteklenmiyor";
+"Reason" = "Sebep";
+"Reason: Manual quality (%@)" = "Sebep: Manuel kalite seçimi (%@)";
+"Connecting" = "Bağlanıyor";
+"Poor" = "Kötü";
+"Slow" = "Yavaş";
+"Fair" = "Orta";
+"Good" = "İyi";

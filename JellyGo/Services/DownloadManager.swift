@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import os
 
 // MARK: - Model
 
@@ -247,6 +248,7 @@ final class DownloadManager: NSObject, ObservableObject {
         // fully populated before any background-session delegate calls can fire.
         loadMetadata()
         loadPausedItems()
+        loadResumeDataFromDisk()
         for p in pausedItems {
             metaLock.lock()
             pendingMeta[p.id] = p.meta
@@ -414,7 +416,8 @@ final class DownloadManager: NSObject, ObservableObject {
                 self.resumeDataStore[itemId] = data
                 self.metaLock.unlock()
             }
-            Task { @MainActor [self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 if !self.pausedItems.contains(where: { $0.id == itemId }), let meta {
                     var p = PausedDownload(id: itemId, name: active.name,
                                            seriesName: active.seriesName, seriesId: active.seriesId,
@@ -557,6 +560,28 @@ final class DownloadManager: NSObject, ObservableObject {
         drainQueue()
     }
 
+    func deleteAllDownloads() {
+        for item in downloads {
+            activeTasks[item.id]?.task.cancel()
+        }
+        activeTasks.removeAll()
+        downloadQueue.removeAll()
+        pausedItems.removeAll()
+        downloadOrder.removeAll()
+        metaLock.lock()
+        pendingMeta.removeAll()
+        resumeDataStore.removeAll()
+        metaLock.unlock()
+        savePausedItems()
+
+        try? FileManager.default.removeItem(at: Self.downloadsDirectory)
+        try? FileManager.default.createDirectory(at: Self.downloadsDirectory, withIntermediateDirectories: true)
+
+        URLCache.shared.removeAllCachedResponses()
+        downloads.removeAll()
+        saveMetadata()
+    }
+
     // MARK: - Poster Cache
 
     /// Downloads poster, backdrop, and logo images to local storage for offline display.
@@ -606,7 +631,9 @@ final class DownloadManager: NSObject, ObservableObject {
             guard status >= 200, status < 300, !data.isEmpty else { return }
             let dest = downloadsDirectory.appendingPathComponent(destName)
             try data.write(to: dest)
-        } catch { }
+        } catch {
+            Logger(subsystem: "JellyGo", category: "DownloadManager").error("savePosterToDisk failed: \(error)")
+        }
     }
 
     /// Returns local poster URL if cached, nil otherwise.
@@ -673,7 +700,7 @@ final class DownloadManager: NSObject, ObservableObject {
     // MARK: - Item Details Cache
 
     /// Saves full JellyfinItem JSON for offline detail view.
-    nonisolated static func saveItemDetails(_ item: JellyfinItem) {
+    static func saveItemDetails(_ item: JellyfinItem) {
         let dest = downloadsDirectory.appendingPathComponent("\(item.id)_details.json")
         if let data = try? JSONEncoder().encode(item) {
             try? data.write(to: dest)
@@ -681,7 +708,7 @@ final class DownloadManager: NSObject, ObservableObject {
     }
 
     /// Loads cached JellyfinItem details from disk.
-    nonisolated static func loadItemDetails(itemId: String) -> JellyfinItem? {
+    static func loadItemDetails(itemId: String) -> JellyfinItem? {
         let url = downloadsDirectory.appendingPathComponent("\(itemId)_details.json")
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(JellyfinItem.self, from: data)
@@ -724,13 +751,11 @@ final class DownloadManager: NSObject, ObservableObject {
                 let destURL = downloadsDirectory.appendingPathComponent("\(itemId)_\(lang)_\(streamIndex).srt")
                 try? FileManager.default.removeItem(at: destURL)
                 try data.write(to: destURL)
-                print("[DownloadManager] Subtitle saved: \(lang)_\(streamIndex) as \(format)")
                 return // success
             } catch {
                 continue
             }
         }
-        print("[DownloadManager] All subtitle formats failed for \(lang)_\(streamIndex)")
     }
 
     // MARK: - URL Builders
@@ -806,6 +831,52 @@ final class DownloadManager: NSObject, ObservableObject {
         if let data = try? JSONEncoder().encode(pausedItems) {
             try? data.write(to: url, options: .atomic)
         }
+        // Persist resume data alongside paused items
+        saveResumeDataToDisk()
+    }
+
+    // MARK: Resume Data Persistence
+
+    private static var resumeDataDirectory: URL {
+        downloadsDirectory.appendingPathComponent("ResumeData", isDirectory: true)
+    }
+
+    private func saveResumeDataToDisk() {
+        let dir = Self.resumeDataDirectory
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        // Save each resume data blob
+        metaLock.lock()
+        let store = resumeDataStore
+        metaLock.unlock()
+
+        // Remove old files that are no longer in the store
+        if let existing = try? FileManager.default.contentsOfDirectory(atPath: dir.path) {
+            for file in existing {
+                let itemId = file.replacingOccurrences(of: ".resume", with: "")
+                if store[itemId] == nil {
+                    try? FileManager.default.removeItem(at: dir.appendingPathComponent(file))
+                }
+            }
+        }
+
+        for (itemId, data) in store {
+            let fileURL = dir.appendingPathComponent("\(itemId).resume")
+            try? data.write(to: fileURL, options: .atomic)
+        }
+    }
+
+    private func loadResumeDataFromDisk() {
+        let dir = Self.resumeDataDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        metaLock.lock()
+        for file in files where file.hasSuffix(".resume") {
+            let itemId = String(file.dropLast(7)) // remove ".resume"
+            if let data = try? Data(contentsOf: dir.appendingPathComponent(file)) {
+                resumeDataStore[itemId] = data
+            }
+        }
+        metaLock.unlock()
     }
 }
 
@@ -846,7 +917,8 @@ extension DownloadManager: URLSessionDownloadDelegate {
             pendingMeta.removeValue(forKey: itemId)
             metaLock.unlock()
 
-            Task { @MainActor [self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 downloads.append(finalItem)
                 activeTasks.removeValue(forKey: itemId)
                 pausedItems.removeAll { $0.id == itemId }
@@ -856,7 +928,8 @@ extension DownloadManager: URLSessionDownloadDelegate {
                 drainQueue()
             }
         } catch {
-            Task { @MainActor [self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 activeTasks[itemId]?.isFailed = true
             }
         }
@@ -872,7 +945,8 @@ extension DownloadManager: URLSessionDownloadDelegate {
         guard let itemId = downloadTask.taskDescription else { return }
         let now = Date()
 
-        Task { @MainActor [self] in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             if var dl = activeTasks[itemId] {
                 // For transcoding, the OS-reported total is unreliable (chunked encoding).
                 // Always prefer our pre-calculated estimate; fall back to OS value only for
@@ -926,13 +1000,16 @@ extension DownloadManager: URLSessionDownloadDelegate {
             resumeDataStore[itemId] = resumeData
             metaLock.unlock()
         }
-        Task { @MainActor [self] in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             activeTasks[itemId]?.isFailed = true
+            saveResumeDataToDisk()
         }
     }
 
     nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        Task { @MainActor [self] in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             backgroundCompletionHandler?()
             backgroundCompletionHandler = nil
         }

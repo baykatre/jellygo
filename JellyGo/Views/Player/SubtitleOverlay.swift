@@ -177,21 +177,17 @@ final class SubtitleManager: ObservableObject {
     @discardableResult
     func load(from url: URL, token: String) async -> Bool {
         var req = URLRequest(url: url)
+        req.timeoutInterval = 30
         req.setValue("MediaBrowser Token=\"\(token)\"", forHTTPHeaderField: "Authorization")
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             let httpStatus = (resp as? HTTPURLResponse)?.statusCode ?? -1
-            print("[SubtitleManager] Fetch status=\(httpStatus) bytes=\(data.count) url=\(url.lastPathComponent)")
             guard httpStatus >= 200 && httpStatus < 300 else {
-                print("[SubtitleManager] HTTP error \(httpStatus) — skipping")
                 return false
             }
             guard let content = String(data: data, encoding: .utf8), !content.isEmpty else {
-                print("[SubtitleManager] Failed to decode subtitle data as UTF-8")
                 return false
             }
-            let preview = String(content.prefix(200))
-            print("[SubtitleManager] Content preview: \(preview)")
             // Try SRT, then VTT, then ASS/SSA
             var parsed = SRTParser.parse(content)
             if parsed.isEmpty {
@@ -201,19 +197,13 @@ final class SubtitleManager: ObservableObject {
                 parsed = ASSParser.parse(content)
             }
             guard !parsed.isEmpty else {
-                print("[SubtitleManager] Parsed 0 entries — subtitle format not recognized")
                 return false
             }
             entries = parsed
             isLoaded = true
             lastIndex = 0
-            print("[SubtitleManager] Parsed \(entries.count) entries")
-            if let first = entries.first {
-                print("[SubtitleManager] First entry: [\(first.start)-\(first.end)] \(first.text.prefix(50))")
-            }
             return true
         } catch {
-            print("[SubtitleManager] Fetch failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -230,14 +220,9 @@ final class SubtitleManager: ObservableObject {
         lastIndex = 0
     }
 
-    private var updateLogCount = 0
     func update(currentSeconds: Double) {
         guard isLoaded, !entries.isEmpty else {
             return
-        }
-        updateLogCount += 1
-        if updateLogCount <= 3 {
-            print("[SubtitleManager] update called: t=\(currentSeconds) entries=\(entries.count) delay=\(delaySecs)")
         }
         let t = currentSeconds + delaySecs
 
@@ -283,14 +268,43 @@ final class SubtitleManager: ObservableObject {
 
 struct SubtitleOverlayView: View {
     @ObservedObject var manager: SubtitleManager
+    @EnvironmentObject private var appState: AppState
+
+    private var fontSize: CGFloat {
+        switch appState.subtitleFontSize {
+        case 25: return 14   // Small
+        case 15: return 22   // Large
+        case 10: return 28   // Extra Large
+        default: return 18   // Medium (20)
+        }
+    }
+
+    private var textColor: Color {
+        appState.subtitleColor == "yellow" ? .yellow : .white
+    }
+
+    @ViewBuilder
+    private var subtitleTextView: some View {
+        let lines = manager.currentText.components(separatedBy: "\n")
+        if lines.count > 1 {
+            let spacing = fontSize * (appState.subtitleLineSpacing - 1.0)
+            VStack(spacing: spacing) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                }
+            }
+        } else {
+            Text(manager.currentText)
+        }
+    }
 
     var body: some View {
         if !manager.currentText.isEmpty {
             VStack {
                 Spacer()
-                Text(manager.currentText)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.white)
+                subtitleTextView
+                    .font(.system(size: fontSize, weight: appState.subtitleBold ? .bold : .medium))
+                    .foregroundStyle(textColor)
                     .shadow(color: .black, radius: 2, x: 0, y: 1)
                     .shadow(color: .black, radius: 4, x: 0, y: 2)
                     .multilineTextAlignment(.center)
@@ -298,10 +312,12 @@ struct SubtitleOverlayView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 6)
                     .background(
-                        Color.black.opacity(0.6)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        appState.subtitleBackgroundEnabled
+                            ? Color.black.opacity(appState.subtitleBackgroundOpacity)
+                            : Color.clear
                     )
-                    .padding(.bottom, 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(.bottom, appState.subtitleBottomPadding)
                     .padding(.horizontal, 60)
             }
             .allowsHitTesting(false)

@@ -63,6 +63,15 @@ final class JellyfinAPI {
         return req
     }
 
+    private func buildURL(_ base: URL, path: String, queryItems: [URLQueryItem] = []) throws -> URL {
+        guard var comps = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
+            throw JellyfinAPIError.invalidURL
+        }
+        if !queryItems.isEmpty { comps.queryItems = queryItems }
+        guard let url = comps.url else { throw JellyfinAPIError.invalidURL }
+        return url
+    }
+
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         do {
             return try JSONDecoder().decode(type, from: data)
@@ -72,6 +81,10 @@ final class JellyfinAPI {
     }
 
     private func perform(_ request: URLRequest) async throws -> Data {
+        // Block all API calls when manual offline mode is active
+        if await MainActor.run(body: { AppState.shared?.manualOffline ?? false }) {
+            throw JellyfinAPIError.networkError(URLError(.notConnectedToInternet))
+        }
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else {
@@ -79,7 +92,7 @@ final class JellyfinAPI {
             }
             switch http.statusCode {
             case 200...299: return data
-            case 401:       throw JellyfinAPIError.unauthorized
+            case 401, 403:  throw JellyfinAPIError.unauthorized
             default:        throw JellyfinAPIError.serverError(http.statusCode)
             }
         } catch let error as JellyfinAPIError {
@@ -119,11 +132,10 @@ final class JellyfinAPI {
 
     func getItemDetails(serverURL: String, itemId: String, userId: String, token: String) async throws -> JellyfinItem {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items/\(itemId)"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        let url = try buildURL(base, path: "Users/\(userId)/Items/\(itemId)", queryItems: [
             URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CommunityRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,EndDate,ProductionLocations,MediaStreams,MediaSources,ChildCount,ProviderIds")
-        ]
-        let req = baseRequest(url: components.url!, token: token)
+        ])
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         return try decode(JellyfinItem.self, from: data)
     }
@@ -155,9 +167,10 @@ final class JellyfinAPI {
 
     func getLibraries(serverURL: String, userId: String, token: String) async throws -> [JellyfinLibrary] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Views"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "fields", value: "PrimaryImageAspectRatio")]
-        let req = baseRequest(url: components.url!, token: token)
+        let url = try buildURL(base, path: "Users/\(userId)/Views", queryItems: [
+            URLQueryItem(name: "fields", value: "PrimaryImageAspectRatio")
+        ])
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         let response = try decode(JellyfinLibrariesResponse.self, from: data)
         return response.items
@@ -179,61 +192,57 @@ final class JellyfinAPI {
         filters: String? = nil
     ) async throws -> JellyfinItemsResponse {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items"), resolvingAgainstBaseURL: false)!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "SortBy", value: sortBy),
             URLQueryItem(name: "SortOrder", value: sortOrder),
             URLQueryItem(name: "StartIndex", value: "\(startIndex)"),
             URLQueryItem(name: "Limit", value: "\(limit)"),
             URLQueryItem(name: "Recursive", value: recursive ? "true" : "false"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources")
         ]
         if let parentId { queryItems.append(URLQueryItem(name: "ParentId", value: parentId)) }
         if let types = itemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
         if let filters { queryItems.append(URLQueryItem(name: "Filters", value: filters)) }
-        components.queryItems = queryItems
-        let req = baseRequest(url: components.url!, token: token)
+        let url = try buildURL(base, path: "Users/\(userId)/Items", queryItems: queryItems)
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         return try decode(JellyfinItemsResponse.self, from: data)
     }
 
     func getContinueWatching(serverURL: String, userId: String, token: String) async throws -> [JellyfinItem] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items/Resume"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        let url = try buildURL(base, path: "Users/\(userId)/Items/Resume", queryItems: [
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks"),
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources"),
             URLQueryItem(name: "MediaTypes", value: "Video")
-        ]
-        let req = baseRequest(url: components.url!, token: token)
+        ])
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         return try decode(JellyfinItemsResponse.self, from: data).items
     }
 
     func getNextUp(serverURL: String, userId: String, token: String) async throws -> [JellyfinItem] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Shows/NextUp"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        let url = try buildURL(base, path: "Shows/NextUp", queryItems: [
             URLQueryItem(name: "UserId", value: userId),
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks")
-        ]
-        let req = baseRequest(url: components.url!, token: token)
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources")
+        ])
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         return try decode(JellyfinItemsResponse.self, from: data).items
     }
 
     func getLatestMedia(serverURL: String, userId: String, token: String, libraryId: String? = nil, includeItemTypes: [String]? = nil) async throws -> [JellyfinItem] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items/Latest"), resolvingAgainstBaseURL: false)!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "Limit", value: "16"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources")
         ]
         if let libraryId { queryItems.append(URLQueryItem(name: "ParentId", value: libraryId)) }
         if let types = includeItemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
-        components.queryItems = queryItems
-        let req = baseRequest(url: components.url!, token: token)
+        let url = try buildURL(base, path: "Users/\(userId)/Items/Latest", queryItems: queryItems)
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         return try decode([JellyfinItem].self, from: data)
     }
@@ -242,23 +251,21 @@ final class JellyfinAPI {
 
     func search(serverURL: String, userId: String, token: String, query: String) async throws -> [JellyfinSearchHint] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Search/Hints"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        let url = try buildURL(base, path: "Search/Hints", queryItems: [
             URLQueryItem(name: "SearchTerm", value: query),
             URLQueryItem(name: "UserId", value: userId),
             URLQueryItem(name: "Limit", value: "30"),
             URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series")
-        ]
-        let req = baseRequest(url: components.url!, token: token)
+        ])
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         return try decode(JellyfinSearchResponse.self, from: data).searchHints
     }
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, subtitleStreamIndex: Int? = nil) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, subtitleStreamIndex: Int? = nil, forceTranscode: Bool = false) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/PlaybackInfo"), resolvingAgainstBaseURL: false)!
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
         if startTimeTicks > 0 {
             queryItems.append(URLQueryItem(name: "StartTimeTicks", value: "\(startTimeTicks)"))
@@ -269,8 +276,8 @@ final class JellyfinAPI {
         if let idx = subtitleStreamIndex {
             queryItems.append(URLQueryItem(name: "SubtitleStreamIndex", value: "\(idx)"))
         }
-        components.queryItems = queryItems
-        var req = baseRequest(url: components.url!, token: token)
+        let url = try buildURL(base, path: "Items/\(itemId)/PlaybackInfo", queryItems: queryItems)
+        var req = baseRequest(url: url, token: token)
         req.httpMethod = "POST"
 
         // Device profile: direct play MP4/H264/HEVC, fallback to HLS transcode
@@ -280,7 +287,7 @@ final class JellyfinAPI {
             "DeviceProfile": [
                 "MaxStaticBitrate": 100_000_000,
                 "MaxStreamingBitrate": maxBitrate ?? 120_000_000,
-                "DirectPlayProfiles": [
+                "DirectPlayProfiles": forceTranscode ? [] as [[String: String]] : [
                     [
                         "Container": "mp4,m4v,mov,m2ts,ts",
                         "Type": "Video",
@@ -297,6 +304,20 @@ final class JellyfinAPI {
                         "Protocol": "hls",
                         "Context": "Streaming",
                         "MaxAudioChannels": "6"
+                    ]
+                ],
+                "CodecProfiles": [
+                    [
+                        "Type": "Video",
+                        "Codec": "hevc",
+                        "Conditions": [
+                            [
+                                "Condition": "NotEquals",
+                                "Property": "VideoRangeType",
+                                "Value": "DOVI",
+                                "IsRequired": true
+                            ]
+                        ]
                     ]
                 ],
                 "SubtitleProfiles": [
@@ -365,22 +386,27 @@ final class JellyfinAPI {
 
     // MARK: - Image URLs
 
+    /// Returns nil when manual offline is active — prevents AsyncImage from hitting the network.
+    private var isOffline: Bool {
+        AppState.shared?.manualOffline ?? false
+    }
+
     func imageURL(serverURL: String, itemId: String, imageType: String = "Primary", maxWidth: Int = 400) -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
+        guard !isOffline, let base = URL(string: serverURL) else { return nil }
         var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/\(imageType)"), resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
         return components?.url
     }
 
     func backdropURL(serverURL: String, itemId: String, maxWidth: Int = 1280) -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
+        guard !isOffline, let base = URL(string: serverURL) else { return nil }
         var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/Backdrop"), resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
         return components?.url
     }
 
     func logoURL(serverURL: String, itemId: String, maxWidth: Int = 600) -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
+        guard !isOffline, let base = URL(string: serverURL) else { return nil }
         var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/Logo"), resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
         return components?.url
@@ -403,17 +429,39 @@ final class JellyfinAPI {
 
     func getPersonFilmography(serverURL: String, personId: String, userId: String, token: String) async throws -> [JellyfinItem] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var components = URLComponents(url: base.appendingPathComponent("Users/\(userId)/Items"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        let url = try buildURL(base, path: "Users/\(userId)/Items", queryItems: [
             URLQueryItem(name: "PersonIds", value: personId),
-            URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series"),
+            URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series,Episode"),
             URLQueryItem(name: "Recursive", value: "true"),
             URLQueryItem(name: "SortBy", value: "PremiereDate"),
             URLQueryItem(name: "SortOrder", value: "Descending"),
             URLQueryItem(name: "Fields", value: "PrimaryImageAspectRatio,ProductionYear,CommunityRating"),
-            URLQueryItem(name: "Limit", value: "50"),
-        ]
-        let req = baseRequest(url: components.url!, token: token)
+            URLQueryItem(name: "Limit", value: "100"),
+        ])
+        let req = baseRequest(url: url, token: token)
+        let data = try await perform(req)
+        let all = try decode(JellyfinItemsResponse.self, from: data).items
+
+        // De-duplicate: prefer Series/Movie over individual episodes
+        var seen = Set<String>()
+        var result: [JellyfinItem] = []
+        for item in all {
+            let key = item.seriesId ?? item.id
+            if seen.insert(key).inserted {
+                result.append(item)
+            }
+        }
+        return result
+    }
+
+    func getSimilarItems(serverURL: String, itemId: String, userId: String, token: String, limit: Int = 12) async throws -> [JellyfinItem] {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = try buildURL(base, path: "Items/\(itemId)/Similar", queryItems: [
+            URLQueryItem(name: "UserId", value: userId),
+            URLQueryItem(name: "Limit", value: "\(limit)"),
+            URLQueryItem(name: "Fields", value: "PrimaryImageAspectRatio,ProductionYear,CommunityRating"),
+        ])
+        let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
         return try decode(JellyfinItemsResponse.self, from: data).items
     }

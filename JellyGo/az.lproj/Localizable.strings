@@ -36,9 +36,9 @@
 "Continue  S%lldE%lld" = "Davam et  S%lldE%lld";
 "Add to Favorites" = "Seçililərə əlavə et";
 "Remove from Favorites" = "Seçililərdən çıxar";
-"Mark as Watched" = "İzlənildi kimi işarələ";
-"Mark as Unwatched" = "İzlənilmədi kimi işarələ";
-"Watched" = "İzlənildi";
+"Watched" = "İzləndi";
+"Unwatched" = "İzlənmədi";
+"Go to Detail" = "Detallara keç";
 "Save" = "Saxla";
 "Rate" = "Qiymətləndir";
 "Favorite" = "Seçili";
@@ -86,8 +86,6 @@
 "Remove Account" = "Hesabı sil";
 "Remove %@ from this device?" = "%@ bu cihazdan silinsin?";
 "Account Already Added" = "Hesab artıq əlavə edilib";
-"e.g. Home, Remote, VPN…" = "məs. Ev, Uzaq, VPN…";
-"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Ana ekran nişanında və hesab kabarcıqlarında göstərilən etiket. Server ünvanını istifadə etmək üçün boş saxlayın.";
 
 /* Settings */
 "Settings" = "Parametrlər";
@@ -96,13 +94,24 @@
 "Default Quality" = "Standart keyfiyyət";
 "Auto (WiFi → Direct, Cellular → 720p)" = "Avtomatik (WiFi → Birbaşa, Mobil → 720p)";
 "Audio" = "Səs";
+"Audio & Subtitles" = "Səs və Altyazı";
 "Preferred Language" = "Üstünlük verilən dil";
 "Subtitles" = "Altyazılar";
 "Enable by Default" = "Standart olaraq aktivləşdir";
+"Appearance" = "Görünüş";
+"Theme" = "Tema";
+"Light" = "Açıq";
+"Dark" = "Tünd";
+"Home Screen" = "Ana Ekran";
+"Choose which sections appear on the home screen." = "Ana ekranda hansı bölmələrin görünəcəyini seçin.";
+"Storage" = "Yaddaş";
+"Downloaded Content" = "Endirilmiş Məzmun";
+"Image Cache" = "Şəkil Önbelleyi";
+"Clear Cache" = "Önbelleyi Təmizlə";
+"Cache" = "Önbellek";
 "About" = "Haqqında";
 "Version" = "Versiya";
 "Jellyfin Project" = "Jellyfin Layihəsi";
-"Sign out of %@?" = "%@-dan çıxılsın?";
 "Remove" = "Sil";
 
 /* Downloads */
@@ -122,9 +131,6 @@
 "Delete All Episodes?" = "Bütün bölümlər silinsin?";
 "Delete Download?" = "Yükləmə silinsin?";
 "Delete" = "Sil";
-"Remove \"%@\" from your downloads?" = "\"%@\" yükləmələrinizdən çıxarılsın?";
-"Remove all downloaded episodes of \"%@\"?" = "\"%@\" seriyasının yüklənmiş bütün bölümləri silinsin?";
-"Delete all %lld episodes of \"%@\"?" = "\"%@\" seriyasının %lld bölümü silinsin?";
 "Downloading" = "Yüklənir";
 "Failed" = "Uğursuz";
 "Transcoding" = "Çevrilir";
@@ -144,6 +150,7 @@
 "Queued" = "Növbədə";
 "Pause" = "Fasilə";
 "Cancel Download" = "Yükləməni ləğv et";
+"Resume Download" = "Endirməni davam et";
 "Media Info" = "Media məlumatları";
 "1 Season" = "1 mövsüm";
 "%lld Seasons" = "%lld mövsüm";
@@ -191,3 +198,70 @@
 /* Overview */
 "Show More" = "Daha çox göstər";
 "Show Less" = "Daha az göstər";
+
+/* Subtitle Appearance */
+"Subtitle Appearance" = "Altyazı görünüşü";
+"Font Size" = "Şrift ölçüsü";
+"Size" = "Ölçü";
+"Small" = "Kiçik";
+"Medium" = "Orta";
+"Large" = "Böyük";
+"Extra Large" = "Çox böyük";
+"Style" = "Stil";
+"Bold" = "Qalın";
+"Color" = "Rəng";
+"White" = "Ağ";
+"Yellow" = "Sarı";
+"Background" = "Arxa fon";
+"Opacity" = "Şəffaflıq";
+"Layout" = "Düzən";
+"Line Spacing" = "Sətir aralığı";
+"Bottom Offset" = "Alt boşluq";
+"Preview" = "Önbaxış";
+
+/* Player Extended */
+"Slow Scrubbing" = "Yavaş axtarış";
+"Subtitle Delay" = "Altyazı gecikməsi";
+"Secondary Language" = "İkinci dil";
+
+/* Misc */
+"Found on Network" = "Şəbəkədə tapıldı";
+"Scan" = "Axtar";
+"Scanning…" = "Axtarılır…";
+"Add New Server" = "Yeni server əlavə et";
+"Hide" = "Gizlə";
+"OK" = "OK";
+"Music Videos" = "Musiqi videoları";
+"Collections" = "Kolleksiyalar";
+"Known For" = "Tanınır";
+"Biography" = "Bioqrafiya";
+"Delete All" = "Hamısını sil";
+
+/* Stats HUD */
+"Video codec not supported" = "Video kodek dəstəklənmir";
+"Audio codec not supported" = "Səs kodek dəstəklənmir";
+"Container not supported" = "Konteyner dəstəklənmir";
+"Bit depth not supported" = "Bit dərinliyi dəstəklənmir";
+"HDR → SDR conversion" = "HDR → SDR çevrilməsi";
+"Video profile not supported" = "Video profili dəstəklənmir";
+"Video level not supported" = "Video səviyyəsi dəstəklənmir";
+"Audio profile not supported" = "Səs profili dəstəklənmir";
+"Bitrate limit exceeded" = "Bitrate limiti aşılıb";
+"Video bitrate too high" = "Video bitrate çox yüksəkdir";
+"Audio bitrate too high" = "Səs bitrate çox yüksəkdir";
+"Audio channels not supported" = "Səs kanalları dəstəklənmir";
+"Subtitle codec not supported" = "Altyazı kodek dəstəklənmir";
+"Direct play error" = "Birbaşa oynatma xətası";
+"Resolution not supported" = "Həlletmə dəstəklənmir";
+"Sample rate not supported" = "Nümunə tezliyi dəstəklənmir";
+"Reason" = "Səbəb";
+"Reason: Manual quality (%@)" = "Səbəb: Əl ilə seçilmiş keyfiyyət (%@)";
+"Connecting" = "Qoşulur";
+"Poor" = "Zəif";
+"Slow" = "Yavaş";
+"Fair" = "Orta";
+"Good" = "Yaxşı";
+
+/* Missing */
+"Recommendations" = "Tövsiyələr";
+"Select" = "Seç";

@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import os
 
 @MainActor
 final class SearchViewModel: ObservableObject {
@@ -80,7 +81,9 @@ final class SearchViewModel: ObservableObject {
                     token: appState.token,
                     query: trimmed
                 )
-            } catch {}
+            } catch {
+                Logger(subsystem: "JellyGo", category: "SearchViewModel").error("search failed: \(error)")
+            }
             isSearching = false
         }
     }

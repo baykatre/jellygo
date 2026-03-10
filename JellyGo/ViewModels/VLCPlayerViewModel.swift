@@ -6,6 +6,7 @@ import AVFoundation
 
 extension Notification.Name {
     static let playbackStopped = Notification.Name("playbackStopped")
+    static let personFilmographySelected = Notification.Name("personFilmographySelected")
 }
 
 // MARK: - Delegate Bridge
@@ -42,9 +43,20 @@ final class VLCPlayerViewModel: ObservableObject {
     @Published var statsDecodedFrames: Int32 = 0
     @Published var statsDroppedFrames: Int32 = 0
     @Published var statsVideoCodec: String = "—"
+    @Published var statsVideoProfile: String = ""
+    @Published var statsVideoResolution: String = ""
+    @Published var statsVideoBitDepth: String = ""
+    @Published var statsVideoRange: String = "SDR"
     @Published var statsAudioCodec: String = "—"
+    @Published var statsAudioLabel: String = ""
     @Published var statsContainer: String = "—"
     @Published var statsIsTranscoding: Bool = false
+    @Published var statsTranscodeReasons: [String] = []
+    @Published var statsIsManualQuality: Bool = false
+    @Published var statsReadBytes: Int = 0
+    @Published var statsDisplayedPictures: Int32 = 0
+    @Published var statsLostAudioBuffers: Int32 = 0
+    @Published var statsDemuxBitrateMbps: Double = 0
 
     @Published var videoSize: CGSize = .zero
     @Published var subtitleTracks: [(index: Int32, name: String)] = []
@@ -73,10 +85,26 @@ final class VLCPlayerViewModel: ObservableObject {
                         self.didDisableVLCSubs = true
                         self.player.currentVideoSubTitleIndex = -1
                     }
-                    // Seek to resume position on first play if media option didn't work
+                    // Seek to resume position on first play
                     if !self.didSeekToResume && self.resumeMs > 0 {
                         self.didSeekToResume = true
                         self.player.time = VLCTime(int: self.resumeMs)
+                        // Wait until player time is near seek target before dismissing loading
+                        Task {
+                            let target = self.resumeMs
+                            var waited = 0
+                            while waited < 15000 {
+                                try? await Task.sleep(for: .milliseconds(200))
+                                waited += 200
+                                let current = self.player.time.intValue
+                                // Dismiss when player time is within 2s of target and actually advancing
+                                if current > 0 && abs(current - target) < 2000 {
+                                    break
+                                }
+                            }
+                            try? await Task.sleep(for: .seconds(1))
+                            await MainActor.run { self.isLoading = false }
+                        }
                     }
                 }
                 if state == .error { self.error = String(localized: "Playback error", bundle: AppState.currentBundle) }
@@ -93,11 +121,21 @@ final class VLCPlayerViewModel: ObservableObject {
                 // Stats — only update when values actually change
                 if let media = self.player.media {
                     let s = media.statistics
-                    let raw = s.inputBitrate > 0 ? s.inputBitrate : s.demuxBitrate
-                    let newBitrate = Double(raw) * 8 / 1_000_000
-                    if abs(self.statsBitrateMbps - newBitrate) > 0.01 { self.statsBitrateMbps = newBitrate }
+                    // Network / input bitrate
+                    let rawInput = Double(s.inputBitrate) * 8 / 1_000_000
+                    if abs(self.statsBitrateMbps - rawInput) > 0.01 { self.statsBitrateMbps = rawInput }
+                    // Demux bitrate (actual stream bitrate)
+                    let rawDemux = Double(s.demuxBitrate) * 8 / 1_000_000
+                    if abs(self.statsDemuxBitrateMbps - rawDemux) > 0.01 { self.statsDemuxBitrateMbps = rawDemux }
+                    // Bytes read from network
+                    let newRead = max(0, max(Int(s.readBytes), Int(s.demuxReadBytes)))
+                    if self.statsReadBytes != newRead { self.statsReadBytes = newRead }
+                    // Video frames
                     if self.statsDroppedFrames != s.lostPictures { self.statsDroppedFrames = s.lostPictures }
                     if self.statsDecodedFrames != s.decodedVideo { self.statsDecodedFrames = s.decodedVideo }
+                    if self.statsDisplayedPictures != s.displayedPictures { self.statsDisplayedPictures = s.displayedPictures }
+                    // Audio buffers lost
+                    if self.statsLostAudioBuffers != s.lostAudioBuffers { self.statsLostAudioBuffers = s.lostAudioBuffers }
                 }
             }
         }
@@ -177,7 +215,7 @@ final class VLCPlayerViewModel: ObservableObject {
         selectedQuality = qualityOverride ?? appState.defaultVideoQuality
         tracksLoaded = false
         didDisableVLCSubs = false
-        DispatchQueue.main.async { self.isLoading = true; self.error = nil }
+        DispatchQueue.main.async { self.isLoading = true; self.error = nil; self.statsReadBytes = 0 }
 
         guard !item.isSeries && !item.isSeason else {
             DispatchQueue.main.async { self.error = String(localized: "Select an episode to play", bundle: AppState.currentBundle); self.isLoading = false }
@@ -196,8 +234,16 @@ final class VLCPlayerViewModel: ObservableObject {
 
         didSeekToResume = false
 
+        // Check for pure Dolby Vision before direct play — VLC renders pink
+        let doviRange = item.mediaStreams?.first(where: { $0.isVideo })?.videoRangeType
+            ?? item.mediaSources?.first?.mediaStreams?.first(where: { $0.isVideo })?.videoRangeType
+        if doviRange == "DOVI" && selectedQuality.resolved.forceDirectPlay {
+            // Override to use PlaybackInfo with forceTranscode instead of direct play
+            // Fall through to PlaybackInfo path below
+        }
+
         // Direct mode: skip PlaybackInfo, stream the file as-is
-        if selectedQuality.resolved.forceDirectPlay {
+        if selectedQuality.resolved.forceDirectPlay && doviRange != "DOVI" {
             guard let directURL = JellyfinAPI.shared.streamURL(
                 serverURL: appState.serverURL,
                 itemId: item.id,
@@ -207,11 +253,19 @@ final class VLCPlayerViewModel: ObservableObject {
                 DispatchQueue.main.async { self.error = String(localized: "No playable source found", bundle: AppState.currentBundle); self.isLoading = false }
                 return
             }
+            let dpVideo = item.mediaStreams?.first(where: \.isVideo)
+            let dpAudio = item.mediaStreams?.first(where: \.isAudio)
             DispatchQueue.main.async {
-                self.statsVideoCodec = "—"
-                self.statsAudioCodec = "—"
+                self.statsVideoCodec = dpVideo?.codec?.uppercased() ?? "—"
+                self.statsVideoProfile = dpVideo?.profile ?? ""
+                self.statsVideoResolution = "\(dpVideo?.width ?? 0)×\(dpVideo?.height ?? 0)"
+                self.statsVideoBitDepth = dpVideo?.bitDepth.map { "\($0)-bit" } ?? ""
+                self.statsVideoRange = dpVideo?.videoRangeType ?? dpVideo?.videoRange ?? "SDR"
+                self.statsAudioCodec = dpAudio?.codec?.uppercased() ?? "—"
+                self.statsAudioLabel = dpAudio?.audioLabel ?? dpAudio?.language ?? ""
                 self.statsContainer = "—"
                 self.statsIsTranscoding = false
+                self.statsTranscodeReasons = []
             }
             let media = VLCMedia(url: directURL)
             applySubtitleAppearance(to: media)
@@ -229,7 +283,11 @@ final class VLCPlayerViewModel: ObservableObject {
             player.play()
             await waitForPlaying()
             if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
-            DispatchQueue.main.async { self.isLoading = false; self.isPlaying = self.player.isPlaying }
+            DispatchQueue.main.async {
+                // Keep loading if resume seek is pending
+                if self.resumeMs <= 0 { self.isLoading = false }
+                self.isPlaying = self.player.isPlaying
+            }
             startPositionTimer()
             return
         }
@@ -245,14 +303,15 @@ final class VLCPlayerViewModel: ObservableObject {
                 startTimeTicks: jellyfinStartTicks,
                 maxBitrate: selectedQuality.resolved.maxBitrate,
                 externalSubtitles: disableVLCSubtitles,
-                audioStreamIndex: audioIdx
+                audioStreamIndex: audioIdx,
+                forceTranscode: doviRange == "DOVI"
             )
             guard let source = info.mediaSources.first else {
                 DispatchQueue.main.async { self.error = String(localized: "No playable source found", bundle: AppState.currentBundle); self.isLoading = false }
                 return
             }
 
-            let url: URL
+            var url: URL
             if let transcodePath = source.transcodingUrl,
                let transURL = URL(string: appState.serverURL + transcodePath) {
                 url = transURL
@@ -272,18 +331,69 @@ final class VLCPlayerViewModel: ObservableObject {
             let videoStream = streams.first(where: { $0.isVideo })
             let audioStream = streams.first(where: { $0.isAudio })
             let isTranscoding = source.transcodingUrl != nil
+
+            // Get transcode reasons from source field or parse from URL
+            var reasons = source.transcodeReasons ?? []
+            if reasons.isEmpty, let transcodePath = source.transcodingUrl,
+               let comps = URLComponents(string: transcodePath),
+               let reasonParam = comps.queryItems?.first(where: { $0.name == "TranscodeReasons" })?.value {
+                reasons = reasonParam.components(separatedBy: ",")
+            }
+            // Calculate displayed resolution
+            var displayRes = "\(videoStream?.width ?? 0)×\(videoStream?.height ?? 0)"
+            if isTranscoding {
+                if let transcodePath = source.transcodingUrl,
+                   let comps = URLComponents(string: transcodePath) {
+                    let params = comps.queryItems ?? []
+                    let maxW = params.first(where: { $0.name == "MaxWidth" })?.value.flatMap(Int.init)
+                    let maxH = params.first(where: { $0.name == "MaxHeight" })?.value.flatMap(Int.init)
+                    let srcW = videoStream?.width ?? 0
+                    let srcH = videoStream?.height ?? 0
+                    if let maxW, let maxH {
+                        displayRes = "\(maxW)×\(maxH)"
+                    } else if let maxW, srcW > 0, srcH > 0 {
+                        let outW = min(maxW, srcW)
+                        let outH = Int(Double(outW) * Double(srcH) / Double(srcW)) & ~1
+                        displayRes = "\(outW)×\(outH)"
+                    } else if let maxH, srcW > 0, srcH > 0 {
+                        let outH = min(maxH, srcH)
+                        let outW = Int(Double(outH) * Double(srcW) / Double(srcH)) & ~1
+                        displayRes = "\(outW)×\(outH)"
+                    } else {
+                        displayRes = self.selectedQuality.resolved.rawValue
+                    }
+                }
+            }
+            let isManual = !self.selectedQuality.resolved.forceDirectPlay
+            let vProfile = videoStream?.profile ?? ""
+            let vBitDepth = videoStream?.bitDepth.map { "\($0)-bit" } ?? ""
+            let vRange = videoStream?.videoRangeType ?? videoStream?.videoRange ?? "SDR"
+            let aLabel = audioStream?.audioLabel ?? audioStream?.language ?? ""
             DispatchQueue.main.async {
                 self.statsVideoCodec = videoStream?.codec?.uppercased() ?? "—"
+                self.statsVideoProfile = vProfile
+                self.statsVideoResolution = displayRes
+                self.statsVideoBitDepth = vBitDepth
+                self.statsVideoRange = vRange
                 self.statsAudioCodec = audioStream?.codec?.uppercased() ?? "—"
+                self.statsAudioLabel = aLabel
                 self.statsContainer = source.container?.uppercased() ?? "—"
                 self.statsIsTranscoding = isTranscoding
+                self.statsTranscodeReasons = reasons
+                self.statsIsManualQuality = isManual
             }
 
             let media = VLCMedia(url: url)
             applySubtitleAppearance(to: media)
-            if vlcSeekMs > 0 && jellyfinStartTicks == 0 {
+            if disableVLCSubtitles {
+                media.addOption(":sub-track-id=-1")
+            }
+            if vlcSeekMs > 0 {
                 resumeMs = vlcSeekMs
-                media.addOption(":start-time=\(Double(vlcSeekMs) / 1000.0)")
+                if !isTranscoding {
+                    media.addOption(":start-time=\(Double(vlcSeekMs) / 1000.0)")
+                }
+                // Transcode: start-time doesn't work on HLS, resumeMs fallback will seek after playing
             } else {
                 resumeMs = 0
             }
@@ -298,10 +408,14 @@ final class VLCPlayerViewModel: ObservableObject {
                 serverURL: appState.serverURL, itemId: item.id, token: appState.token)
         }
 
+        if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
         player.play()
         await waitForPlaying()
         if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
-        DispatchQueue.main.async { self.isLoading = false; self.isPlaying = self.player.isPlaying }
+        DispatchQueue.main.async {
+            if self.resumeMs <= 0 { self.isLoading = false }
+            self.isPlaying = self.player.isPlaying
+        }
         startPositionTimer()
     }
 
@@ -328,7 +442,8 @@ final class VLCPlayerViewModel: ObservableObject {
 
         try? await Task.sleep(for: .milliseconds(500))
 
-        await startPlayback(jellyfinStartTicks: 0, vlcSeekMs: currentMs)
+        let startTicks = Int64(currentMs) * 10_000
+        await startPlayback(jellyfinStartTicks: startTicks, vlcSeekMs: currentMs)
     }
 
     func togglePlayPause() {
@@ -392,12 +507,13 @@ final class VLCPlayerViewModel: ObservableObject {
             DispatchQueue.main.async { self.isLoading = true; self.isPlaying = false }
             try? await Task.sleep(for: .milliseconds(500))
             pendingAudioStreamIndex = Int(index)
-            await startPlayback(jellyfinStartTicks: 0, vlcSeekMs: currentMs)
+            let startTicks = Int64(currentMs) * 10_000
+            await startPlayback(jellyfinStartTicks: startTicks, vlcSeekMs: currentMs)
         }
     }
 
     private var tracksLoaded = false
-    private var didDisableVLCSubs = false
+    var didDisableVLCSubs = false
 
     private func loadTracks() {
         let size = player.videoSize
@@ -431,7 +547,14 @@ final class VLCPlayerViewModel: ObservableObject {
         positionTimer?.cancel()
         player.stop()
         guard let item, let appState else { return }
-        let ticks = Int64(Double(position) * Double(item.runTimeTicks ?? 0))
+
+        let ticks: Int64
+        if isLoading && resumeMs > 0 {
+            // Closed during loading before seek completed — report the original resume position
+            ticks = Int64(resumeMs) * 10_000
+        } else {
+            ticks = Int64(Double(position) * Double(item.runTimeTicks ?? 0))
+        }
 
         if currentSeconds > 2 {
             LocalPlaybackStore.savePosition(currentSeconds, for: item.id)

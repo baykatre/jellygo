@@ -9,16 +9,17 @@ struct HomeView: View {
     @State private var downloadBanner: PausedDownload?
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedTab: Int = 0
+    @State private var homePath = NavigationPath()
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Home", systemImage: "house.fill", value: 0) {
+            Tab(String(localized: "Home", bundle: AppState.currentBundle), systemImage: "house.fill", value: 0) {
                 mainTab
             }
-            Tab("Library", systemImage: "square.grid.2x2.fill", value: 1) {
+            Tab(String(localized: "Library", bundle: AppState.currentBundle), systemImage: "square.grid.2x2.fill", value: 1) {
                 LibraryBrowseView()
             }
-            Tab("Downloads", systemImage: "arrow.down.circle.fill", value: 2) {
+            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "arrow.down.circle.fill", value: 2) {
                 DownloadsView()
             }
             Tab(value: 3, role: .search) {
@@ -57,7 +58,7 @@ struct HomeView: View {
                     .font(.title2)
                     .foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Download Started")
+                    Text(String(localized: "Download Started", bundle: AppState.currentBundle))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                     Text(entry.seriesName.map { "\($0) · " + entry.name } ?? entry.name)
@@ -83,7 +84,7 @@ struct HomeView: View {
     // MARK: - Main Tab
 
     private var mainTab: some View {
-        NavigationStack {
+        NavigationStack(path: $homePath) {
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 0) {
 
@@ -107,20 +108,17 @@ struct HomeView: View {
 
                     // Content
                     VStack(alignment: .leading, spacing: 32) {
-                        if !vm.continueWatching.isEmpty {
+                        if appState.showContinueWatching && !vm.continueWatching.isEmpty {
                             continueWatchingSection
                         }
-                        if !vm.nextUp.isEmpty {
+                        if appState.showNextUp && !vm.nextUp.isEmpty {
                             nextUpSection
                         }
-                        if !vm.latestMovies.isEmpty {
+                        if appState.showLatestMovies && !vm.latestMovies.isEmpty {
                             latestMoviesSection
                         }
-                        if !vm.latestShows.isEmpty {
+                        if appState.showLatestShows && !vm.latestShows.isEmpty {
                             latestShowsSection
-                        }
-                        if !vm.libraries.isEmpty {
-                            librariesSection
                         }
                         if !vm.isLoading && vm.continueWatching.isEmpty && vm.nextUp.isEmpty &&
                            vm.latestMovies.isEmpty && vm.latestShows.isEmpty {
@@ -161,23 +159,30 @@ struct HomeView: View {
             .navigationDestination(for: JellyfinLibrary.self) { library in
                 LibraryView(library: library)
             }
-            .navigationDestination(for: JellyfinPerson.self) { person in
-                PersonDetailView(person: person)
-            }
             .overlay(alignment: .bottom) {
                 if let error = vm.error {
                     errorBanner(message: error)
                 }
             }
             .fullScreenCover(item: $heroPlayItem, onDismiss: {
+                appState.isPlayerActive = false
                 AppDelegate.orientationLock = .portrait
                 PlayerContainerView.rotate(to: .portrait)
             }) { item in
                 PlayerContainerView(item: item)
                     .environmentObject(appState)
+                    .onAppear { appState.isPlayerActive = true }
             }
             .onReceive(NotificationCenter.default.publisher(for: .playbackStopped)) { _ in
-                Task { await vm.load(appState: appState) }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    await vm.load(appState: appState)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .personFilmographySelected)) { notification in
+                if let item = notification.object as? JellyfinItem {
+                    homePath.append(item)
+                }
             }
         }
     }
@@ -204,13 +209,18 @@ struct HomeView: View {
     }
 
     private var avatarCircle: some View {
-        var components = URLComponents(string: appState.serverURL)
-        components?.path += "/Users/\(appState.userId)/Images/Primary"
-        components?.queryItems = [
-            URLQueryItem(name: "maxWidth", value: "80"),
-            URLQueryItem(name: "api_key",  value: appState.token)
-        ]
-        return AsyncImage(url: components?.url) { phase in
+        let url: URL? = {
+            if let local = DownloadManager.localUserAvatarURL(userId: appState.userId) { return local }
+            guard !appState.manualOffline else { return nil }
+            var components = URLComponents(string: appState.serverURL)
+            components?.path += "/Users/\(appState.userId)/Images/Primary"
+            components?.queryItems = [
+                URLQueryItem(name: "maxWidth", value: "80"),
+                URLQueryItem(name: "api_key",  value: appState.token)
+            ]
+            return components?.url
+        }()
+        return AsyncImage(url: url) { phase in
             switch phase {
             case .success(let img):
                 img.resizable()
@@ -262,6 +272,12 @@ struct HomeView: View {
                             BackdropCardView(item: item, serverURL: vm.serverURL)
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            cardContextMenu(item: item)
+                        } preview: {
+                            BackdropCardView(item: item, serverURL: vm.serverURL)
+                                .padding()
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -279,9 +295,73 @@ struct HomeView: View {
                             BackdropCardView(item: item, serverURL: vm.serverURL)
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            cardContextMenu(item: item)
+                        } preview: {
+                            BackdropCardView(item: item, serverURL: vm.serverURL)
+                                .padding()
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cardContextMenu(item: JellyfinItem) -> some View {
+        let isPlayed = item.userData?.played ?? false
+        let isPartial = !isPlayed && (item.userData?.playbackPositionTicks ?? 0) > 0
+
+        // Navigate to the series detail page (for episodes)
+        if item.isEpisode, let seriesId = item.seriesId {
+            Button {
+                let seriesItem = JellyfinItem(
+                    id: seriesId, name: item.seriesName ?? "", type: "Series",
+                    overview: nil, productionYear: nil,
+                    communityRating: nil, criticRating: nil, runTimeTicks: nil,
+                    seriesName: item.seriesName, seriesId: nil,
+                    seasonName: nil, indexNumber: nil, parentIndexNumber: nil,
+                    userData: nil, imageBlurHashes: nil, primaryImageAspectRatio: nil,
+                    genres: nil, officialRating: nil, taglines: nil, people: nil,
+                    premiereDate: nil, mediaStreams: nil, mediaSources: nil,
+                    childCount: nil, providerIds: nil,
+                    endDate: nil, productionLocations: nil
+                )
+                homePath.append(seriesItem)
+            } label: {
+                Label(String(localized: "Go to Detail", bundle: AppState.currentBundle), systemImage: "arrow.right.circle")
+            }
+        }
+
+        if !isPlayed {
+            Button {
+                Task {
+                    try? await JellyfinAPI.shared.setPlayed(
+                        serverURL: appState.serverURL, itemId: item.id,
+                        userId: appState.userId, token: appState.token, played: true)
+                    await vm.load(appState: appState)
+                }
+            } label: {
+                Label(String(localized: "Watched", bundle: AppState.currentBundle), systemImage: "eye.fill")
+            }
+        }
+
+        if isPlayed || isPartial {
+            Button(role: isPlayed ? .destructive : .none) {
+                Task {
+                    try? await JellyfinAPI.shared.setPlayed(
+                        serverURL: appState.serverURL, itemId: item.id,
+                        userId: appState.userId, token: appState.token, played: false)
+                    await vm.load(appState: appState)
+                }
+            } label: {
+                Label(
+                    isPlayed
+                        ? String(localized: "Remove", bundle: AppState.currentBundle)
+                        : String(localized: "Unwatched", bundle: AppState.currentBundle),
+                    systemImage: isPlayed ? "xmark.circle" : "eye.slash.fill"
+                )
             }
         }
     }
@@ -342,7 +422,7 @@ struct HomeView: View {
             Image(systemName: "film.stack")
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
-            Text("No Content Found")
+            Text(String(localized: "No Content Found", bundle: AppState.currentBundle))
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -405,30 +485,78 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            playbackSection
-            appLanguageSection
-            audioSection
-            subtitlesSection
-            aboutSection
+            Section {
+                NavigationLink {
+                    PlaybackSettingsView()
+                        .environmentObject(appState)
+                } label: {
+                    Label(String(localized: "Playback", bundle: AppState.currentBundle), systemImage: "play.circle")
+                }
+
+                NavigationLink {
+                    AudioSubtitleSettingsView()
+                        .environmentObject(appState)
+                } label: {
+                    Label(String(localized: "Audio & Subtitles", bundle: AppState.currentBundle), systemImage: "captions.bubble")
+                }
+
+                NavigationLink {
+                    AppearanceSettingsView()
+                        .environmentObject(appState)
+                } label: {
+                    Label(String(localized: "Appearance", bundle: AppState.currentBundle), systemImage: "paintbrush")
+                }
+
+                NavigationLink {
+                    HomeSectionsSettingsView()
+                        .environmentObject(appState)
+                } label: {
+                    Label(String(localized: "Home Screen", bundle: AppState.currentBundle), systemImage: "house")
+                }
+
+                NavigationLink {
+                    AppSettingsView()
+                        .environmentObject(appState)
+                } label: {
+                    Label(String(localized: "App Language", bundle: AppState.currentBundle), systemImage: "globe")
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    StorageSettingsView()
+                        .environmentObject(appState)
+                } label: {
+                    Label(String(localized: "Storage", bundle: AppState.currentBundle), systemImage: "internaldrive")
+                }
+
+                NavigationLink {
+                    AboutSettingsView()
+                } label: {
+                    Label(String(localized: "About", bundle: AppState.currentBundle), systemImage: "info.circle")
+                }
+            }
+
+            Section {
+                Toggle(isOn: $appState.manualOffline) {
+                    Label(String(localized: "Offline", bundle: AppState.currentBundle), systemImage: "wifi.slash")
+                }
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    showLogoutAlert = true
+                } label: {
+                    Label(String(localized: "Sign Out", bundle: AppState.currentBundle), systemImage: "rectangle.portrait.and.arrow.right")
+                        .foregroundStyle(.red)
+                }
+            }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             accountsBubbles
         }
-        .navigationTitle("Settings")
+        .navigationTitle(String(localized: "Settings", bundle: AppState.currentBundle))
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) {
-                    showLogoutAlert = true
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                        Text("Sign Out")
-                    }
-                    .foregroundStyle(.red)
-                }
-            }
-        }
         .sheet(isPresented: $showAddAccountSheet) {
             ServerView()
                 .environmentObject(appState)
@@ -450,20 +578,20 @@ struct SettingsView: View {
                 appState.closeAddAccountSheet = false
             }
         }
-        .alert("Sign Out", isPresented: $showLogoutAlert) {
-            Button("Sign Out", role: .destructive) { appState.logout() }
-            Button("Cancel", role: .cancel) {}
+        .alert(String(localized: "Sign Out", bundle: AppState.currentBundle), isPresented: $showLogoutAlert) {
+            Button(String(localized: "Sign Out", bundle: AppState.currentBundle), role: .destructive) { appState.logout() }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
         } message: {
             Text("Sign out of \(appState.username)?")
         }
-        .alert("Remove Account", isPresented: Binding(
+        .alert(String(localized: "Remove Account", bundle: AppState.currentBundle), isPresented: Binding(
             get: { accountToRemove != nil },
             set: { if !$0 { accountToRemove = nil } })) {
-            Button("Remove", role: .destructive) {
+            Button(String(localized: "Remove", bundle: AppState.currentBundle), role: .destructive) {
                 if let account = accountToRemove { appState.removeAccount(account) }
                 accountToRemove = nil
             }
-            Button("Cancel", role: .cancel) { accountToRemove = nil }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { accountToRemove = nil }
         } message: {
             Text("Remove \(accountToRemove?.username ?? "") from this device?")
         }
@@ -474,14 +602,14 @@ struct SettingsView: View {
     private var accountsBubbles: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Accounts")
+                Text(String(localized: "Accounts", bundle: AppState.currentBundle))
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .padding(.leading, 20)
                 Spacer()
                 Button { showAddAccountSheet = true } label: {
-                    Label("Add", systemImage: "plus")
+                    Label(String(localized: "Add", bundle: AppState.currentBundle), systemImage: "plus")
                         .font(.subheadline.weight(.medium))
                         .labelStyle(.iconOnly)
                         .padding(.trailing, 20)
@@ -542,7 +670,7 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
 
                 if isCurrentUser {
-                    Text("Active")
+                    Text(String(localized: "Active", bundle: AppState.currentBundle))
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.tint)
                         .padding(.horizontal, 6)
@@ -598,86 +726,378 @@ struct SettingsView: View {
         .buttonStyle(.plain)
         .contextMenu {
             Button { editAliasAccount = account } label: {
-                Label("Edit Label", systemImage: "tag")
+                Label(String(localized: "Edit Label", bundle: AppState.currentBundle), systemImage: "tag")
             }
             Button(role: .destructive) { accountToRemove = account } label: {
-                Label("Remove", systemImage: "trash")
+                Label(String(localized: "Remove", bundle: AppState.currentBundle), systemImage: "trash")
             }
         }
     }
 
 
-    // MARK: Playback
+}
 
-    private var playbackSection: some View {
-        Section("Playback") {
-            Picker("Default Quality", selection: $appState.defaultVideoQuality) {
-                ForEach(VideoQuality.allCases) { quality in
-                    qualityLabel(for: quality).tag(quality)
+// MARK: - Playback Settings
+
+struct PlaybackSettingsView: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        List {
+            Section(String(localized: "Default Quality", bundle: AppState.currentBundle)) {
+                Picker(String(localized: "Default Quality", bundle: AppState.currentBundle), selection: $appState.defaultVideoQuality) {
+                    ForEach(VideoQuality.allCases) { quality in
+                        Text(quality.rawValue).tag(quality)
+                    }
                 }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
         }
+        .navigationTitle(String(localized: "Playback", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.inline)
     }
+}
 
-    private func qualityLabel(for quality: VideoQuality) -> some View {
-        Text(quality.rawValue)
-    }
+// MARK: - Audio & Subtitle Settings
 
-    // MARK: App Language
+struct AudioSubtitleSettingsView: View {
+    @EnvironmentObject private var appState: AppState
 
-    private var appLanguageSection: some View {
-        Section("Language Settings") {
-            AppLanguagePicker(selection: $appState.appLanguage)
-        }
-    }
-
-    // MARK: Audio
-
-    private var audioSection: some View {
-        Section("Audio") {
-            LanguagePicker(
-                label: "Preferred Language",
-                selection: $appState.preferredAudioLanguage,
-                includeOff: false
-            )
-        }
-    }
-
-    // MARK: Subtitles
-
-    private var subtitlesSection: some View {
-        Section("Subtitles") {
-            Toggle("Enable by Default", isOn: $appState.subtitlesEnabledByDefault)
-
-            if appState.subtitlesEnabledByDefault {
+    var body: some View {
+        List {
+            Section(String(localized: "Audio", bundle: AppState.currentBundle)) {
                 LanguagePicker(
                     label: "Preferred Language",
-                    selection: $appState.preferredSubtitleLanguage,
+                    selection: $appState.preferredAudioLanguage,
                     includeOff: false
                 )
             }
 
-            NavigationLink("Subtitle Appearance") {
-                SubtitleAppearanceView()
-                    .environmentObject(appState)
+            Section(String(localized: "Subtitles", bundle: AppState.currentBundle)) {
+                Toggle(String(localized: "Enable by Default", bundle: AppState.currentBundle), isOn: $appState.subtitlesEnabledByDefault)
+
+                if appState.subtitlesEnabledByDefault {
+                    LanguagePicker(
+                        label: "Preferred Language",
+                        selection: $appState.preferredSubtitleLanguage,
+                        includeOff: false
+                    )
+                    LanguagePicker(
+                        label: "Secondary Language",
+                        selection: $appState.secondarySubtitleLanguage,
+                        includeOff: true
+                    )
+                }
+
+                NavigationLink(String(localized: "Subtitle Appearance", bundle: AppState.currentBundle)) {
+                    SubtitleAppearanceView()
+                        .environmentObject(appState)
+                }
             }
         }
+        .navigationTitle(String(localized: "Audio & Subtitles", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.inline)
     }
-
-    // MARK: About
-
-    private var aboutSection: some View {
-        Section("About") {
-            LabeledContent("Version", value: appVersion)
-                .foregroundStyle(.secondary)
-            Link(destination: URL(string: "https://jellyfin.org")!) {
-                Label("Jellyfin Project", systemImage: "link")
-            }
-        }
-    }
-
 }
 
+// MARK: - App Settings
+
+struct AppSettingsView: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        List {
+            Section(String(localized: "Language Settings", bundle: AppState.currentBundle)) {
+                AppLanguagePicker(selection: $appState.appLanguage)
+            }
+        }
+        .navigationTitle(String(localized: "App Language", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - About Settings
+
+struct AboutSettingsView: View {
+    private var appVersion: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        return "\(v) (\(b))"
+    }
+
+    var body: some View {
+        List {
+            Section {
+                LabeledContent(String(localized: "Version", bundle: AppState.currentBundle), value: appVersion)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Link(destination: URL(string: "https://jellyfin.org")!) {
+                    Label(String(localized: "Jellyfin Project", bundle: AppState.currentBundle), systemImage: "link")
+                }
+            }
+        }
+        .navigationTitle(String(localized: "About", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+
+// MARK: - Appearance Settings
+
+struct AppearanceSettingsView: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        List {
+            Section(String(localized: "Theme", bundle: AppState.currentBundle)) {
+                Picker(String(localized: "Theme", bundle: AppState.currentBundle), selection: $appState.appTheme) {
+                    Text(String(localized: "System Default", bundle: AppState.currentBundle)).tag("system")
+                    Text(String(localized: "Light", bundle: AppState.currentBundle)).tag("light")
+                    Text(String(localized: "Dark", bundle: AppState.currentBundle)).tag("dark")
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        }
+        .navigationTitle(String(localized: "Appearance", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Home Sections Settings
+
+struct HomeSectionsSettingsView: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        List {
+            Section {
+                Toggle(String(localized: "Continue Watching", bundle: AppState.currentBundle), isOn: $appState.showContinueWatching)
+                Toggle(String(localized: "Next Up", bundle: AppState.currentBundle), isOn: $appState.showNextUp)
+                Toggle(String(localized: "Latest Movies", bundle: AppState.currentBundle), isOn: $appState.showLatestMovies)
+                Toggle(String(localized: "Latest TV Shows", bundle: AppState.currentBundle), isOn: $appState.showLatestShows)
+            } footer: {
+                Text(String(localized: "Choose which sections appear on the home screen.", bundle: AppState.currentBundle))
+            }
+        }
+        .navigationTitle(String(localized: "Home Screen", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Storage Settings
+
+struct StorageSettingsView: View {
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var dm: DownloadManager
+    @State private var totalDownloadSize: String = "—"
+    @State private var cacheSize: String = "—"
+    @State private var showClearCacheAlert = false
+    @State private var showDeleteAllAlert = false
+    @State private var itemToDelete: DownloadedItem?
+
+    // Movies sorted alphabetically
+    private var movies: [DownloadedItem] {
+        dm.downloads.filter(\.isMovie).sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+    // Series grouped, each with seasons, each with sorted episodes
+    private var seriesGroups: [StorageSeriesGroup] {
+        var dict: [String: StorageSeriesGroup] = [:]
+        for ep in dm.downloads where ep.isEpisode {
+            let key = ep.seriesId ?? ep.seriesName ?? ep.id
+            if dict[key] == nil {
+                dict[key] = StorageSeriesGroup(id: key, name: ep.seriesName ?? ep.name, episodes: [])
+            }
+            dict[key]!.episodes.append(ep)
+        }
+        for key in dict.keys {
+            dict[key]!.episodes.sort {
+                let s0 = $0.seasonNumber ?? 0, s1 = $1.seasonNumber ?? 0
+                if s0 != s1 { return s0 < s1 }
+                return ($0.episodeNumber ?? 0) < ($1.episodeNumber ?? 0)
+            }
+        }
+        return dict.values.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+    var body: some View {
+        List {
+            // Summary
+            Section {
+                LabeledContent(String(localized: "Downloaded Content", bundle: AppState.currentBundle), value: totalDownloadSize)
+                LabeledContent(String(localized: "Image Cache", bundle: AppState.currentBundle), value: cacheSize)
+            }
+            .foregroundStyle(.secondary)
+
+            // Movies
+            if !movies.isEmpty {
+                Section(String(localized: "Movies", bundle: AppState.currentBundle)) {
+                    ForEach(movies) { movie in
+                        storageRow(
+                            title: movie.name,
+                            subtitle: [movie.productionYear.map { String($0) }, movie.quality, movie.formattedSize.isEmpty ? nil : movie.formattedSize]
+                                .compactMap { $0 }.joined(separator: " · "),
+                            itemId: movie.id,
+                            isMovie: true
+                        ) {
+                            itemToDelete = movie
+                        }
+                    }
+                }
+            }
+
+            // Series
+            ForEach(seriesGroups) { series in
+                Section {
+                    ForEach(series.episodes) { ep in
+                        storageRow(
+                            title: {
+                                if let s = ep.seasonNumber, let e = ep.episodeNumber {
+                                    return "S\(s)E\(e) — \(ep.name)"
+                                }
+                                return ep.name
+                            }(),
+                            subtitle: [ep.quality, ep.formattedSize.isEmpty ? nil : ep.formattedSize]
+                                .compactMap { $0 }.joined(separator: " · "),
+                            itemId: ep.id,
+                            isMovie: false
+                        ) {
+                            itemToDelete = ep
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text(series.name)
+                        Spacer()
+                        Text(formatBytes(series.totalSize))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
+            // Actions
+            Section {
+                Button(role: .destructive) { showClearCacheAlert = true } label: {
+                    Label(String(localized: "Clear Cache", bundle: AppState.currentBundle), systemImage: "xmark.bin")
+                        .foregroundStyle(.red)
+                }
+                if !dm.downloads.isEmpty {
+                    Button(role: .destructive) { showDeleteAllAlert = true } label: {
+                        Label(String(localized: "Delete All", bundle: AppState.currentBundle), systemImage: "trash")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
+        .navigationTitle(String(localized: "Storage", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { recalculate() }
+        .alert(String(localized: "Delete Download?", bundle: AppState.currentBundle),
+               isPresented: Binding(get: { itemToDelete != nil }, set: { if !$0 { itemToDelete = nil } })) {
+            Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) {
+                if let item = itemToDelete {
+                    withAnimation { dm.deleteDownload(item.id) }
+                    recalculate()
+                }
+                itemToDelete = nil
+            }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { itemToDelete = nil }
+        } message: {
+            if let item = itemToDelete {
+                Text(item.isEpisode ? "\(item.seriesName ?? "") — \(item.name)" : item.name)
+            }
+        }
+        .alert(String(localized: "Clear Cache", bundle: AppState.currentBundle), isPresented: $showClearCacheAlert) {
+            Button(String(localized: "Clear", bundle: AppState.currentBundle), role: .destructive) {
+                URLCache.shared.removeAllCachedResponses()
+                recalculate()
+            }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
+        }
+        .alert(String(localized: "Delete All", bundle: AppState.currentBundle), isPresented: $showDeleteAllAlert) {
+            Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) {
+                dm.deleteAllDownloads(); recalculate()
+            }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
+        }
+    }
+
+    // MARK: - Row
+
+    private func storageRow(title: String, subtitle: String, itemId: String, isMovie: Bool, onDelete: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            // Poster
+            storagePoster(itemId: itemId, isMovie: isMovie)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button { onDelete() } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func storagePoster(itemId: String, isMovie: Bool) -> some View {
+        let url = DownloadManager.localPosterURL(itemId: itemId) ?? DownloadManager.localBackdropURL(itemId: itemId)
+        if let url {
+            AsyncImage(url: url) { img in img.resizable().aspectRatio(contentMode: .fill) }
+                placeholder: { RoundedRectangle(cornerRadius: 5).fill(.quaternary) }
+                .frame(width: 36, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+        } else {
+            RoundedRectangle(cornerRadius: 5).fill(.quaternary)
+                .frame(width: 36, height: 54)
+                .overlay(Image(systemName: isMovie ? "film" : "tv").font(.caption2).foregroundStyle(.tertiary))
+        }
+    }
+
+    private func recalculate() {
+        let dir = DownloadManager.downloadsDirectory
+        if let en = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) {
+            var total: Int64 = 0
+            for case let f as URL in en {
+                if let s = try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize { total += Int64(s) }
+            }
+            totalDownloadSize = formatBytes(total)
+        } else { totalDownloadSize = formatBytes(0) }
+        cacheSize = formatBytes(Int64(URLCache.shared.currentDiskUsage))
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        let gb = Double(bytes) / 1_073_741_824
+        if gb >= 1 { return String(format: "%.1f GB", gb) }
+        let mb = Double(bytes) / 1_048_576
+        if mb >= 1 { return String(format: "%.0f MB", mb) }
+        return String(format: "%.0f KB", Double(bytes) / 1024)
+    }
+}
+
+private struct StorageSeriesGroup: Identifiable {
+    let id: String
+    let name: String
+    var episodes: [DownloadedItem]
+    var totalSize: Int64 { episodes.compactMap(\.fileSize).reduce(0, +) }
+}
 
 // MARK: - Alias Edit Sheet
 
@@ -706,14 +1126,14 @@ struct AliasEditSheet: View {
                     Text("Label shown in the home screen badge and account bubbles. Leave empty to use the server address.")
                 }
             }
-            .navigationTitle("Edit Label")
+            .navigationTitle(String(localized: "Edit Label", bundle: AppState.currentBundle))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "Cancel", bundle: AppState.currentBundle)) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
+                    Button(String(localized: "Save", bundle: AppState.currentBundle)) {
                         appState.updateAlias(alias, forAccountId: account.id)
                         dismiss()
                     }
@@ -761,7 +1181,7 @@ private struct LanguagePicker: View {
     var body: some View {
         Picker(label, selection: $selection) {
             if includeOff {
-                Text("Off").tag("off")
+                Text(String(localized: "Off", bundle: AppState.currentBundle)).tag("off")
             }
             ForEach(languages, id: \.code) { lang in
                 Text(verbatim: lang.name).tag(lang.code)
@@ -798,7 +1218,7 @@ private struct AppLanguagePicker: View {
     ]
 
     var body: some View {
-        Picker("App Language", selection: $selection) {
+        Picker(String(localized: "App Language", bundle: AppState.currentBundle), selection: $selection) {
             ForEach(uiLanguages, id: \.code) { lang in
                 Text(verbatim: lang.name).tag(lang.code)
             }
@@ -811,14 +1231,13 @@ private struct AppLanguagePicker: View {
 struct SubtitleAppearanceView: View {
     @EnvironmentObject private var appState: AppState
 
-    private var previewFont: Font {
-        let base: Font = switch appState.subtitleFontSize {
-        case 25: .caption
-        case 15: .title3
-        case 10: .title2
-        default: .body
+    private var previewFontSize: CGFloat {
+        switch appState.subtitleFontSize {
+        case 25: return 14
+        case 15: return 22
+        case 10: return 28
+        default: return 18
         }
-        return appState.subtitleBold ? base.bold() : base
     }
 
     private var previewColor: Color {
@@ -831,32 +1250,42 @@ struct SubtitleAppearanceView: View {
             Section {
                 ZStack {
                     LinearGradient(
-                        colors: [Color(white: 0.12), Color(white: 0.05)],
+                        colors: [Color(white: 0.35), Color(white: 0.18)],
                         startPoint: .top, endPoint: .bottom
                     )
-                    .frame(height: 160)
+                    .frame(height: 180)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                    VStack(spacing: 2) {
-                        subtitleLine("The quick brown fox jumps")
-                        subtitleLine("over the lazy dog.")
+                    VStack(spacing: 0) {
+                        Spacer()
+                        VStack(spacing: previewFontSize * (appState.subtitleLineSpacing - 1.0)) {
+                            subtitleLine("The quick brown fox jumps")
+                            subtitleLine("over the lazy dog.")
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(
+                            appState.subtitleBackgroundEnabled
+                                ? Color.black.opacity(appState.subtitleBackgroundOpacity)
+                                : Color.clear
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .padding(.bottom, appState.subtitleBottomPadding * 0.4)
                     }
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 20)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             } header: {
-                Text("Preview")
+                Text(String(localized: "Preview", bundle: AppState.currentBundle))
             }
 
             // Font Size
-            Section("Font Size") {
-                Picker("Size", selection: $appState.subtitleFontSize) {
-                    Text("Small").tag(25)
-                    Text("Medium").tag(20)
-                    Text("Large").tag(15)
-                    Text("Extra Large").tag(10)
+            Section(String(localized: "Font Size", bundle: AppState.currentBundle)) {
+                Picker(String(localized: "Size", bundle: AppState.currentBundle), selection: $appState.subtitleFontSize) {
+                    Text(String(localized: "Small", bundle: AppState.currentBundle)).tag(25)
+                    Text(String(localized: "Medium", bundle: AppState.currentBundle)).tag(20)
+                    Text(String(localized: "Large", bundle: AppState.currentBundle)).tag(15)
+                    Text(String(localized: "Extra Large", bundle: AppState.currentBundle)).tag(10)
                 }
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
@@ -864,30 +1293,62 @@ struct SubtitleAppearanceView: View {
             }
 
             // Style
-            Section("Style") {
-                Toggle("Bold", isOn: $appState.subtitleBold)
+            Section(String(localized: "Style", bundle: AppState.currentBundle)) {
+                Toggle(String(localized: "Bold", bundle: AppState.currentBundle), isOn: $appState.subtitleBold)
 
-                Picker("Color", selection: $appState.subtitleColor) {
-                    Text("White").tag("white")
-                    Text("Yellow").tag("yellow")
+                Picker(String(localized: "Color", bundle: AppState.currentBundle), selection: $appState.subtitleColor) {
+                    Text(String(localized: "White", bundle: AppState.currentBundle)).tag("white")
+                    Text(String(localized: "Yellow", bundle: AppState.currentBundle)).tag("yellow")
+                }
+            }
+
+            // Background
+            Section(String(localized: "Background", bundle: AppState.currentBundle)) {
+                Toggle(String(localized: "Background", bundle: AppState.currentBundle), isOn: $appState.subtitleBackgroundEnabled)
+
+                if appState.subtitleBackgroundEnabled {
+                    HStack {
+                        Text(String(localized: "Opacity", bundle: AppState.currentBundle))
+                        Slider(value: $appState.subtitleBackgroundOpacity, in: 0.1...1.0, step: 0.05)
+                        Text("\(Int(appState.subtitleBackgroundOpacity * 100))%")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 36, alignment: .trailing)
+                    }
+                }
+            }
+
+            // Layout
+            Section(String(localized: "Layout", bundle: AppState.currentBundle)) {
+                HStack {
+                    Text(String(localized: "Line Spacing", bundle: AppState.currentBundle))
+                    Slider(value: $appState.subtitleLineSpacing, in: 0.8...2.0, step: 0.1)
+                    Text(String(format: "%.1fx", appState.subtitleLineSpacing))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, alignment: .trailing)
                 }
 
-                Toggle("Background Box", isOn: $appState.subtitleBackgroundEnabled)
+                HStack {
+                    Text(String(localized: "Bottom Offset", bundle: AppState.currentBundle))
+                    Slider(value: $appState.subtitleBottomPadding, in: 10...120, step: 5)
+                    Text("\(Int(appState.subtitleBottomPadding))pt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, alignment: .trailing)
+                }
             }
         }
-        .navigationTitle("Subtitle Appearance")
+        .navigationTitle(String(localized: "Subtitle Appearance", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
     }
 
     private func subtitleLine(_ text: String) -> some View {
         Text(text)
-            .font(previewFont)
+            .font(.system(size: previewFontSize, weight: appState.subtitleBold ? .bold : .medium))
             .foregroundStyle(previewColor)
-            .padding(.horizontal, appState.subtitleBackgroundEnabled ? 6 : 0)
-            .padding(.vertical, appState.subtitleBackgroundEnabled ? 2 : 0)
-            .background(appState.subtitleBackgroundEnabled ? Color.black.opacity(0.75) : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 3))
+            .shadow(color: .black, radius: 2, x: 0, y: 1)
             .multilineTextAlignment(.center)
     }
 }

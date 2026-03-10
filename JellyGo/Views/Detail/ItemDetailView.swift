@@ -18,6 +18,7 @@ struct ItemDetailView: View {
     @State private var showDownloadProgress = false
     @State private var downloadedEpisodeTarget: String? = nil
     @State private var overviewExpanded = false
+    @State private var episodeDeleteTarget: JellyfinItem? = nil
     @State private var showAudioDialog = false
     @State private var pendingQuality: (label: String, bitrate: Int?)? = nil
     @State private var selectedAudioStreamIndex: Int? = nil
@@ -38,9 +39,13 @@ struct ItemDetailView: View {
 
     private var displayItem: JellyfinItem { vm.fullItem ?? activeItem }
 
+    @State private var detailScrollProxy: ScrollViewProxy?
+
     var body: some View {
+        ScrollViewReader { scrollProxy in
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
+                Color.clear.frame(height: 0).id("detailTop")
                 backdropOverlay
                 Color(.systemBackground).frame(height: 24)
                 mainContent
@@ -77,9 +82,17 @@ struct ItemDetailView: View {
             }
         }
         .toolbar(.hidden, for: .tabBar)
+        .overlay {
+            if overviewExpanded, let overview = activeItem.overview ?? displayItem.overview {
+                overviewPopup(overview)
+                    .transition(.opacity)
+            }
+        }
         .fullScreenCover(item: $itemToPlay, onDismiss: {
+            appState.isPlayerActive = false
             AppDelegate.orientationLock = .portrait
             PlayerContainerView.rotate(to: .portrait)
+            Task { await vm.load(item: item, appState: appState) }
         }) { ep in
             let localURL = dm.downloads.first(where: { $0.id == ep.id })
                 .flatMap { item -> URL? in
@@ -88,19 +101,27 @@ struct ItemDetailView: View {
                 }
             PlayerContainerView(item: ep, localURL: localURL, qualityOverride: playQualityOverride)
                 .environmentObject(appState)
-                .onAppear { playQualityOverride = nil }
+                .onAppear { appState.isPlayerActive = true; playQualityOverride = nil }
         }
         .task {
-            await vm.load(item: item, appState: appState)
-            if item.isSeries {
-                let seriesId = item.id
-                // Offline fallback: if network failed and seasons didn't load, build from downloads
-                if vm.seasons.isEmpty {
-                    vm.buildOfflineData(from: dm.downloads, seriesId: seriesId)
+            let isOffline = appState.manualOffline || appState.serverUnreachable
+
+            if isOffline {
+                // Offline: skip API, build from local downloads immediately
+                if item.isSeries {
+                    vm.buildOfflineData(from: dm.downloads, seriesId: item.id)
                 }
+            } else {
+                await vm.load(item: item, appState: appState)
+                if item.isSeries && vm.seasons.isEmpty {
+                    vm.buildOfflineData(from: dm.downloads, seriesId: item.id)
+                }
+            }
+
+            if item.isSeries {
                 // Check for downloaded episodes — prefer the most recent one
                 let latestDownload = dm.downloads
-                    .filter { ($0.seriesId ?? $0.id) == seriesId && $0.isEpisode }
+                    .filter { ($0.seriesId ?? $0.id) == item.id && $0.isEpisode }
                     .sorted {
                         let s0 = $0.seasonNumber ?? 0, s1 = $1.seasonNumber ?? 0
                         if s0 != s1 { return s0 > s1 }
@@ -112,17 +133,19 @@ struct ItemDetailView: View {
                    let targetSeason = vm.seasons.first(where: { $0.indexNumber == dl.seasonNumber }) {
                     downloadedEpisodeTarget = dl.id
                     selectedSeason = targetSeason
-                } else {
+                } else if !isOffline {
                     let season = await vm.bestSeasonToOpen(appState: appState)
                     selectedSeason = season ?? vm.seasons.first
                     if let sid = selectedSeason?.id, let ep = vm.resumeEpisode(seasonId: sid) {
                         activeItem = ep
                     }
+                } else {
+                    selectedSeason = vm.seasons.first
                 }
             } else {
                 selectedSeason = vm.seasons.first(where: { $0.indexNumber == item.parentIndexNumber })
                     ?? vm.seasons.first
-                if let sid = selectedSeason?.id {
+                if let sid = selectedSeason?.id, !isOffline {
                     await vm.loadEpisodes(seasonId: sid, appState: appState)
                 }
             }
@@ -163,6 +186,8 @@ struct ItemDetailView: View {
                     activeItem = updated
                 }
             }
+        }
+        .onAppear { detailScrollProxy = scrollProxy }
         }
     }
 
@@ -275,9 +300,6 @@ struct ItemDetailView: View {
                     .padding(.vertical, 2)
                     .overlay(RoundedRectangle(cornerRadius: 4).stroke(.white.opacity(0.5), lineWidth: 1))
             }
-            if let res = displayItem.videoResolution ?? activeItem.videoResolution {
-                Text(res).metaStyle()
-            }
         }
     }
 
@@ -286,12 +308,15 @@ struct ItemDetailView: View {
     private var mainContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             overviewSection
-            ratingsSection
+            ratingsAndBadges
             if item.isSeries || item.isEpisode, !vm.seasons.isEmpty {
                 episodeSection
             }
             if let people = displayItem.people, !people.isEmpty {
                 castSection(people: people)
+            }
+            if item.isMovie, !vm.similarItems.isEmpty {
+                similarSection
             }
             mediaInfoSection
         }
@@ -314,7 +339,7 @@ struct ItemDetailView: View {
                     showPlayQualityDialog = true
                 }
             )
-            .confirmationDialog("Quality", isPresented: $showPlayQualityDialog, titleVisibility: .visible) {
+            .confirmationDialog(String(localized: "Quality", bundle: AppState.currentBundle), isPresented: $showPlayQualityDialog, titleVisibility: .visible) {
                 ForEach(VideoQuality.allCases) { q in
                     Button(q.rawValue) {
                         playQualityOverride = q
@@ -330,19 +355,19 @@ struct ItemDetailView: View {
             isPresented: $showDownloadScopeDialog,
             titleVisibility: .visible
         ) {
-            Button("Download This Episode") {
+            Button(String(localized: "Download This Episode", bundle: AppState.currentBundle)) {
                 pendingDownloadSeason = false
                 showDownloadQualityDialog = true
             }
             if let sid = selectedSeason?.id, vm.episodes[sid] != nil {
-                Button("Download Entire Season") {
+                Button(String(localized: "Download Entire Season", bundle: AppState.currentBundle)) {
                     pendingDownloadSeason = true
                     showDownloadQualityDialog = true
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
         }
-        .confirmationDialog("Resolution", isPresented: $showDownloadQualityDialog, titleVisibility: .visible) {
+        .confirmationDialog(String(localized: "Resolution", bundle: AppState.currentBundle), isPresented: $showDownloadQualityDialog, titleVisibility: .visible) {
             ForEach(qualities, id: \.label) { quality in
                 Button(quality.bitrate == nil ? String(localized: "Original (Direct)", bundle: AppState.currentBundle) : quality.label) {
                     // Direct → download immediately (all audio tracks included)
@@ -369,9 +394,9 @@ struct ItemDetailView: View {
                     }
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
         }
-        .confirmationDialog("Audio Language", isPresented: $showAudioDialog, titleVisibility: .visible) {
+        .confirmationDialog(String(localized: "Audio Language", bundle: AppState.currentBundle), isPresented: $showAudioDialog, titleVisibility: .visible) {
             ForEach(downloadAudioStreams, id: \.index) { stream in
                 Button(stream.audioLabel) {
                     selectedAudioStreamIndex = stream.index
@@ -384,7 +409,7 @@ struct ItemDetailView: View {
                     pendingQuality = nil
                 }
             }
-            Button("Cancel", role: .cancel) { pendingQuality = nil }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { pendingQuality = nil }
         }
     }
 
@@ -409,6 +434,7 @@ struct ItemDetailView: View {
         let activeDownload = dm.activeTasks[activeItem.id]
         let isDownloading = activeDownload != nil
         let isQueued = dm.isQueued(activeItem.id)
+        let isPaused = dm.isPaused(activeItem.id)
         let anySeriesDownloaded = activeItem.isSeries &&
             dm.downloads.contains { $0.seriesId == activeItem.id }
 
@@ -442,6 +468,10 @@ struct ItemDetailView: View {
             }
         } else {
             Button {
+                if isPaused {
+                    dm.resumeDownload(activeItem.id, appState: appState)
+                    return
+                }
                 if isDownloading || isQueued {
                     showDownloadProgress = true
                     return
@@ -481,6 +511,10 @@ struct ItemDetailView: View {
                         Image(systemName: "clock")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(Color.black.opacity(0.5))
+                    } else if isPaused {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundStyle(Color.black)
                     } else {
                         Image(systemName: anySeriesDownloaded ? "arrow.down.circle.fill" : "arrow.down.to.line")
                             .font(.system(size: 18, weight: .semibold))
@@ -494,11 +528,11 @@ struct ItemDetailView: View {
                 downloadProgressPopover(task: activeDownload, isQueued: isQueued)
                     .presentationCompactAdaptation(.popover)
             }
-            .alert("Delete Download", isPresented: $showDeleteConfirm) {
-                Button("Delete", role: .destructive) { dm.deleteDownload(activeItem.id) }
-                Button("Cancel", role: .cancel) {}
+            .alert(String(localized: "Delete Download", bundle: AppState.currentBundle), isPresented: $showDeleteConfirm) {
+                Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) { dm.deleteDownload(activeItem.id) }
+                Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
             } message: {
-                Text("Remove \"\(activeItem.name)\" from your downloads?")
+                Text(String(format: String(localized: "Remove \"%@\" from your downloads?", bundle: AppState.currentBundle), activeItem.name))
             }
         }
     }
@@ -509,11 +543,11 @@ struct ItemDetailView: View {
             HStack(spacing: 10) {
                 if let task {
                     if task.isTranscoding {
-                        Label("Transcoding", systemImage: "gearshape.fill")
+                        Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.orange)
                     } else if task.isDirect {
-                        Label("Direct", systemImage: "bolt.fill")
+                        Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.green)
                     }
@@ -528,7 +562,7 @@ struct ItemDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if isQueued {
-                    Label("Queued", systemImage: "clock")
+                    Label(String(localized: "Queued", bundle: AppState.currentBundle), systemImage: "clock")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -552,7 +586,7 @@ struct ItemDetailView: View {
                         dm.pauseDownload(activeItem.id)
                         showDownloadProgress = false
                     } label: {
-                        Label("Pause", systemImage: "pause.fill")
+                        Label(String(localized: "Pause", bundle: AppState.currentBundle), systemImage: "pause.fill")
                             .font(.caption.weight(.medium))
                             .frame(maxWidth: .infinity)
                     }
@@ -562,7 +596,7 @@ struct ItemDetailView: View {
                     dm.deleteDownload(activeItem.id)
                     showDownloadProgress = false
                 } label: {
-                    Label("Cancel Download", systemImage: "xmark")
+                    Label(String(localized: "Cancel Download", bundle: AppState.currentBundle), systemImage: "xmark")
                         .font(.caption.weight(.medium))
                         .frame(maxWidth: .infinity)
                 }
@@ -581,10 +615,83 @@ struct ItemDetailView: View {
     }
 
     private func downloadURL(for item: JellyfinItem, quality: (label: String, bitrate: Int?), audioStreamIndex: Int? = nil) -> URL? {
-        if quality.bitrate == nil {
+        guard let bitrate = quality.bitrate else {
             return DownloadManager.directURL(itemId: item.id, serverURL: appState.serverURL, token: appState.token)
+        }
+        return DownloadManager.transcodedURL(itemId: item.id, serverURL: appState.serverURL, token: appState.token, maxBitrate: bitrate, audioStreamIndex: audioStreamIndex)
+    }
+
+    @ViewBuilder
+    private func episodeContextMenu(episode: JellyfinItem) -> some View {
+        let isPlayed = episode.userData?.played ?? false
+        let isPartial = !isPlayed && (episode.userData?.playbackPositionTicks ?? 0) > 0
+
+        if !isPlayed {
+            Button {
+                Task {
+                    try? await JellyfinAPI.shared.setPlayed(
+                        serverURL: appState.serverURL, itemId: episode.id,
+                        userId: appState.userId, token: appState.token, played: true)
+                    if let sid = selectedSeason?.id {
+                        vm.episodes[sid] = nil
+                        await vm.loadEpisodes(seasonId: sid, appState: appState)
+                    }
+                }
+            } label: {
+                Label(String(localized: "Watched", bundle: AppState.currentBundle), systemImage: "eye.fill")
+            }
+        }
+
+        if isPlayed || isPartial {
+            Button {
+                Task {
+                    try? await JellyfinAPI.shared.setPlayed(
+                        serverURL: appState.serverURL, itemId: episode.id,
+                        userId: appState.userId, token: appState.token, played: false)
+                    if let sid = selectedSeason?.id {
+                        vm.episodes[sid] = nil
+                        await vm.loadEpisodes(seasonId: sid, appState: appState)
+                    }
+                }
+            } label: {
+                Label(String(localized: "Unwatched", bundle: AppState.currentBundle), systemImage: "eye.slash.fill")
+            }
+        }
+
+        if dm.isDownloaded(episode.id) {
+            Button(role: .destructive) {
+                episodeDeleteTarget = episode
+            } label: {
+                Label(String(localized: "Delete Download", bundle: AppState.currentBundle), systemImage: "trash")
+            }
+        } else if dm.isPaused(episode.id) {
+            Button {
+                dm.resumeDownload(episode.id, appState: appState)
+            } label: {
+                Label(String(localized: "Resume Download", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
+            }
+        } else if dm.isDownloading(episode.id) || dm.isQueued(episode.id) {
+            Button(role: .destructive) {
+                dm.cancelDownload(episode.id)
+            } label: {
+                Label(String(localized: "Cancel Download", bundle: AppState.currentBundle), systemImage: "xmark.circle")
+            }
         } else {
-            return DownloadManager.transcodedURL(itemId: item.id, serverURL: appState.serverURL, token: appState.token, maxBitrate: quality.bitrate!, audioStreamIndex: audioStreamIndex)
+            Menu {
+                ForEach(qualities, id: \.label) { quality in
+                    Button(quality.bitrate == nil
+                           ? String(localized: "Original (Direct)", bundle: AppState.currentBundle)
+                           : quality.label) {
+                        guard let url = downloadURL(for: episode, quality: quality) else { return }
+                        dm.startDownload(item: episode, qualityLabel: quality.label, downloadURL: url, appState: appState)
+                        if let people = displayItem.people, !people.isEmpty {
+                            dm.downloadPeople(people, serverURL: appState.serverURL, token: appState.token)
+                        }
+                    }
+                }
+            } label: {
+                Label(String(localized: "Download", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
+            }
         }
     }
 
@@ -670,105 +777,218 @@ struct ItemDetailView: View {
         if let overview = activeItem.overview ?? displayItem.overview, !overview.isEmpty {
             let needsExpand = overview.count > 150
             VStack(alignment: .center, spacing: 8) {
-                if overviewExpanded {
-                    Text(overview)
-                        .font(.subheadline)
-                        .foregroundStyle(Color(.label).opacity(0.72))
-                        .lineSpacing(5)
-                        .multilineTextAlignment(.center)
-                        .transition(.opacity)
-                } else {
-                    // Collapsed: leading so truncation is at trailing edge, overlay fits last line
-                    Text(overview)
-                        .font(.subheadline)
-                        .foregroundStyle(Color(.label).opacity(0.72))
-                        .lineSpacing(5)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .overlay(alignment: .bottomTrailing) {
-                            if needsExpand {
-                                HStack(spacing: 0) {
-                                    LinearGradient(
-                                        colors: [Color(.systemBackground).opacity(0),
-                                                 Color(.systemBackground)],
-                                        startPoint: .leading, endPoint: .trailing
-                                    )
-                                    .frame(width: 44, height: 18)
-                                    Button {
-                                        withAnimation(.easeInOut(duration: 0.25)) {
-                                            overviewExpanded = true
-                                        }
-                                    } label: {
-                                        HStack(spacing: 2) {
-                                            Text(String(localized: "Show More", bundle: AppState.currentBundle))
-                                            Image(systemName: "chevron.down")
-                                                .font(.system(size: 10, weight: .semibold))
-                                        }
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.tint)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .padding(.leading, 2)
+                Text(overview)
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.label).opacity(0.72))
+                    .lineSpacing(5)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .overlay(alignment: .bottomTrailing) {
+                        if needsExpand {
+                            HStack(spacing: 0) {
+                                LinearGradient(
+                                    colors: [Color(.systemBackground).opacity(0),
+                                             Color(.systemBackground)],
+                                    startPoint: .leading, endPoint: .trailing
+                                )
+                                .frame(width: 44, height: 18)
+                                HStack(spacing: 2) {
+                                    Text(String(localized: "Show More", bundle: AppState.currentBundle))
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 9, weight: .bold))
+                                }
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tint)
                                     .frame(height: 18)
                                     .background(Color(.systemBackground))
-                                }
                             }
                         }
-                        .transition(.opacity)
-                }
-
-                if overviewExpanded && needsExpand {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            overviewExpanded = false
-                        }
-                    } label: {
-                        Label(String(localized: "Show Less", bundle: AppState.currentBundle),
-                              systemImage: "chevron.up")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tint)
                     }
-                    .buttonStyle(.plain)
-                }
             }
             .padding(.horizontal, 16)
+            .onTapGesture {
+                guard needsExpand else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    overviewExpanded = true
+                }
+            }
             .onChange(of: activeItem.id) { _, _ in overviewExpanded = false }
         }
     }
 
-    // MARK: - Ratings
+    // MARK: - Overview Popup
+
+    private func overviewPopup(_ text: String) -> some View {
+        GeometryReader { geo in
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        overviewExpanded = false
+                    }
+                }
+                .overlay {
+                    Text(text)
+                        .font(.subheadline)
+                        .foregroundStyle(Color(.label))
+                        .lineSpacing(5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .background(Color(.systemBackground).opacity(0.95), in: RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal, 24)
+                        .frame(maxHeight: geo.size.height * 0.4, alignment: .center)
+                }
+        }
+    }
+
+    // MARK: - Ratings & Media Badges
+
+    private struct MediaBadge: Identifiable {
+        let id: String
+        let icon: String?
+        let label: String
+    }
 
     @ViewBuilder
-    private var ratingsSection: some View {
-        // Episodes don't have standalone ratings; show only for movies and series
-        if !item.isEpisode,
-           displayItem.communityRating != nil || displayItem.criticRating != nil {
-            HStack(spacing: 24) {
-                if let rating = displayItem.communityRating {
-                    HStack(alignment: .center, spacing: 8) {
-                        Image("TMDbLogo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 36, height: 36)
-                        Text(String(format: "%.1f", rating))
-                            .font(.title3.bold())
-                            .foregroundStyle(.primary)
+    private var ratingsAndBadges: some View {
+        let mediaItem: JellyfinItem = {
+            // 1) Episode: try cached details, then activeItem itself
+            if activeItem.isEpisode {
+                if let cached = DownloadManager.loadItemDetails(itemId: activeItem.id),
+                   cached.mediaStreams != nil { return cached }
+                if activeItem.mediaStreams != nil { return activeItem }
+            }
+            // 2) For movies/series: try fullItem, then activeItem
+            if let full = vm.fullItem, full.mediaStreams != nil { return full }
+            if activeItem.mediaStreams != nil { return activeItem }
+            return displayItem
+        }()
+        let videoStream = mediaItem.mediaStreams?.first(where: { $0.isVideo })
+        let audioStream = mediaItem.mediaStreams?.first(where: { $0.isAudio })
+        let badges = buildMediaBadges(video: videoStream, audio: audioStream)
+        let hasRatings = displayItem.communityRating != nil || displayItem.criticRating != nil
+
+        if hasRatings || !badges.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    // TMDb rating
+                    if let rating = displayItem.communityRating {
+                        HStack(spacing: 5) {
+                            Image("TMDbLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 28, height: 28)
+                            Text(String(format: "%.1f", rating))
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                    // Critic rating
+                    if let critic = displayItem.criticRating {
+                        HStack(spacing: 4) {
+                            Image(systemName: "rosette")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            Text("\(Int(critic))%")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                    // Media badges
+                    ForEach(badges) { badge in
+                        HStack(spacing: 3) {
+                            if let icon = badge.icon {
+                                Image(systemName: icon)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(badge.label)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.secondary.opacity(0.4), lineWidth: 1))
                     }
                 }
-                if let critic = displayItem.criticRating {
-                    HStack(alignment: .center, spacing: 6) {
-                        Image(systemName: "rosette")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        Text("\(Int(critic))%")
-                            .font(.title3.bold())
-                            .foregroundStyle(.primary)
-                    }
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private func buildMediaBadges(video: JellyfinMediaStream?, audio: JellyfinMediaStream?) -> [MediaBadge] {
+        var badges: [MediaBadge] = []
+
+        if let video {
+            let codec = (video.codec ?? "").lowercased()
+            if codec.contains("hevc") || codec.contains("h265") {
+                badges.append(MediaBadge(id: "vcodec", icon: nil, label: "HEVC"))
+            } else if codec.contains("h264") || codec.contains("avc") {
+                badges.append(MediaBadge(id: "vcodec", icon: nil, label: "H.264"))
+            } else if codec.contains("av1") {
+                badges.append(MediaBadge(id: "vcodec", icon: nil, label: "AV1"))
+            } else if !codec.isEmpty {
+                badges.append(MediaBadge(id: "vcodec", icon: nil, label: codec.uppercased()))
+            }
+
+            if let w = video.width {
+                if w >= 3840 {
+                    badges.append(MediaBadge(id: "res", icon: "4k.tv", label: "UHD"))
+                } else if w >= 1920 {
+                    badges.append(MediaBadge(id: "res", icon: nil, label: "FHD"))
+                } else if w >= 1280 {
+                    badges.append(MediaBadge(id: "res", icon: nil, label: "HD"))
                 }
             }
-            .padding(.horizontal, 16)
+
+            let rangeType = video.videoRangeType ?? video.videoRange ?? ""
+            switch rangeType {
+            case "DOVIWithHDR10Plus":
+                badges.append(MediaBadge(id: "dv", icon: "sparkles", label: "DV"))
+                badges.append(MediaBadge(id: "hdr10p", icon: nil, label: "HDR10+"))
+            case "DOVI":
+                badges.append(MediaBadge(id: "dv", icon: "sparkles", label: "DV"))
+            case "DOVIWithHDR10":
+                badges.append(MediaBadge(id: "dv", icon: "sparkles", label: "DV"))
+                badges.append(MediaBadge(id: "hdr10", icon: nil, label: "HDR10"))
+            case "HDR10Plus":
+                badges.append(MediaBadge(id: "hdr10p", icon: nil, label: "HDR10+"))
+            case "HDR10":
+                badges.append(MediaBadge(id: "hdr10", icon: nil, label: "HDR10"))
+            case "HLG":
+                badges.append(MediaBadge(id: "hlg", icon: nil, label: "HLG"))
+            case "HDR":
+                badges.append(MediaBadge(id: "hdr", icon: nil, label: "HDR"))
+            default:
+                break
+            }
         }
+
+        if let audio {
+            let aCodec = (audio.codec ?? "").lowercased()
+            if aCodec.contains("truehd") || aCodec.contains("atmos") {
+                badges.append(MediaBadge(id: "acodec", icon: "hifispeaker.2.fill", label: "Atmos"))
+            } else if aCodec.contains("eac3") || aCodec == "ac3" {
+                badges.append(MediaBadge(id: "acodec", icon: "speaker.wave.3.fill", label: aCodec == "ac3" ? "DD" : "DD+"))
+            } else if aCodec.contains("flac") {
+                badges.append(MediaBadge(id: "acodec", icon: nil, label: "FLAC"))
+            } else if aCodec.contains("dts") {
+                badges.append(MediaBadge(id: "acodec", icon: nil, label: "DTS"))
+            } else if !aCodec.isEmpty {
+                badges.append(MediaBadge(id: "acodec", icon: nil, label: aCodec.uppercased()))
+            }
+
+            if let dt = audio.displayTitle?.lowercased() {
+                if dt.contains("7.1") {
+                    badges.append(MediaBadge(id: "channels", icon: nil, label: "7.1"))
+                } else if dt.contains("5.1") {
+                    badges.append(MediaBadge(id: "channels", icon: nil, label: "5.1"))
+                }
+            }
+        }
+
+        return badges
     }
 
     // MARK: - Episodes
@@ -789,7 +1009,7 @@ struct ItemDetailView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Text(selectedSeason?.name ?? "Season")
+                        Text(selectedSeason?.name ?? String(localized: "Season", bundle: AppState.currentBundle))
                             .font(.subheadline.weight(.semibold))
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.caption.weight(.semibold))
@@ -825,6 +1045,16 @@ struct ItemDetailView: View {
                                     )
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    episodeContextMenu(episode: episode)
+                                } preview: {
+                                    EpisodeThumbnailView(
+                                        episode: episode,
+                                        serverURL: appState.serverURL,
+                                        isCurrent: false
+                                    )
+                                    .padding()
+                                }
                                 .id(episode.id)
                             }
                         }
@@ -851,19 +1081,34 @@ struct ItemDetailView: View {
                     .padding()
             }
         }
+        .alert(String(localized: "Delete Download?", bundle: AppState.currentBundle), isPresented: Binding(
+            get: { episodeDeleteTarget != nil },
+            set: { if !$0 { episodeDeleteTarget = nil } }
+        )) {
+            Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) {
+                if let ep = episodeDeleteTarget { dm.deleteDownload(ep.id) }
+                episodeDeleteTarget = nil
+            }
+            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { episodeDeleteTarget = nil }
+        } message: {
+            if let ep = episodeDeleteTarget {
+                Text(String(format: String(localized: "Remove \"%@\" from your downloads?", bundle: AppState.currentBundle), ep.name))
+            }
+        }
     }
 
     // MARK: - Media Info
 
     @ViewBuilder
     private var mediaInfoSection: some View {
-        // For episodes, use activeItem's cached details so media info updates per episode
         let mediaItem: JellyfinItem = {
-            if activeItem.isEpisode,
-               let cached = DownloadManager.loadItemDetails(itemId: activeItem.id),
-               cached.mediaSources != nil || cached.mediaStreams != nil {
-                return cached
+            if activeItem.isEpisode {
+                if let cached = DownloadManager.loadItemDetails(itemId: activeItem.id),
+                   cached.mediaSources != nil || cached.mediaStreams != nil { return cached }
+                if activeItem.mediaStreams != nil || activeItem.mediaSources != nil { return activeItem }
             }
+            if let full = vm.fullItem, full.mediaStreams != nil || full.mediaSources != nil { return full }
+            if activeItem.mediaStreams != nil || activeItem.mediaSources != nil { return activeItem }
             return displayItem
         }()
         let source = mediaItem.mediaSources?.first
@@ -872,7 +1117,7 @@ struct ItemDetailView: View {
 
         if source != nil || videoStream != nil || audioStream != nil {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Media Info")
+                Text(String(localized: "Media Info", bundle: AppState.currentBundle))
                     .font(.title3.bold())
                     .padding(.horizontal, 16)
 
@@ -898,7 +1143,7 @@ struct ItemDetailView: View {
                     if let video = videoStream {
                         let res = video.height.map { "\($0)p" } ?? ""
                         let codec = (video.codec ?? "").uppercased()
-                        let brStr = (video.bitRate ?? 0) > 0 ? String(format: "%.1f Mbps", Double(video.bitRate!) / 1_000_000) : nil
+                        let brStr = (video.bitRate ?? 0) > 0 ? String(format: "%.1f Mbps", Double(video.bitRate ?? 0) / 1_000_000) : nil
                         let parts = ([codec, res] + [brStr].compactMap { $0 }).filter { !$0.isEmpty }
                         if !parts.isEmpty {
                             Text(parts.joined(separator: " · "))
@@ -936,6 +1181,11 @@ struct ItemDetailView: View {
             target = nil
         }
         guard let target else { return }
+        // Scroll to top before rotating so content isn't mid-scroll when landscape kicks in
+        withAnimation(.easeOut(duration: 0.2)) {
+            detailScrollProxy?.scrollTo("detailTop", anchor: .top)
+        }
+        try? await Task.sleep(for: .milliseconds(250))
         // Rotate to landscape BEFORE presenting the fullScreenCover
         // to avoid visible portrait→landscape jank during presentation.
         AppDelegate.orientationLock = .landscape
@@ -985,10 +1235,10 @@ struct ItemDetailView: View {
             } else if let ep, let epNum = ep.indexNumber {
                 Text(verbatim: String(format: String(localized: "Play  S%lldE%lld", bundle: AppState.currentBundle), Int64(ep.parentIndexNumber ?? 1), Int64(epNum)))
             } else {
-                Text("Play")
+                Text(String(localized: "Play", bundle: AppState.currentBundle))
             }
         } else {
-            Text("Play")
+            Text(String(localized: "Play", bundle: AppState.currentBundle))
         }
     }
 
@@ -999,11 +1249,95 @@ struct ItemDetailView: View {
         return vm.resumeEpisode(seasonId: seasonId)?.id
     }
 
+    // MARK: - Similar / Recommendations
+
+    private var similarSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "Recommendations", bundle: AppState.currentBundle))
+                .font(.title3.bold())
+                .padding(.horizontal, 16)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach(vm.similarItems) { similar in
+                        VStack(alignment: .leading, spacing: 4) {
+                            NavigationLink(value: similar) {
+                                PosterCardView(item: similar, serverURL: appState.serverURL, showYear: false)
+                            }
+                            .buttonStyle(.plain)
+                            HStack {
+                                if let year = similar.productionYear {
+                                    Text(String(year))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if let ticks = similar.runTimeTicks, ticks > 0 {
+                                    let mins = Int(Double(ticks) / 600_000_000)
+                                    Text(String(format: String(localized: "%lld min", bundle: AppState.currentBundle), Int64(mins)))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .contextMenu {
+                            Button {
+                            } label: {
+                                Label(String(localized: "Go to Detail", bundle: AppState.currentBundle), systemImage: "arrow.right.circle")
+                            }
+                        } preview: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                PosterCardView(item: similar, serverURL: appState.serverURL, showYear: false, showShadow: false)
+                                HStack {
+                                    if let year = similar.productionYear {
+                                        Text(String(year))
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if let ticks = similar.runTimeTicks, ticks > 0 {
+                                        let mins = Int(Double(ticks) / 600_000_000)
+                                        Text(String(format: String(localized: "%lld min", bundle: AppState.currentBundle), Int64(mins)))
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .padding()
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+        }
+    }
+
+    private func similarCard(_ item: JellyfinItem, showShadow: Bool = true) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            PosterCardView(item: item, serverURL: appState.serverURL, showYear: false, showShadow: showShadow)
+            HStack {
+                if let year = item.productionYear {
+                    Text(String(year))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if let ticks = item.runTimeTicks, ticks > 0 {
+                    let mins = Int(Double(ticks) / 600_000_000)
+                    Text(String(format: String(localized: "%lld min", bundle: AppState.currentBundle), Int64(mins)))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     // MARK: - Cast
 
     private func castSection(people: [JellyfinPerson]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Cast & Crew")
+            Text(String(localized: "Cast & Crew", bundle: AppState.currentBundle))
                 .font(.title3.bold())
                 .padding(.horizontal, 16)
 
@@ -1144,6 +1478,24 @@ struct LogoTitleView: View {
 struct CastCardView: View {
     let person: JellyfinPerson
     let serverURL: String
+    @EnvironmentObject private var appState: AppState
+    @State private var showDetail = false
+    @State private var imageVersion = 0
+
+    private var hasImage: Bool { person.primaryImageTag != nil }
+
+    private var imageURL: URL? {
+        if let local = DownloadManager.localPersonURL(personId: person.id) {
+            return local
+        }
+        guard var components = URLComponents(url: URL(string: serverURL)!.appendingPathComponent("Items/\(person.id)/Images/Primary"), resolvingAgainstBaseURL: false) else { return nil }
+        var items = [URLQueryItem(name: "maxWidth", value: "200")]
+        if imageVersion > 0 {
+            items.append(URLQueryItem(name: "v", value: "\(imageVersion)"))
+        }
+        components.queryItems = items
+        return components.url
+    }
 
     private var placeholder: some View {
         Circle().fill(Color(.systemGray5))
@@ -1154,20 +1506,23 @@ struct CastCardView: View {
             )
     }
 
+    private var isOffline: Bool { appState.manualOffline || appState.serverUnreachable }
+
     var body: some View {
-        NavigationLink {
-            PersonDetailView(person: person)
-        } label: {
+        Button { if !isOffline { showDetail = true } } label: {
             VStack(spacing: 8) {
-                AsyncImage(url: DownloadManager.localPersonURL(personId: person.id)
-                    ?? JellyfinAPI.shared.personImageURL(serverURL: serverURL, person: person)) { phase in
+                AsyncImage(url: imageURL) { phase in
                     switch phase {
                     case .success(let image):
                         image.resizable().aspectRatio(contentMode: .fill)
                     case .failure:
                         placeholder
                     default:
-                        placeholder.overlay(ProgressView().scaleEffect(0.6).tint(.secondary))
+                        if hasImage {
+                            placeholder.overlay(ProgressView().scaleEffect(0.6).tint(.secondary))
+                        } else {
+                            placeholder
+                        }
                     }
                 }
                 .frame(width: 72, height: 72)
@@ -1190,6 +1545,23 @@ struct CastCardView: View {
             }
         }
         .buttonStyle(.plain)
+        .sheet(isPresented: $showDetail) {
+            PersonDetailView(person: person)
+                .environmentObject(appState)
+        }
+        .task {
+            guard !hasImage, !isOffline else { return }
+            // No image tag — trigger server-side metadata refresh
+            await JellyfinAPI.shared.refreshItemMetadata(
+                serverURL: appState.serverURL,
+                itemId: person.id,
+                token: appState.token
+            )
+            // Wait for Jellyfin to download the image from TMDb
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            imageVersion += 1
+        }
     }
 }
 
