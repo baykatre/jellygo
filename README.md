@@ -1,9 +1,15 @@
-# JellyGo 🎬
+<p align="center">
+  <img src="docs/assets/icon.png" width="128" alt="JellyGo Icon" style="border-radius: 28px;" />
+</p>
 
-![iOS](https://img.shields.io/badge/iOS-26.0+-blue.svg)
-![Swift](https://img.shields.io/badge/Swift-6-F05138.svg)
-![Jellyfin](https://img.shields.io/badge/Jellyfin-10.8.0+-8A2BE2.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+<h1 align="center">JellyGo</h1>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/iOS-26.0+-blue.svg" alt="iOS" />
+  <img src="https://img.shields.io/badge/Swift-6-F05138.svg" alt="Swift" />
+  <img src="https://img.shields.io/badge/Jellyfin-10.8.0+-8A2BE2.svg" alt="Jellyfin" />
+  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" />
+</p>
 
 **JellyGo** is a fast, modern, and fully native iOS client for [Jellyfin](https://jellyfin.org/) media servers. Built from the ground up with SwiftUI, it provides a seamless way to browse and play your self-hosted media library on the go.
 

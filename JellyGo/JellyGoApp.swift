@@ -43,21 +43,20 @@ struct JellyGoApp: App {
 struct SplashScreen: View {
     @State private var scale: CGFloat = 0.8
     @State private var opacity: Double = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            (colorScheme == .dark ? Color.black : Color.white).ignoresSafeArea()
             VStack(spacing: 20) {
                 Image("SplashIcon")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 120, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .shadow(color: .purple.opacity(0.5), radius: 20)
+                    .frame(width: 140, height: 140)
+                    .mask(RoundedRectangle(cornerRadius: 32, style: .continuous).padding(3))
+                    .shadow(color: colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.1), radius: 20)
+                    .shadow(color: .accentColor.opacity(0.2), radius: 40)
                     .scaleEffect(scale)
-                Text("JellyGo")
-                    .font(.title.bold())
-                    .foregroundStyle(.white)
             }
             .opacity(opacity)
         }
