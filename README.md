@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/icon.png" width="128" alt="JellyGo Icon" style="border-radius: 28px;" />
-</p>
-
 <h1 align="center">JellyGo</h1>
 
 <p align="center">
