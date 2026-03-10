@@ -34,7 +34,7 @@ final class JellyfinAPI {
     static let shared = JellyfinAPI()
 
     private let clientName = "JellyGo"
-    private let clientVersion = "1.0.0"
+    private let clientVersion = "0.1.0"
     private let deviceName = "iPhone"
 
     private lazy var deviceId: String = {
