@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/iOS-26.0+-blue.svg" alt="iOS" />
-  <img src="https://img.shields.io/badge/Swift-6-F05138.svg" alt="Swift" />
+  <img src="https://img.shields.io/badge/Swift-5-F05138.svg" alt="Swift" />
   <img src="https://img.shields.io/badge/Jellyfin-10.8.0+-8A2BE2.svg" alt="Jellyfin" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" />
 </p>
@@ -52,7 +52,7 @@
 
 | Layer | Technology |
 |---|---|
-| Language | Swift 6 |
+| Language | Swift 5 |
 | UI Framework | SwiftUI |
 | Player Engine | MobileVLCKit 3.7.3 (XCFramework) |
 | Networking | URLSession + async/await |
