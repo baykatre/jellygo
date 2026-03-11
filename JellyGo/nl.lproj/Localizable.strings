@@ -262,6 +262,34 @@
 "Fair" = "Matig";
 "Good" = "Goed";
 
+/* Playback */
+"Resume" = "Hervatten";
+"Paused" = "Gepauzeerd";
+"Playback Quality" = "Afspeelkwaliteit";
+"Direct Stream" = "Directe stream";
+
 /* Missing */
 "Recommendations" = "Aanbevelingen";
 "Select" = "Selecteer";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@ gedownload";
+"Episodes" = "Afleveringen";
+"Seasons" = "Seizoenen";
+"Duration" = "Duur";
+"Year" = "Jaar";
+"Rating" = "Beoordeling";
+"Genres" = "Genres";
+"Downloaded" = "Gedownload";
+"Delete All Downloads" = "Alle downloads verwijderen";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "Alle downloads van \u{201C}%@\u{201D} verwijderen?";
+
+/* Selection Mode */
+"Select All" = "Alles selecteren";
+"Deselect All" = "Alles deselecteren";
+"Delete Selected (%lld)" = "Selectie verwijderen (%lld)";
+"Remove %lld downloads (%@)?" = "%lld downloads verwijderen (%@)?";
+"Delete (%lld)" = "Verwijderen (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D} uit je downloads verwijderen?";
+"Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D} uit je downloads verwijderen?";
+"Downloaded View" = "Downloadweergave";

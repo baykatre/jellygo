@@ -262,6 +262,34 @@
 "Fair" = "Orta";
 "Good" = "Yaxşı";
 
+/* Playback */
+"Resume" = "Davam et";
+"Paused" = "Dayandırıldı";
+"Playback Quality" = "Oxutma Keyfiyyəti";
+"Direct Stream" = "Birbaşa Axın";
+
 /* Missing */
 "Recommendations" = "Tövsiyələr";
 "Select" = "Seç";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@ yükləndi";
+"Episodes" = "Epizodlar";
+"Seasons" = "Mövsümlər";
+"Duration" = "Müddət";
+"Year" = "İl";
+"Rating" = "Reytinq";
+"Genres" = "Janrlar";
+"Downloaded" = "Yüklənmə";
+"Delete All Downloads" = "Bütün Yükləmələri Sil";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "\u{201C}%@\u{201D} üçün bütün yükləmələr silinsin?";
+
+/* Selection Mode */
+"Select All" = "Hamısını Seç";
+"Deselect All" = "Seçimi Ləğv Et";
+"Delete Selected (%lld)" = "Seçilmişləri Sil (%lld)";
+"Remove %lld downloads (%@)?" = "%lld yükləmə silinsin (%@)?";
+"Delete (%lld)" = "Sil (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D} yükləmələrinizdən silinsin?";
+"Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D} yükləmələrinizdən silinsin?";
+"Downloaded View" = "Yüklənmişlər Görünüşü";

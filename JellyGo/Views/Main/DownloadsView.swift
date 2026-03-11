@@ -1,5 +1,9 @@
 import SwiftUI
 
+struct DownloadedSeriesNav: Hashable {
+    let seriesId: String
+}
+
 struct DownloadsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
@@ -21,7 +25,10 @@ struct DownloadsView: View {
             }
             .navigationTitle(String(localized: "Downloads", bundle: AppState.currentBundle))
             .navigationDestination(for: JellyfinItem.self) { item in
-                ItemDetailView(item: item)
+                ItemDetailView(item: item, isFromDownloads: true)
+            }
+            .navigationDestination(for: DownloadedSeriesNav.self) { nav in
+                DownloadedSeriesDetailView(seriesId: nav.seriesId, isSheet: false)
             }
             .alert(String(localized: "Delete All Episodes?", bundle: AppState.currentBundle), isPresented: Binding(
                 get: { showDeleteSeriesConfirm != nil },
@@ -100,7 +107,7 @@ struct DownloadsView: View {
                 ForEach(seriesIds, id: \.self) { sid in
                     if let groupEps = groups[sid], let first = groupEps.first {
                         let seriesItem = makeSeriesItem(first: first)
-                        NavigationLink(value: seriesItem) {
+                        NavigationLink(value: DownloadedSeriesNav(seriesId: sid)) {
                             PosterCardView(item: seriesItem, serverURL: first.serverURL)
                         }
                         .buttonStyle(.plain)
@@ -146,7 +153,7 @@ struct DownloadsView: View {
 
             LazyVGrid(columns: gridColumns, spacing: 16) {
                 ForEach(items) { item in
-                    NavigationLink(value: item.toJellyfinItem()) {
+                    NavigationLink(value: DownloadedSeriesNav(seriesId: item.id)) {
                         PosterCardView(item: item.toJellyfinItem(), serverURL: item.serverURL)
                     }
                     .buttonStyle(.plain)

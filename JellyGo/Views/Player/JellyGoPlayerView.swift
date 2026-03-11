@@ -56,10 +56,13 @@ struct JellyGoPlayerView: View {
     @State private var showDelayBar = false
     @State private var showHUD = false
 
-    // Skip accumulator
+    // Skip accumulator (double-tap)
     @State private var skipAccum: Int = 0
     @State private var skipCommitTask: Task<Void, Never>?
     @State private var skipBounceCount: Int = 0
+    @State private var doubleTapSide: DoubleTapSide?
+    @State private var doubleTapLocation: CGPoint = .zero
+    enum DoubleTapSide { case left, right }
 
     // Episode list
     @State private var showEpisodeList = false
@@ -91,18 +94,46 @@ struct JellyGoPlayerView: View {
                         .opacity(shouldDim ? 0.5 : 0)
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
-                        .onTapGesture(count: 2) {
-                            guard !showOverlay else { return }
-                            isAspectFilled.toggle()
-                            applyAspectFill(isAspectFilled)
-                            UIImpactFeedbackGenerator(style: isAspectFilled ? .medium : .light).impactOccurred()
-                        }
+                        .simultaneousGesture(
+                            SpatialTapGesture(count: 2)
+                                .onEnded { val in
+                                    let x = val.location.x
+                                    let w = geo.size.width
+                                    // Only trigger in left 35% or right 35%, ignore middle 30%
+                                    guard x < w * 0.35 || x > w * 0.65 else { return }
+                                    let isLeft = x < w * 0.35
+                                    doubleTapLocation = val.location
+                                    accumulateSkip(isLeft ? -10 : 10)
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        doubleTapSide = isLeft ? .left : .right
+                                    }
+                                }
+                        )
                         .onTapGesture(count: 1) {
                             if showEpisodeList { withAnimation(.spring(duration: 0.4, bounce: 0.15)) { showEpisodeList = false } }
                             else if showDelayBar { showDelayBar = false }
                             else { toggleOverlay() }
                         }
                         .animation(.linear(duration: 0.2), value: shouldDim)
+
+                    // Double-tap skip indicator — appears at tap location
+                    if doubleTapSide != nil {
+                        VStack(spacing: 4) {
+                            Image(systemName: doubleTapSide == .left ? "gobackward.10" : "goforward.10")
+                                .font(.system(size: 32, weight: .medium))
+                            if skipAccum != 0 {
+                                Text(skipAccum > 0 ? "+\(skipAccum)s" : "\(skipAccum)s")
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .contentTransition(.numericText(value: Double(skipAccum)))
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .symbolEffect(.bounce, value: skipBounceCount)
+                        .position(x: doubleTapLocation.x, y: doubleTapLocation.y - 90)
+                        .transition(.opacity)
+                        .allowsHitTesting(false)
+                        .animation(.smooth(duration: 0.2), value: skipAccum)
+                    }
 
                     // Custom subtitle overlay (independent of video scale)
                     SubtitleOverlayView(manager: subtitleManager)
@@ -160,7 +191,6 @@ struct JellyGoPlayerView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .padding(.leading, geo.safeAreaInsets.leading + geo.size.width * 0.10)
                     .animation(.spring(duration: 0.4, bounce: 0.15), value: adjustMode)
-                    .allowsHitTesting(false)
 
                     // Volume bar (right)
                     Group {
@@ -172,7 +202,6 @@ struct JellyGoPlayerView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                     .padding(.trailing, geo.safeAreaInsets.trailing + geo.size.width * 0.10)
                     .animation(.spring(duration: 0.4, bounce: 0.15), value: adjustMode)
-                    .allowsHitTesting(false)
 
                     // Subtitle delay bar (bottom, above progress bar)
                     Group {
@@ -233,20 +262,49 @@ struct JellyGoPlayerView: View {
                         if !isSwipeActive {
                             guard v > h * 1.2 else { return }
                             isSwipeActive = true
-                            swipeStartBrightness = Self.currentScreen.brightness
-                            swipeStartVolume = AVAudioSession.sharedInstance().outputVolume
+                            // If boost is active, start from effective brightness (1 + boost fraction)
+                            swipeStartBrightness = vm.brightnessBoost > 1.0
+                                ? 1.0 + CGFloat(vm.brightnessBoost - 1.0) / 0.5
+                                : Self.currentScreen.brightness
+                            let sysVol = AVAudioSession.sharedInstance().outputVolume
+                            // If boost is active, start from effective volume (1 + boost fraction)
+                            swipeStartVolume = vm.volumeBoost > 100
+                                ? 1.0 + Float(vm.volumeBoost - 100) / 100.0
+                                : sysVol
                             volumeValue = swipeStartVolume
                             brightnessValue = swipeStartBrightness
                         }
-                        let delta = -val.translation.height / (geo.size.height * 1.8)
                         if val.startLocation.x < geo.size.width / 2 {
                             adjustMode = .brightness
-                            let bri = max(0, min(1, swipeStartBrightness + delta))
-                            Self.currentScreen.brightness = bri; brightnessValue = bri
+                            let delta = -val.translation.height / geo.size.height
+                            let raw = swipeStartBrightness + delta
+                            if raw <= 1 {
+                                // Normal system brightness range 0–1
+                                let bri = max(0, min(1, raw))
+                                Self.currentScreen.brightness = bri; brightnessValue = bri
+                                if vm.brightnessBoost > 1.0 { vm.setBrightnessBoost(1.0) }
+                            } else {
+                                // Boost range: system stays at 1, VLC filter goes 1.0–1.5
+                                Self.currentScreen.brightness = 1; brightnessValue = 1
+                                let boost = Float(1.0 + min(0.5, max(0, (raw - 1) * 0.5)))
+                                vm.setBrightnessBoost(boost)
+                            }
                         } else {
                             adjustMode = .volume
-                            let vol = max(0, min(1, Float(swipeStartVolume) + Float(delta)))
-                            setSystemVolume(vol); volumeValue = vol
+                            // Use 1.0× sensitivity so a full-screen swipe covers ~1.0 range (enough for 0→2)
+                            let delta = -val.translation.height / geo.size.height
+                            let raw = Float(swipeStartVolume) + Float(delta)
+                            if raw <= 1 {
+                                // Normal system volume range 0–1
+                                let vol = max(0, min(1, raw))
+                                setSystemVolume(vol)
+                                if vm.volumeBoost > 100 { vm.setVolumeBoost(100) }
+                            } else {
+                                // Boost range: system stays at 1, VLC goes 100–200
+                                setSystemVolume(1)
+                                let boost = Int32(100 + min(100, max(0, (raw - 1) * 100)))
+                                vm.setVolumeBoost(boost)
+                            }
                         }
                         adjustHideTask?.cancel()
                     }
@@ -470,37 +528,69 @@ struct JellyGoPlayerView: View {
     private func accumulateSkip(_ seconds: Int) {
         skipAccum += seconds
         skipBounceCount += 1
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         skipCommitTask?.cancel()
         skipCommitTask = Task {
             try? await Task.sleep(for: .milliseconds(800))
             guard !Task.isCancelled else { return }
             let total = skipAccum
             vm.skip(seconds: total)
-            withAnimation(.easeOut(duration: 0.3)) { skipAccum = 0 }
+            // Keep showing the total for a moment before fading
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.5)) { skipAccum = 0; doubleTapSide = nil }
             skipBounceCount = 0
         }
     }
 
+    private func switchToEpisode(_ episode: JellyfinItem) {
+        withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
+            showEpisodeList = false
+            item = episode
+        }
+        Task {
+            vm.stop()
+            subtitleManager.reset()
+            async let _ = autoSelectSubtitle()
+            if localURL != nil,
+               let dl = DownloadManager.shared.downloads.first(where: { $0.id == episode.id }),
+               let dlURL = dl.localURL,
+               FileManager.default.fileExists(atPath: dlURL.path) {
+                await vm.loadLocal(url: dlURL, item: episode, appState: appState)
+            } else {
+                await vm.load(item: episode, appState: appState)
+            }
+        }
+    }
+
+    private var canGoPrev: Bool {
+        guard let idx = episodeListItems.firstIndex(where: { $0.id == item.id }) else { return false }
+        return idx > 0
+    }
+    private var canGoNext: Bool {
+        guard let idx = episodeListItems.firstIndex(where: { $0.id == item.id }) else { return false }
+        return idx < episodeListItems.count - 1
+    }
+
+    private var isEpisode: Bool { item.type == "Episode" }
+
     private var sfPlaybackButtons: some View {
         HStack(spacing: 48) {
-            // Backward
-            Button { accumulateSkip(-10) } label: {
-                Label("10s", systemImage: "gobackward.10")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 38, weight: .regular))
-                    .padding(12)
-                    .overlay(alignment: .top) {
-                        if skipAccum < 0 {
-                            Text("\(skipAccum)s")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .contentTransition(.numericText(value: Double(skipAccum)))
-                                .offset(y: -28)
-                        }
-                    }
-                    .animation(.smooth(duration: 0.2), value: skipAccum)
-            }.foregroundStyle(.primary)
+            // Previous episode (only for episodes)
+            if isEpisode {
+                Button {
+                    guard let idx = episodeListItems.firstIndex(where: { $0.id == item.id }),
+                          idx > 0 else { return }
+                    switchToEpisode(episodeListItems[idx - 1])
+                } label: {
+                    Label("Previous", systemImage: "backward.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.system(size: 30, weight: .regular))
+                        .padding(12)
+                }
+                .opacity(canGoPrev ? 1 : 0.3)
+                .disabled(!canGoPrev)
+            }
 
             // Play / Pause
             Button { vm.togglePlayPause() } label: {
@@ -517,23 +607,21 @@ struct JellyGoPlayerView: View {
                 .contentShape(Circle())
             }
 
-            // Forward
-            Button { accumulateSkip(10) } label: {
-                Label("10s", systemImage: "goforward.10")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 38, weight: .regular))
-                    .padding(12)
-                    .overlay(alignment: .top) {
-                        if skipAccum > 0 {
-                            Text("+\(skipAccum)s")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .contentTransition(.numericText(value: Double(skipAccum)))
-                                .offset(y: -28)
-                        }
-                    }
-                    .animation(.smooth(duration: 0.2), value: skipAccum)
-            }.foregroundStyle(.primary)
+            // Next episode (only for episodes)
+            if isEpisode {
+                Button {
+                    guard let idx = episodeListItems.firstIndex(where: { $0.id == item.id }),
+                          idx < episodeListItems.count - 1 else { return }
+                    switchToEpisode(episodeListItems[idx + 1])
+                } label: {
+                    Label("Next", systemImage: "forward.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.system(size: 30, weight: .regular))
+                        .padding(12)
+                }
+                .opacity(canGoNext ? 1 : 0.3)
+                .disabled(!canGoNext)
+            }
         }
         .buttonStyle(JGOverlayButtonStyle(onPressed: { p in
             if p { stopTimer() } else { pokeTimer() }
@@ -1008,8 +1096,11 @@ struct JellyGoPlayerView: View {
         guard item.type == "Episode",
               let seriesId = item.seriesId else { return }
 
-        // Offline: load episodes from downloaded items
-        if localURL != nil {
+        // Try API first (even for downloaded episodes, if online)
+        if NetworkMonitor.shared.isConnected {
+            // fall through to online fetch below
+        } else if localURL != nil {
+            // Offline fallback: load only downloaded episodes
             let downloaded = DownloadManager.shared.downloads
                 .filter { $0.seriesId == seriesId && $0.seasonNumber == item.parentIndexNumber }
                 .sorted { ($0.episodeNumber ?? 0) < ($1.episodeNumber ?? 0) }
@@ -1115,7 +1206,10 @@ struct JellyGoPlayerView: View {
                     Capsule().fill(.white)
                         .frame(width: max(4, barW * CGFloat(pct)))
                 }
-                .gesture(
+                .frame(height: 6)
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .highPriorityGesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { val in
                             let frac = val.location.x / barW
@@ -1127,8 +1221,7 @@ struct JellyGoPlayerView: View {
                         }
                 )
             }
-            .frame(width: 220, height: 6)
-            .clipShape(Capsule())
+            .frame(width: 220, height: 36)
 
             Text(vm.subtitleDelaySecs == 0
                  ? "0s"
@@ -1150,81 +1243,181 @@ struct JellyGoPlayerView: View {
             .disabled(vm.subtitleDelaySecs == 0)
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .onTapGesture { }
         .glassEffect(in: .rect(cornerRadius: 18))
     }
 
     // MARK: - Brightness Bar (Left)
 
     private var brightnessBar: some View {
-        VStack(spacing: 10) {
+        let isBoost = vm.brightnessBoost > 1.0
+        let sysZone: CGFloat = 0.75
+        let boostZone: CGFloat = 0.25
+        let boostFrac = CGFloat(max(0, vm.brightnessBoost - 1.0)) / 0.5
+        let barHeight: CGFloat = 140 + 30 * boostFrac
+        let sysBri = CGFloat(min(1, max(0, brightnessValue)))
+        return VStack(spacing: 10) {
             Image(systemName: briIcon)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(isBoost ? (vm.brightnessBoost > 1.3 ? .orange : .yellow) : .white.opacity(0.6))
                 .contentTransition(.symbolEffect(.replace))
 
             GeometryReader { geo in
                 let barH = geo.size.height
+                let sysH = barH * sysZone
+                let normalFillH = sysH * sysBri
+                let boostFillH = barH * boostZone * boostFrac
+                let fillH = isBoost ? sysH + boostFillH : normalFillH
                 ZStack(alignment: .bottom) {
                     Capsule().fill(.white.opacity(0.15))
-                    Capsule().fill(.white)
-                        .frame(height: max(4, barH * CGFloat(brightnessValue)))
-                        .animation(.smooth(duration: 0.15), value: brightnessValue)
+                        .frame(width: 6)
+                    // 100% marker dot
+                    Circle().fill(.white.opacity(0.3))
+                        .frame(width: 4, height: 4)
+                        .offset(y: -(sysH - 2))
+                    // Unified fill capsule with gradient for boost zone
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .white, location: 0),
+                                    .init(color: .white, location: isBoost ? sysH / max(1, fillH) : 1),
+                                    .init(color: .yellow, location: isBoost ? sysH / max(1, fillH) + 0.01 : 1),
+                                    .init(color: .orange, location: 1)
+                                ],
+                                startPoint: .bottom,
+                                endPoint: .top
+                            )
+                        )
+                        .frame(width: 6, height: max(4, fillH))
                 }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { val in
-                            let frac = 1.0 - (val.location.y / barH)
-                            let clamped = max(0, min(1, frac))
-                            Self.currentScreen.brightness = clamped
-                            brightnessValue = clamped
+                            var tx = Transaction()
+                            tx.disablesAnimations = true
+                            withTransaction(tx) {
+                                let frac = 1.0 - (val.location.y / barH)
+                                if frac <= sysZone {
+                                    let bri = max(0, min(1, frac / sysZone))
+                                    Self.currentScreen.brightness = bri
+                                    brightnessValue = bri
+                                    if vm.brightnessBoost > 1.0 { vm.setBrightnessBoost(1.0) }
+                                } else {
+                                    Self.currentScreen.brightness = 1
+                                    brightnessValue = 1
+                                    let bf = (frac - sysZone) / boostZone
+                                    vm.setBrightnessBoost(Float(1.0 + min(0.5, max(0, bf * 0.5))))
+                                }
+                            }
                         }
                 )
             }
-            .frame(width: 6, height: 140)
-            .clipShape(Capsule())
+            .frame(width: 36, height: barHeight)
+
+            Text("\(Int(vm.brightnessBoost * 100))%")
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(vm.brightnessBoost > 1.3 ? .orange : .yellow)
+                .opacity(isBoost ? 1 : 0)
+                .frame(height: isBoost ? nil : 0)
         }
-        .padding(.horizontal, 10).padding(.vertical, 14)
+        .animation(.easeInOut(duration: 0.3), value: vm.brightnessBoost)
+        .animation(.smooth(duration: 0.15), value: brightnessValue)
+        .padding(.horizontal, 2).padding(.vertical, 14)
         .glassEffect(in: .rect(cornerRadius: 16))
     }
 
     // MARK: - Volume Bar (Right)
 
     private var volumeBar: some View {
-        VStack(spacing: 10) {
+        let isBoost = vm.volumeBoost > 100
+        let sysZone: CGFloat = 0.75
+        let boostZone: CGFloat = 0.25
+        let boostFrac = CGFloat(max(0, vm.volumeBoost - 100)) / 100.0
+        let barHeight: CGFloat = 140 + 30 * boostFrac
+        let sysVol = CGFloat(min(1, max(0, volumeValue)))
+        return VStack(spacing: 10) {
             Image(systemName: volIcon)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(isBoost ? .orange : .white.opacity(0.6))
                 .contentTransition(.symbolEffect(.replace))
 
             GeometryReader { geo in
                 let barH = geo.size.height
+                let sysH = barH * sysZone
+                let normalFillH = sysH * sysVol
+                let boostFillH = barH * boostZone * boostFrac
+                // Single unified fill height
+                let fillH = isBoost ? sysH + boostFillH : normalFillH
                 ZStack(alignment: .bottom) {
                     Capsule().fill(.white.opacity(0.15))
-                    Capsule().fill(.white)
-                        .frame(height: max(4, barH * CGFloat(volumeValue)))
-                        .animation(.smooth(duration: 0.15), value: volumeValue)
+                        .frame(width: 6)
+                    // 100% marker dot
+                    Circle().fill(.white.opacity(0.3))
+                        .frame(width: 4, height: 4)
+                        .offset(y: -(sysH - 2))
+                    // Unified fill capsule with gradient for boost zone
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .white, location: 0),
+                                    .init(color: .white, location: isBoost ? sysH / max(1, fillH) : 1),
+                                    .init(color: .orange, location: isBoost ? sysH / max(1, fillH) + 0.01 : 1),
+                                    .init(color: .orange, location: 1)
+                                ],
+                                startPoint: .bottom,
+                                endPoint: .top
+                            )
+                        )
+                        .frame(width: 6, height: max(4, fillH))
                 }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { val in
-                            let frac = 1.0 - (val.location.y / barH)
-                            let clamped = max(0, min(1, Float(frac)))
-                            setSystemVolume(clamped)
+                            var tx = Transaction()
+                            tx.disablesAnimations = true
+                            withTransaction(tx) {
+                                let frac = Float(1.0 - (val.location.y / barH))
+                                if frac <= Float(sysZone) {
+                                    let vol = max(0, frac / Float(sysZone))
+                                    setSystemVolume(vol)
+                                    if vm.volumeBoost > 100 { vm.setVolumeBoost(100) }
+                                } else {
+                                    setSystemVolume(1)
+                                    let bf = (frac - Float(sysZone)) / Float(boostZone)
+                                    vm.setVolumeBoost(Int32(100 + min(100, max(0, bf * 100))))
+                                }
+                            }
                         }
                 )
             }
-            .frame(width: 6, height: 140)
-            .clipShape(Capsule())
+            .frame(width: 36, height: barHeight)
+
+            Text("\(vm.volumeBoost)%")
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(.orange)
+                .opacity(isBoost ? 1 : 0)
+                .frame(height: isBoost ? nil : 0)
         }
-        .padding(.horizontal, 10).padding(.vertical, 14)
+        .animation(.easeInOut(duration: 0.3), value: vm.volumeBoost)
+        .animation(.smooth(duration: 0.15), value: volumeValue)
+        .padding(.horizontal, 2).padding(.vertical, 14)
         .glassEffect(in: .rect(cornerRadius: 16))
     }
 
     private var briIcon: String {
-        brightnessValue > 0.66 ? "sun.max.fill" : brightnessValue > 0.33 ? "sun.min.fill" : "moon.fill"
+        if vm.brightnessBoost > 1.0 { return "sun.max.fill" }
+        return brightnessValue > 0.66 ? "sun.max.fill" : brightnessValue > 0.33 ? "sun.min.fill" : "moon.fill"
     }
     private var volIcon: String {
-        volumeValue > 0.66 ? "speaker.wave.3.fill" : volumeValue > 0.33 ? "speaker.wave.2.fill"
+        if vm.volumeBoost > 100 { return "speaker.wave.3.fill" }
+        return volumeValue > 0.66 ? "speaker.wave.3.fill" : volumeValue > 0.33 ? "speaker.wave.2.fill"
             : volumeValue > 0 ? "speaker.wave.1.fill" : "speaker.slash.fill"
     }
 
@@ -1243,7 +1436,6 @@ struct JellyGoPlayerView: View {
     // MARK: - Timer
 
     private func dismissAllPanels() {
-        showDelayBar = false
     }
 
     private func toggleOverlay() {
@@ -1293,9 +1485,10 @@ struct JellyGoPlayerView: View {
     }
 
     private func setSystemVolume(_ value: Float) {
-        volumeValue = value
+        let clamped = max(0, min(1, value))
+        volumeValue = clamped
         if let slider = mpVolView?.subviews.compactMap({ $0 as? UISlider }).first {
-            DispatchQueue.main.async { slider.value = value }
+            DispatchQueue.main.async { slider.value = clamped }
         }
     }
 
@@ -1697,5 +1890,6 @@ private struct JGRoundedCorner: Shape {
                           cornerRadii: CGSize(width: radius, height: radius)).cgPath)
     }
 }
+
 
 

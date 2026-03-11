@@ -1,7 +1,14 @@
 import SwiftUI
 
+private enum DownloadPopoverStep: Identifiable {
+    case scope, quality, audio, progress
+    var id: Int { hashValue }
+}
+
 struct ItemDetailView: View {
     let item: JellyfinItem
+    var isFromDownloads: Bool = false
+    var autoPlay: Bool = false
 
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
@@ -10,16 +17,14 @@ struct ItemDetailView: View {
     @State private var itemToPlay: JellyfinItem?
     @State private var selectedSeason: JellyfinItem?
     @State private var pullDown: CGFloat = 0
-    @State private var showDownloadScopeDialog = false
-    @State private var showDownloadQualityDialog = false
+    @State private var downloadPopoverStep: DownloadPopoverStep? = nil
     @State private var pendingDownloadSeason = false
     @State private var showDeleteConfirm = false
     @State private var showDownloadDetail = false
-    @State private var showDownloadProgress = false
     @State private var downloadedEpisodeTarget: String? = nil
+    @State private var playAfterSheetDismiss = false
     @State private var overviewExpanded = false
     @State private var episodeDeleteTarget: JellyfinItem? = nil
-    @State private var showAudioDialog = false
     @State private var pendingQuality: (label: String, bitrate: Int?)? = nil
     @State private var selectedAudioStreamIndex: Int? = nil
     private let backdropHeight: CGFloat = 580
@@ -32,8 +37,10 @@ struct ItemDetailView: View {
         ("480p",    2_000_000),
     ]
 
-    init(item: JellyfinItem) {
+    init(item: JellyfinItem, isFromDownloads: Bool = false, autoPlay: Bool = false) {
         self.item = item
+        self.isFromDownloads = isFromDownloads
+        self.autoPlay = autoPlay
         _activeItem = State(initialValue: item)
     }
 
@@ -66,18 +73,32 @@ struct ItemDetailView: View {
         .background(Color(.systemBackground).ignoresSafeArea())
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    Task { await vm.toggleWatched(item: activeItem, appState: appState) }
-                } label: {
-                    Image(systemName: vm.isWatched ? "eye.fill" : "eye")
-                        .foregroundStyle(.white)
+            if isFromDownloads {
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(String(localized: "Downloaded View", bundle: AppState.currentBundle))
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 5)
                 }
-                Button {
-                    Task { await vm.toggleFavorite(item: activeItem, appState: appState) }
-                } label: {
-                    Image(systemName: vm.isFavorite ? "heart.fill" : "heart")
-                        .foregroundStyle(vm.isFavorite ? .red : .white)
+            } else {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        Task { await vm.toggleWatched(item: activeItem, appState: appState) }
+                    } label: {
+                        Image(systemName: vm.isWatched ? "eye.fill" : "eye")
+                            .foregroundStyle(.white)
+                    }
+                    Button {
+                        Task { await vm.toggleFavorite(item: activeItem, appState: appState) }
+                    } label: {
+                        Image(systemName: vm.isFavorite ? "heart.fill" : "heart")
+                            .foregroundStyle(vm.isFavorite ? .red : .white)
+                    }
                 }
             }
         }
@@ -104,12 +125,18 @@ struct ItemDetailView: View {
                 .onAppear { appState.isPlayerActive = true; playQualityOverride = nil }
         }
         .task {
-            let isOffline = appState.manualOffline || appState.serverUnreachable
+            let isOffline = isFromDownloads || appState.manualOffline || appState.serverUnreachable
 
             if isOffline {
-                // Offline: skip API, build from local downloads immediately
+                // Offline / Downloads: skip API, build from local downloads immediately
                 if item.isSeries {
                     vm.buildOfflineData(from: dm.downloads, seriesId: item.id)
+                } else if item.isEpisode, let seriesId = item.seriesId {
+                    vm.buildOfflineData(from: dm.downloads, seriesId: seriesId)
+                }
+                // Still load cached details for movies/episodes
+                if let cached = DownloadManager.loadItemDetails(itemId: item.id) {
+                    vm.fullItem = cached
                 }
             } else {
                 await vm.load(item: item, appState: appState)
@@ -149,17 +176,27 @@ struct ItemDetailView: View {
                     await vm.loadEpisodes(seasonId: sid, appState: appState)
                 }
             }
+
+            if autoPlay {
+                await startPlayback()
+            }
         }
         .onChange(of: selectedSeason) { _, newSeason in
             guard let sid = newSeason?.id else { return }
             Task {
                 await vm.loadEpisodes(seasonId: sid, appState: appState)
-                if item.isEpisode && newSeason?.indexNumber == item.parentIndexNumber {
-                    activeItem = item
-                } else if let dlId = downloadedEpisodeTarget,
-                          let ep = vm.episodes[sid]?.first(where: { $0.id == dlId }) {
+                if let dlId = downloadedEpisodeTarget,
+                   let ep = vm.episodes[sid]?.first(where: { $0.id == dlId }) {
                     activeItem = ep
+                    let shouldPlay = playAfterSheetDismiss
                     downloadedEpisodeTarget = nil
+                    playAfterSheetDismiss = false
+                    if shouldPlay {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        await startPlayback()
+                    }
+                } else if item.isEpisode && newSeason?.indexNumber == item.parentIndexNumber {
+                    activeItem = item
                 } else if let ep = vm.resumeEpisode(seasonId: sid) {
                     activeItem = ep
                 }
@@ -168,7 +205,33 @@ struct ItemDetailView: View {
         .sheet(isPresented: $showDownloadDetail) {
             NavigationStack {
                 DownloadedSeriesDetailView(
-                    seriesId: activeItem.seriesId ?? activeItem.id
+                    seriesId: activeItem.seriesId ?? activeItem.id,
+                    onPlay: { downloadedItem in
+                        showDownloadDetail = false
+                        playAfterSheetDismiss = true
+                        downloadedEpisodeTarget = downloadedItem.id
+                        let jellyfinItem = downloadedItem.toJellyfinItem()
+                        let targetSeason = vm.seasons.first(where: { $0.indexNumber == downloadedItem.seasonNumber })
+                        if let targetSeason, targetSeason.id == selectedSeason?.id {
+                            activeItem = jellyfinItem
+                            downloadedEpisodeTarget = nil
+                            Task {
+                                try? await Task.sleep(for: .milliseconds(400))
+                                await startPlayback()
+                                playAfterSheetDismiss = false
+                            }
+                        } else if let targetSeason {
+                            selectedSeason = targetSeason
+                        } else {
+                            activeItem = jellyfinItem
+                            downloadedEpisodeTarget = nil
+                            Task {
+                                try? await Task.sleep(for: .milliseconds(400))
+                                await startPlayback()
+                                playAfterSheetDismiss = false
+                            }
+                        }
+                    }
                 )
             }
             .environmentObject(appState)
@@ -315,7 +378,7 @@ struct ItemDetailView: View {
             if let people = displayItem.people, !people.isEmpty {
                 castSection(people: people)
             }
-            if item.isMovie, !vm.similarItems.isEmpty {
+            if !isFromDownloads, item.isMovie, !vm.similarItems.isEmpty {
                 similarSection
             }
             mediaInfoSection
@@ -339,77 +402,44 @@ struct ItemDetailView: View {
                     showPlayQualityDialog = true
                 }
             )
-            .confirmationDialog(String(localized: "Quality", bundle: AppState.currentBundle), isPresented: $showPlayQualityDialog, titleVisibility: .visible) {
-                ForEach(VideoQuality.allCases) { q in
-                    Button(q.rawValue) {
-                        playQualityOverride = q
-                        Task { await startPlayback() }
+            .popover(isPresented: $showPlayQualityDialog, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(String(localized: "Playback Quality", bundle: AppState.currentBundle),
+                          systemImage: "play.circle.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.bottom, 2)
+
+                    ForEach(Array(VideoQuality.allCases.enumerated()), id: \.element.id) { idx, q in
+                        if idx > 0 { Divider() }
+                        let isDirect = q == .direct
+                        Button {
+                            showPlayQualityDialog = false
+                            playQualityOverride = q
+                            Task { await startPlayback() }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: isDirect ? "bolt.fill" : "play.rectangle.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(isDirect ? .green : .secondary)
+                                    .frame(width: 24)
+                                Text(isDirect ? "Direct Stream" : q.rawValue)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(isDirect ? .green : .primary)
+                                Spacer()
+                            }
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(16)
+                .frame(minWidth: 200)
+                .presentationCompactAdaptation(.popover)
             }
 
             downloadTriggerButton
-        }
-        .confirmationDialog(
-            activeItem.isMovie ? String(localized: "Download", bundle: AppState.currentBundle) : String(localized: "Download Details", bundle: AppState.currentBundle),
-            isPresented: $showDownloadScopeDialog,
-            titleVisibility: .visible
-        ) {
-            Button(String(localized: "Download This Episode", bundle: AppState.currentBundle)) {
-                pendingDownloadSeason = false
-                showDownloadQualityDialog = true
-            }
-            if let sid = selectedSeason?.id, vm.episodes[sid] != nil {
-                Button(String(localized: "Download Entire Season", bundle: AppState.currentBundle)) {
-                    pendingDownloadSeason = true
-                    showDownloadQualityDialog = true
-                }
-            }
-            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
-        }
-        .confirmationDialog(String(localized: "Resolution", bundle: AppState.currentBundle), isPresented: $showDownloadQualityDialog, titleVisibility: .visible) {
-            ForEach(qualities, id: \.label) { quality in
-                Button(quality.bitrate == nil ? String(localized: "Original (Direct)", bundle: AppState.currentBundle) : quality.label) {
-                    // Direct → download immediately (all audio tracks included)
-                    if quality.bitrate == nil {
-                        if pendingDownloadSeason {
-                            startSeasonDownload(quality: quality)
-                        } else {
-                            startDownload(quality: quality)
-                        }
-                        return
-                    }
-                    // Transcode → check if multiple audio languages
-                    let audioStreams = downloadAudioStreams
-                    let uniqueLangs = Set(audioStreams.map { $0.language ?? "und" })
-                    if uniqueLangs.count > 1 {
-                        pendingQuality = quality
-                        showAudioDialog = true
-                    } else {
-                        if pendingDownloadSeason {
-                            startSeasonDownload(quality: quality)
-                        } else {
-                            startDownload(quality: quality)
-                        }
-                    }
-                }
-            }
-            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
-        }
-        .confirmationDialog(String(localized: "Audio Language", bundle: AppState.currentBundle), isPresented: $showAudioDialog, titleVisibility: .visible) {
-            ForEach(downloadAudioStreams, id: \.index) { stream in
-                Button(stream.audioLabel) {
-                    selectedAudioStreamIndex = stream.index
-                    guard let quality = pendingQuality else { return }
-                    if pendingDownloadSeason {
-                        startSeasonDownload(quality: quality)
-                    } else {
-                        startDownload(quality: quality)
-                    }
-                    pendingQuality = nil
-                }
-            }
-            Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { pendingQuality = nil }
         }
     }
 
@@ -434,13 +464,13 @@ struct ItemDetailView: View {
         let activeDownload = dm.activeTasks[activeItem.id]
         let isDownloading = activeDownload != nil
         let isQueued = dm.isQueued(activeItem.id)
-        let isPaused = dm.isPaused(activeItem.id)
+        let isPaused = activeDownload?.isPaused == true || (!isDownloading && dm.isPaused(activeItem.id))
         let anySeriesDownloaded = activeItem.isSeries &&
             dm.downloads.contains { $0.seriesId == activeItem.id }
 
         if isDownloaded, let dl = downloadedItem, activeItem.isEpisode || activeItem.isMovie {
-            // Downloaded: show quality+size info + detail button
-            HStack(spacing: 8) {
+            // Downloaded: tap quality+size badge to open download detail sheet
+            Button { showDownloadDetail = true } label: {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(dl.quality)
                         .font(.caption.weight(.semibold))
@@ -455,34 +485,21 @@ struct ItemDetailView: View {
                 .padding(.vertical, 7)
                 .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(.white.opacity(0.25), lineWidth: 0.5))
-
-                Button { showDownloadDetail = true } label: {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.25), lineWidth: 0.5))
-                }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
         } else {
             Button {
-                if isPaused {
-                    dm.resumeDownload(activeItem.id, appState: appState)
-                    return
-                }
-                if isDownloading || isQueued {
-                    showDownloadProgress = true
+                if isDownloading || isQueued || isPaused {
+                    downloadPopoverStep = .progress
                     return
                 }
                 if anySeriesDownloaded { return }
                 let hasSeasonContext = !activeItem.isMovie && selectedSeason != nil
                 if hasSeasonContext {
-                    showDownloadScopeDialog = true
+                    downloadPopoverStep = .scope
                 } else {
                     pendingDownloadSeason = false
-                    showDownloadQualityDialog = true
+                    downloadPopoverStep = .quality
                 }
             } label: {
                 ZStack {
@@ -512,7 +529,7 @@ struct ItemDetailView: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(Color.black.opacity(0.5))
                     } else if isPaused {
-                        Image(systemName: "play.circle.fill")
+                        Image(systemName: "pause.circle.fill")
                             .font(.system(size: 22, weight: .medium))
                             .foregroundStyle(Color.black)
                     } else {
@@ -524,9 +541,23 @@ struct ItemDetailView: View {
                 .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
-            .popover(isPresented: $showDownloadProgress, attachmentAnchor: .point(.top), arrowEdge: .bottom) {
-                downloadProgressPopover(task: activeDownload, isQueued: isQueued)
-                    .presentationCompactAdaptation(.popover)
+            .popover(item: $downloadPopoverStep, arrowEdge: .bottom) { step in
+                Group {
+                    if step == .progress {
+                        let paused = !dm.isDownloading(activeItem.id) && dm.isPaused(activeItem.id)
+                        downloadProgressPopover(
+                            itemId: activeItem.id,
+                            task: dm.activeTasks[activeItem.id],
+                            isQueued: dm.isQueued(activeItem.id),
+                            isPaused: dm.activeTasks[activeItem.id]?.isPaused == true || paused,
+                            pausedItem: paused ? dm.pausedItems.first(where: { $0.id == activeItem.id }) : nil
+                        )
+                    } else {
+                        downloadStepPopover(step: step)
+                    }
+                }
+                .frame(width: 280)
+                .presentationCompactAdaptation(.popover)
             }
             .alert(String(localized: "Delete Download", bundle: AppState.currentBundle), isPresented: $showDeleteConfirm) {
                 Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) { dm.deleteDownload(activeItem.id) }
@@ -538,53 +569,79 @@ struct ItemDetailView: View {
     }
 
     @ViewBuilder
-    private func downloadProgressPopover(task: ActiveDownload?, isQueued: Bool) -> some View {
+    private func downloadProgressPopover(itemId: String, task: ActiveDownload?, isQueued: Bool, isPaused: Bool = false, pausedItem: PausedDownload? = nil) -> some View {
+        let isTranscoding = task?.isTranscoding ?? pausedItem?.isTranscoding ?? false
+        let isDirect = task?.isDirect ?? pausedItem?.isDirect ?? false
+        let progress: Double = {
+            if let task { return task.progress }
+            guard let p = pausedItem, p.bytesExpected > 0 else { return 0 }
+            return Double(p.bytesReceived) / Double(p.bytesExpected)
+        }()
+        let progressText: String = task?.formattedProgress ?? pausedItem?.formattedProgress ?? ""
+        let tintColor: Color = isTranscoding ? .orange : (isDirect ? .green : .accentColor)
+
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                if let task {
-                    if task.isTranscoding {
-                        Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.orange)
-                    } else if task.isDirect {
-                        Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.green)
-                    }
-                    Spacer()
-                    Text(task.formattedProgress)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if !task.formattedSpeed.isEmpty {
-                        Text("·").foregroundStyle(.tertiary)
-                        Text(task.formattedSpeed)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            HStack(spacing: 6) {
+                if isTranscoding {
+                    Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                } else if isDirect {
+                    Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
                 } else if isQueued {
                     Label(String(localized: "Queued", bundle: AppState.currentBundle), systemImage: "clock")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
+                if isPaused {
+                    Text("·").foregroundStyle(.tertiary)
+                    Text(String(localized: "Paused", bundle: AppState.currentBundle))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                }
+                Spacer(minLength: 4)
+                if !progressText.isEmpty {
+                    Text(progressText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let task, !task.formattedSpeed.isEmpty, !isPaused {
+                    Text("·").foregroundStyle(.tertiary)
+                    Text(task.formattedSpeed)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
 
-            if let task, !task.isFailed {
-                if task.progress > 0 {
-                    ProgressView(value: task.progress)
+            if task != nil || pausedItem != nil {
+                if progress > 0 {
+                    ProgressView(value: progress)
                         .progressViewStyle(.linear)
-                        .tint(task.isTranscoding ? .orange : (task.isDirect ? .green : .accentColor))
-                } else {
+                        .tint(tintColor)
+                } else if !isPaused {
                     ProgressView()
                         .progressViewStyle(.linear)
-                        .tint(task.isTranscoding ? .orange : .accentColor)
+                        .tint(tintColor)
                 }
             }
 
             HStack(spacing: 8) {
-                if let task, !task.isFailed {
+                if isPaused {
                     Button {
-                        dm.pauseDownload(activeItem.id)
-                        showDownloadProgress = false
+                        dm.resumeDownload(itemId, appState: appState)
+                    } label: {
+                        Label(String(localized: "Resume", bundle: AppState.currentBundle), systemImage: "play.fill")
+                            .font(.caption.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                } else if let task, !task.isFailed {
+                    Button {
+                        dm.pauseDownload(itemId)
                     } label: {
                         Label(String(localized: "Pause", bundle: AppState.currentBundle), systemImage: "pause.fill")
                             .font(.caption.weight(.medium))
@@ -593,10 +650,10 @@ struct ItemDetailView: View {
                     .buttonStyle(.bordered)
                 }
                 Button(role: .destructive) {
-                    dm.deleteDownload(activeItem.id)
-                    showDownloadProgress = false
+                    dm.deleteDownload(itemId)
+                    downloadPopoverStep = nil
                 } label: {
-                    Label(String(localized: "Cancel Download", bundle: AppState.currentBundle), systemImage: "xmark")
+                    Label(String(localized: "Cancel", bundle: AppState.currentBundle), systemImage: "xmark")
                         .font(.caption.weight(.medium))
                         .frame(maxWidth: .infinity)
                 }
@@ -604,9 +661,149 @@ struct ItemDetailView: View {
             }
         }
         .padding(16)
-        .frame(minWidth: 260)
     }
 
+
+    @ViewBuilder
+    private func downloadStepPopover(step: DownloadPopoverStep) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            switch step {
+            case .scope:
+                Label(activeItem.isMovie
+                      ? String(localized: "Download", bundle: AppState.currentBundle)
+                      : String(localized: "Download Details", bundle: AppState.currentBundle),
+                      systemImage: "arrow.down.circle.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.bottom, 2)
+
+                Button {
+                    pendingDownloadSeason = false
+                    downloadPopoverStep = .quality
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "film")
+                            .font(.system(size: 15))
+                            .frame(width: 24)
+                        Text(String(localized: "Download This Episode", bundle: AppState.currentBundle))
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if let sid = selectedSeason?.id, vm.episodes[sid] != nil {
+                    Divider()
+                    Button {
+                        pendingDownloadSeason = true
+                        downloadPopoverStep = .quality
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "rectangle.stack.fill")
+                                .font(.system(size: 15))
+                                .frame(width: 24)
+                            Text(String(localized: "Download Entire Season", bundle: AppState.currentBundle))
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+            case .quality:
+                Label(String(localized: "Resolution", bundle: AppState.currentBundle),
+                      systemImage: "slider.horizontal.3")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.bottom, 2)
+
+                ForEach(Array(qualities.enumerated()), id: \.offset) { idx, quality in
+                    if idx > 0 { Divider() }
+                    let isDirect = quality.bitrate == nil
+                    Button {
+                        if isDirect {
+                            downloadPopoverStep = nil
+                            if pendingDownloadSeason {
+                                startSeasonDownload(quality: quality)
+                            } else {
+                                startDownload(quality: quality)
+                            }
+                            return
+                        }
+                        let audioStreams = downloadAudioStreams
+                        let uniqueLangs = Set(audioStreams.map { $0.language ?? "und" })
+                        if uniqueLangs.count > 1 {
+                            pendingQuality = quality
+                            downloadPopoverStep = .audio
+                        } else {
+                            downloadPopoverStep = nil
+                            if pendingDownloadSeason {
+                                startSeasonDownload(quality: quality)
+                            } else {
+                                startDownload(quality: quality)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: isDirect ? "bolt.fill" : "arrow.down.circle")
+                                .font(.system(size: 15))
+                                .foregroundStyle(isDirect ? .green : .secondary)
+                                .frame(width: 24)
+                            Text(isDirect ? String(localized: "Original (Direct)", bundle: AppState.currentBundle) : quality.label)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(isDirect ? .green : .primary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+            case .audio:
+                Label(String(localized: "Audio Language", bundle: AppState.currentBundle),
+                      systemImage: "waveform")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.bottom, 2)
+
+                ForEach(Array(downloadAudioStreams.enumerated()), id: \.element.index) { idx, stream in
+                    if idx > 0 { Divider() }
+                    Button {
+                        selectedAudioStreamIndex = stream.index
+                        downloadPopoverStep = nil
+                        guard let quality = pendingQuality else { return }
+                        if pendingDownloadSeason {
+                            startSeasonDownload(quality: quality)
+                        } else {
+                            startDownload(quality: quality)
+                        }
+                        pendingQuality = nil
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "speaker.wave.2.fill")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24)
+                            Text(stream.audioLabel)
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            case .progress:
+                EmptyView()
+            }
+        }
+        .padding(16)
+    }
 
     /// Audio streams from the active item's details (for download audio picker).
     private var downloadAudioStreams: [JellyfinMediaStream] {
@@ -1449,7 +1646,7 @@ struct LogoTitleView: View {
                     image
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: 260, maxHeight: 100, alignment: .leading)
+                        .frame(maxWidth: 260, maxHeight: 100)
                         .shadow(color: .black.opacity(0.6), radius: 6)
                 case .failure:
                     fallbackText.onAppear { logoFailed = true }

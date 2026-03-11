@@ -262,6 +262,34 @@
 "Fair" = "Середнє";
 "Good" = "Добре";
 
+/* Playback */
+"Resume" = "Продовжити";
+"Paused" = "Призупинено";
+"Playback Quality" = "Якість відтворення";
+"Direct Stream" = "Прямий потік";
+
 /* Missing */
 "Recommendations" = "Рекомендації";
 "Select" = "Вибрати";
+
+/* Downloads Detail */
+"Downloaded %@" = "Завантажено %@";
+"Episodes" = "Епізоди";
+"Seasons" = "Сезони";
+"Duration" = "Тривалість";
+"Year" = "Рік";
+"Rating" = "Рейтинг";
+"Genres" = "Жанри";
+"Downloaded" = "Завантажено";
+"Delete All Downloads" = "Видалити всі завантаження";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "Видалити всі завантаження для \u{201C}%@\u{201D}?";
+
+/* Selection Mode */
+"Select All" = "Вибрати все";
+"Deselect All" = "Зняти виділення";
+"Delete Selected (%lld)" = "Видалити вибрані (%lld)";
+"Remove %lld downloads (%@)?" = "Видалити %lld завантажень (%@)?";
+"Delete (%lld)" = "Видалити (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "Видалити \u{201C}%@\u{201D} із завантажень?";
+"Remove \"%@\" from your downloads?" = "Видалити \u{201C}%@\u{201D} із завантажень?";
+"Downloaded View" = "Завантажений вигляд";

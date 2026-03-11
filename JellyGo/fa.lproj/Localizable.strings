@@ -262,6 +262,34 @@
 "Fair" = "متوسط";
 "Good" = "خوب";
 
+/* Playback */
+"Resume" = "ادامه";
+"Paused" = "متوقف";
+"Playback Quality" = "کیفیت پخش";
+"Direct Stream" = "پخش مستقیم";
+
 /* Missing */
 "Recommendations" = "پیشنهادها";
 "Select" = "انتخاب";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@ دانلود شد";
+"Episodes" = "قسمت‌ها";
+"Seasons" = "فصل‌ها";
+"Duration" = "مدت";
+"Year" = "سال";
+"Rating" = "امتیاز";
+"Genres" = "ژانرها";
+"Downloaded" = "دانلود شده";
+"Delete All Downloads" = "حذف همه دانلودها";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "همه دانلودهای \u{201C}%@\u{201D} حذف شوند؟";
+
+/* Selection Mode */
+"Select All" = "انتخاب همه";
+"Deselect All" = "لغو انتخاب همه";
+"Delete Selected (%lld)" = "حذف انتخاب‌شده (%lld)";
+"Remove %lld downloads (%@)?" = "%lld دانلود حذف شود (%@)؟";
+"Delete (%lld)" = "حذف (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D} از دانلودهایتان حذف شود؟";
+"Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D} از دانلودهایتان حذف شود؟";
+"Downloaded View" = "نمای دانلود شده";

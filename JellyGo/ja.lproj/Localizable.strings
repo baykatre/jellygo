@@ -262,6 +262,34 @@
 "Fair" = "普通";
 "Good" = "良好";
 
+/* Playback */
+"Resume" = "再開";
+"Paused" = "一時停止中";
+"Playback Quality" = "再生品質";
+"Direct Stream" = "ダイレクトストリーム";
+
 /* Missing */
 "Recommendations" = "おすすめ";
 "Select" = "選択";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@にダウンロード";
+"Episodes" = "エピソード";
+"Seasons" = "シーズン";
+"Duration" = "再生時間";
+"Year" = "年";
+"Rating" = "評価";
+"Genres" = "ジャンル";
+"Downloaded" = "ダウンロード日";
+"Delete All Downloads" = "すべてのダウンロードを削除";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "\u{201C}%@\u{201D}のダウンロードをすべて削除しますか？";
+
+/* Selection Mode */
+"Select All" = "すべて選択";
+"Deselect All" = "すべて解除";
+"Delete Selected (%lld)" = "選択を削除 (%lld)";
+"Remove %lld downloads (%@)?" = "%lld件のダウンロードを削除 (%@)？";
+"Delete (%lld)" = "削除 (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D}をダウンロードから削除しますか？";
+"Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D}をダウンロードから削除しますか？";
+"Downloaded View" = "ダウンロード表示";

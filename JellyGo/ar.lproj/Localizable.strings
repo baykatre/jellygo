@@ -262,6 +262,34 @@
 "Fair" = "مقبول";
 "Good" = "جيد";
 
+/* Playback */
+"Resume" = "استئناف";
+"Paused" = "متوقف مؤقتاً";
+"Playback Quality" = "جودة التشغيل";
+"Direct Stream" = "بث مباشر";
+
 /* Missing */
 "Recommendations" = "توصيات";
 "Select" = "تحديد";
+
+/* Downloads Detail */
+"Downloaded %@" = "تم التنزيل %@";
+"Episodes" = "الحلقات";
+"Seasons" = "المواسم";
+"Duration" = "المدة";
+"Year" = "السنة";
+"Rating" = "التقييم";
+"Genres" = "الأنواع";
+"Downloaded" = "تم التنزيل";
+"Delete All Downloads" = "حذف جميع التنزيلات";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "هل تريد حذف جميع التنزيلات لـ\u{201C}%@\u{201D}؟";
+
+/* Selection Mode */
+"Select All" = "تحديد الكل";
+"Deselect All" = "إلغاء تحديد الكل";
+"Delete Selected (%lld)" = "حذف المحدد (%lld)";
+"Remove %lld downloads (%@)?" = "حذف %lld تنزيل (%@)؟";
+"Delete (%lld)" = "حذف (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "إزالة \u{201C}%@\u{201D} من تنزيلاتك؟";
+"Remove \"%@\" from your downloads?" = "إزالة \u{201C}%@\u{201D} من تنزيلاتك؟";
+"Downloaded View" = "عرض التنزيلات";

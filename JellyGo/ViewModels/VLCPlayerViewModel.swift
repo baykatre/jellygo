@@ -36,6 +36,36 @@ final class VLCPlayerViewModel: ObservableObject {
     @Published var position: Float = 0
     @Published var selectedQuality: VideoQuality = .direct
 
+    /// VLC audio volume boost (100 = normal, 200 = 2× boost).
+    @Published var volumeBoost: Int32 = 100
+
+    func setVolumeBoost(_ value: Int32) {
+        let clamped = max(100, min(200, value))
+        guard clamped != volumeBoost else { return }
+        volumeBoost = clamped
+        player.audio?.volume = clamped
+    }
+
+    /// VLC video brightness boost via gamma correction (1.0 = normal, 1.5 = max boost).
+    /// Internally maps 1.0→1.5 to gamma 1.0→0.35 (lower gamma = brighter midtones, no white wash).
+    @Published var brightnessBoost: Float = 1.0
+
+    func setBrightnessBoost(_ value: Float) {
+        let clamped = max(1.0, min(1.5, value))
+        guard abs(clamped - brightnessBoost) > 0.001 else { return }
+        brightnessBoost = clamped
+        let isActive = clamped > 1.001
+        player.adjustFilter.isEnabled = isActive
+        if isActive {
+            // Map boost 1.0→1.5 to gamma 1.0→3.0 (higher gamma = brighter in VLC)
+            let t = (clamped - 1.0) / 0.5 // 0→1
+            let gamma = 1.0 + t * 2.0      // 1.0→3.0
+            player.adjustFilter.gamma.value = NSNumber(value: gamma)
+        } else {
+            player.adjustFilter.gamma.value = NSNumber(value: 1.0)
+        }
+    }
+
     @Published var isLocal = false
     /// When true, VLC subtitle rendering is disabled at media load (JellyGo player manages its own).
     var disableVLCSubtitles = false

@@ -262,6 +262,34 @@
 "Fair" = "一般";
 "Good" = "良好";
 
+/* Playback */
+"Resume" = "继续";
+"Paused" = "已暂停";
+"Playback Quality" = "播放质量";
+"Direct Stream" = "直接串流";
+
 /* Missing */
 "Recommendations" = "推荐";
 "Select" = "选择";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@ 已下载";
+"Episodes" = "剧集";
+"Seasons" = "季数";
+"Duration" = "时长";
+"Year" = "年份";
+"Rating" = "评分";
+"Genres" = "类型";
+"Downloaded" = "已下载";
+"Delete All Downloads" = "删除所有下载";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "删除\u{201C}%@\u{201D}的所有下载？";
+
+/* Selection Mode */
+"Select All" = "全选";
+"Deselect All" = "取消全选";
+"Delete Selected (%lld)" = "删除所选 (%lld)";
+"Remove %lld downloads (%@)?" = "删除 %lld 个下载 (%@)？";
+"Delete (%lld)" = "删除 (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "从下载中移除\u{201C}%@\u{201D}？";
+"Remove \"%@\" from your downloads?" = "从下载中移除\u{201C}%@\u{201D}？";
+"Downloaded View" = "已下载视图";

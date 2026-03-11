@@ -263,3 +263,31 @@
 "Slow" = "Slow";
 "Fair" = "Fair";
 "Good" = "Good";
+
+/* Playback */
+"Resume" = "Resume";
+"Paused" = "Paused";
+"Playback Quality" = "Playback Quality";
+"Direct Stream" = "Direct Stream";
+
+/* Downloads Detail */
+"Downloaded %@" = "Downloaded %@";
+"Episodes" = "Episodes";
+"Seasons" = "Seasons";
+"Duration" = "Duration";
+"Year" = "Year";
+"Rating" = "Rating";
+"Genres" = "Genres";
+"Downloaded" = "Downloaded";
+"Delete All Downloads" = "Delete All Downloads";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "Remove all downloads for \u{201C}%@\u{201D}?";
+
+/* Selection Mode */
+"Select All" = "Select All";
+"Deselect All" = "Deselect All";
+"Delete Selected (%lld)" = "Delete Selected (%lld)";
+"Remove %lld downloads (%@)?" = "Remove %lld downloads (%@)?";
+"Delete (%lld)" = "Delete (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "Remove \u{201C}%@\u{201D} from your downloads?";
+"Remove \"%@\" from your downloads?" = "Remove \"%@\" from your downloads?";
+"Downloaded View" = "Downloaded View";

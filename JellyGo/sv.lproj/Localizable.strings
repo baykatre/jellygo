@@ -262,6 +262,34 @@
 "Fair" = "Medel";
 "Good" = "Bra";
 
+/* Playback */
+"Resume" = "Återuppta";
+"Paused" = "Pausad";
+"Playback Quality" = "Uppspelningskvalitet";
+"Direct Stream" = "Direktström";
+
 /* Missing */
 "Recommendations" = "Rekommendationer";
 "Select" = "Välj";
+
+/* Downloads Detail */
+"Downloaded %@" = "Nedladdad %@";
+"Episodes" = "Avsnitt";
+"Seasons" = "Säsonger";
+"Duration" = "Längd";
+"Year" = "År";
+"Rating" = "Betyg";
+"Genres" = "Genrer";
+"Downloaded" = "Nedladdad";
+"Delete All Downloads" = "Ta bort alla nedladdningar";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "Ta bort alla nedladdningar för \u{201C}%@\u{201D}?";
+
+/* Selection Mode */
+"Select All" = "Välj alla";
+"Deselect All" = "Avmarkera alla";
+"Delete Selected (%lld)" = "Ta bort valda (%lld)";
+"Remove %lld downloads (%@)?" = "Ta bort %lld nedladdningar (%@)?";
+"Delete (%lld)" = "Ta bort (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "Ta bort \u{201C}%@\u{201D} från dina nedladdningar?";
+"Remove \"%@\" from your downloads?" = "Ta bort \u{201C}%@\u{201D} från dina nedladdningar?";
+"Downloaded View" = "Nedladdad vy";

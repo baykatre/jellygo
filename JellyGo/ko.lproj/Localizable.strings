@@ -262,6 +262,34 @@
 "Fair" = "보통";
 "Good" = "양호";
 
+/* Playback */
+"Resume" = "재개";
+"Paused" = "일시정지됨";
+"Playback Quality" = "재생 품질";
+"Direct Stream" = "직접 스트리밍";
+
 /* Missing */
 "Recommendations" = "추천";
 "Select" = "선택";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@ 다운로드됨";
+"Episodes" = "에피소드";
+"Seasons" = "시즌";
+"Duration" = "재생 시간";
+"Year" = "연도";
+"Rating" = "평점";
+"Genres" = "장르";
+"Downloaded" = "다운로드 날짜";
+"Delete All Downloads" = "모든 다운로드 삭제";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "\u{201C}%@\u{201D}의 모든 다운로드를 삭제하시겠습니까?";
+
+/* Selection Mode */
+"Select All" = "모두 선택";
+"Deselect All" = "모두 해제";
+"Delete Selected (%lld)" = "선택 삭제 (%lld)";
+"Remove %lld downloads (%@)?" = "%lld개 다운로드 삭제 (%@)?";
+"Delete (%lld)" = "삭제 (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D}을(를) 다운로드에서 제거하시겠습니까?";
+"Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D}을(를) 다운로드에서 제거하시겠습니까?";
+"Downloaded View" = "다운로드 보기";

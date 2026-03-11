@@ -262,6 +262,34 @@
 "Fair" = "Mäßig";
 "Good" = "Gut";
 
+/* Playback */
+"Resume" = "Fortsetzen";
+"Paused" = "Pausiert";
+"Playback Quality" = "Wiedergabequalität";
+"Direct Stream" = "Direkter Stream";
+
 /* Missing */
 "Recommendations" = "Empfehlungen";
 "Select" = "Auswählen";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@ heruntergeladen";
+"Episodes" = "Episoden";
+"Seasons" = "Staffeln";
+"Duration" = "Dauer";
+"Year" = "Jahr";
+"Rating" = "Bewertung";
+"Genres" = "Genres";
+"Downloaded" = "Heruntergeladen";
+"Delete All Downloads" = "Alle Downloads löschen";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "Alle Downloads für \u{201C}%@\u{201D} entfernen?";
+
+/* Selection Mode */
+"Select All" = "Alle auswählen";
+"Deselect All" = "Alle abwählen";
+"Delete Selected (%lld)" = "Ausgewählte löschen (%lld)";
+"Remove %lld downloads (%@)?" = "%lld Downloads entfernen (%@)?";
+"Delete (%lld)" = "Löschen (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D} aus deinen Downloads entfernen?";
+"Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D} aus deinen Downloads entfernen?";
+"Downloaded View" = "Heruntergeladen";

@@ -51,6 +51,7 @@ var bannerSize: CGSize {
 struct HeroBannerView: View {
     let items: [JellyfinItem]
     let serverURL: String
+    var pullDown: CGFloat = 0
     var onPlay: (JellyfinItem) -> Void = { _ in }
 
     // Start at 1: looped array is [last, ...items..., first]
@@ -78,12 +79,12 @@ struct HeroBannerView: View {
         ZStack(alignment: .bottom) {
             TabView(selection: $currentIndex) {
                 ForEach(Array(looped.enumerated()), id: \.offset) { i, item in
-                    BannerPageView(item: item, serverURL: serverURL, size: size, onPlay: onPlay)
+                    BannerPageView(item: item, serverURL: serverURL, size: size, pullDown: pullDown, onPlay: onPlay)
                         .tag(i)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(width: size.width, height: size.height)
+            .frame(width: size.width, height: size.height + pullDown)
             .onChange(of: currentIndex) { _, new in
                 // Silent loop-jump triggered by us — skip all logic
                 if ignoreNextChange {
@@ -124,6 +125,8 @@ struct HeroBannerView: View {
                 .padding(.bottom, 18)
             }
         }
+        .offset(y: -pullDown)
+        .padding(.bottom, -pullDown)
         .onReceive(autoTimer) { now in
             guard items.count > 1, now >= pauseUntil else { return }
             isAutoAdvance = true
@@ -181,6 +184,7 @@ struct BannerPageView: View {
     let item: JellyfinItem
     let serverURL: String
     let size: CGSize
+    var pullDown: CGFloat = 0
     let onPlay: (JellyfinItem) -> Void
 
     var body: some View {
@@ -188,23 +192,16 @@ struct BannerPageView: View {
             // Background image + gradients — tapping navigates to detail
             NavigationLink(value: item) {
                 ZStack {
-                    // Backdrop image: stretches on pull-down, scrolls normally otherwise
-                    GeometryReader { geo in
-                        let minY = geo.frame(in: .named("homeScroll")).minY
-                        let imageH = max(size.height, size.height + minY)
-                        AsyncImage(url: backdropURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().aspectRatio(contentMode: .fill)
-                                    .frame(width: size.width, height: imageH, alignment: .top)
-                                    .offset(y: minY > 0 ? -minY : 0)
-                            default:
-                                Color(white: 0.12).frame(width: size.width, height: imageH)
-                            }
+                    // Backdrop image — grows with pullDown
+                    AsyncImage(url: backdropURL) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        default:
+                            Color(white: 0.12)
                         }
-                        .clipped()
                     }
-                    .frame(width: size.width, height: size.height)
+                    .frame(width: size.width, height: size.height + pullDown)
                     .clipped()
 
                     // Bottom gradient
@@ -227,7 +224,7 @@ struct BannerPageView: View {
                         Color.clear.frame(height: 82)
                     }
                 }
-                .frame(width: size.width, height: size.height)
+                .frame(width: size.width, height: size.height + pullDown)
             }
             .buttonStyle(.plain)
 
@@ -287,7 +284,7 @@ struct BannerPageView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
         }
-        .frame(width: size.width, height: size.height)
+        .frame(width: size.width, height: size.height + pullDown)
     }
 
     private var playLabel: some View {

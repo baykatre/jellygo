@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedTab: Int = 0
     @State private var homePath = NavigationPath()
+    @State private var heroPullDown: CGFloat = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -95,6 +96,7 @@ struct HomeView: View {
                         HeroBannerView(
                             items: vm.featuredItems,
                             serverURL: vm.serverURL,
+                            pullDown: heroPullDown,
                             onPlay: { item in
                                 AppDelegate.orientationLock = .landscape
                                 PlayerContainerView.rotate(to: .landscapeRight)
@@ -131,6 +133,11 @@ struct HomeView: View {
             }
             .ignoresSafeArea(edges: .top)
             .scrollEdgeEffectStyle(.none, for: .top)
+            .onScrollGeometryChange(for: CGFloat.self) { geo in
+                geo.contentOffset.y + geo.contentInsets.top
+            } action: { _, offset in
+                heroPullDown = max(0, -offset)
+            }
             .background(Color(.systemBackground).ignoresSafeArea())
             .coordinateSpace(name: "homeScroll")
             .toolbarBackground(.hidden, for: .navigationBar)

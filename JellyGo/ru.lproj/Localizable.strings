@@ -262,6 +262,34 @@
 "Fair" = "Среднее";
 "Good" = "Хорошее";
 
+/* Playback */
+"Resume" = "Продолжить";
+"Paused" = "На паузе";
+"Playback Quality" = "Качество воспроизведения";
+"Direct Stream" = "Прямой поток";
+
 /* Missing */
 "Recommendations" = "Рекомендации";
 "Select" = "Выбрать";
+
+/* Downloads Detail */
+"Downloaded %@" = "Загружено %@";
+"Episodes" = "Эпизоды";
+"Seasons" = "Сезоны";
+"Duration" = "Длительность";
+"Year" = "Год";
+"Rating" = "Рейтинг";
+"Genres" = "Жанры";
+"Downloaded" = "Загружено";
+"Delete All Downloads" = "Удалить все загрузки";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "Удалить все загрузки для \u{201C}%@\u{201D}?";
+
+/* Selection Mode */
+"Select All" = "Выбрать все";
+"Deselect All" = "Снять выделение";
+"Delete Selected (%lld)" = "Удалить выбранные (%lld)";
+"Remove %lld downloads (%@)?" = "Удалить %lld загрузок (%@)?";
+"Delete (%lld)" = "Удалить (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "Удалить \u{201C}%@\u{201D} из загрузок?";
+"Remove \"%@\" from your downloads?" = "Удалить \u{201C}%@\u{201D} из загрузок?";
+"Downloaded View" = "Загруженные";

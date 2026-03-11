@@ -172,7 +172,20 @@ struct OfflineView: View {
 
     // MARK: - Body
 
+    @State private var selectedTab: Int = 0
+
     var body: some View {
+        TabView(selection: $selectedTab) {
+            Tab(String(localized: "Home", bundle: AppState.currentBundle), systemImage: "house.fill", value: 0) {
+                offlineHomeTab
+            }
+            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "arrow.down.circle.fill", value: 1) {
+                DownloadsView()
+            }
+        }
+    }
+
+    private var offlineHomeTab: some View {
         NavigationStack {
             Group {
                 if dm.downloads.isEmpty {
@@ -244,7 +257,7 @@ struct OfflineView: View {
                 SettingsView()
             }
             .navigationDestination(for: JellyfinItem.self) { item in
-                ItemDetailView(item: item)
+                ItemDetailView(item: item, isFromDownloads: true)
             }
             .fullScreenCover(item: $heroPlayItem, onDismiss: {
                 appState.isPlayerActive = false

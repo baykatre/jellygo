@@ -263,3 +263,31 @@
 "Slow" = "Yavaş";
 "Fair" = "Orta";
 "Good" = "İyi";
+
+/* Playback */
+"Resume" = "Devam Et";
+"Paused" = "Duraklatıldı";
+"Playback Quality" = "Oynatma Kalitesi";
+"Direct Stream" = "Doğrudan Akış";
+
+/* Downloads Detail */
+"Downloaded %@" = "%@ indirildi";
+"Episodes" = "Bölümler";
+"Seasons" = "Sezonlar";
+"Duration" = "Süre";
+"Year" = "Yıl";
+"Rating" = "Puan";
+"Genres" = "Türler";
+"Downloaded" = "İndirilme";
+"Delete All Downloads" = "Tüm İndirmeleri Sil";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "\u{201C}%@\u{201D} için tüm indirmeler silinsin mi?";
+
+/* Selection Mode */
+"Select All" = "Tümünü Seç";
+"Deselect All" = "Seçimi Kaldır";
+"Delete Selected (%lld)" = "Seçilenleri Sil (%lld)";
+"Remove %lld downloads (%@)?" = "%lld indirme silinsin (%@)?";
+"Delete (%lld)" = "Sil (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D} indirmelerinizden kaldırılsın mı?";
+"Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D} indirmelerinizden kaldırılsın mı?";
+"Downloaded View" = "İndirilenler Görünümü";

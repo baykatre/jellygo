@@ -262,6 +262,34 @@
 "Fair" = "Middel";
 "Good" = "God";
 
+/* Playback */
+"Resume" = "Genoptag";
+"Paused" = "Sat på pause";
+"Playback Quality" = "Afspilningskvalitet";
+"Direct Stream" = "Direkte stream";
+
 /* Missing */
 "Recommendations" = "Anbefalinger";
 "Select" = "Vælg";
+
+/* Downloads Detail */
+"Downloaded %@" = "Downloadet %@";
+"Episodes" = "Episoder";
+"Seasons" = "Sæsoner";
+"Duration" = "Varighed";
+"Year" = "År";
+"Rating" = "Bedømmelse";
+"Genres" = "Genrer";
+"Downloaded" = "Downloadet";
+"Delete All Downloads" = "Slet alle downloads";
+"Remove all downloads for \u{201C}%@\u{201D}?" = "Fjern alle downloads for \u{201C}%@\u{201D}?";
+
+/* Selection Mode */
+"Select All" = "Vælg alle";
+"Deselect All" = "Fravælg alle";
+"Delete Selected (%lld)" = "Slet valgte (%lld)";
+"Remove %lld downloads (%@)?" = "Fjern %lld downloads (%@)?";
+"Delete (%lld)" = "Slet (%lld)";
+"Remove \u{201C}%@\u{201D} from your downloads?" = "Fjern \u{201C}%@\u{201D} fra dine downloads?";
+"Remove \"%@\" from your downloads?" = "Fjern \u{201C}%@\u{201D} fra dine downloads?";
+"Downloaded View" = "Downloadet visning";
