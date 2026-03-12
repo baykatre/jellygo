@@ -2,8 +2,9 @@ import SwiftUI
 
 struct MediaBrowseView: View {
     let category: String
+    var embedded: Bool = false
     @EnvironmentObject private var appState: AppState
-    @ObservedObject var vm: MediaBrowseViewModel
+    @StateObject private var vm = MediaBrowseViewModel()
     @State private var selectedGenre: String?
     @State private var heroPlayItem: JellyfinItem?
     @State private var heroPullDown: CGFloat = 0
@@ -12,8 +13,22 @@ struct MediaBrowseView: View {
     @State private var pullTriggered = false
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
+        if embedded {
+            content
+        } else {
+            NavigationStack {
+                content
+            }
+            .task(id: appState.sessionId) {
+                guard vm.featuredItems.isEmpty else { return }
+                await vm.loadGenres(category: category, appState: appState)
+                await vm.loadCategory(category: category, appState: appState, genre: selectedGenre)
+            }
+        }
+    }
+
+    private var content: some View {
+        VStack(spacing: 0) {
                 if !vm.availableGenres.isEmpty {
                     genreBar
                 }
@@ -37,8 +52,8 @@ struct MediaBrowseView: View {
                                             heroPlayItem = item
                                         }
                                     }
-                                }
-                            )
+                                },
+                                )
                         }
 
                         // Content sections
@@ -130,12 +145,11 @@ struct MediaBrowseView: View {
                     .environmentObject(appState)
                     .onAppear { appState.isPlayerActive = true }
             }
-        }
-        .task(id: appState.sessionId) {
-            guard vm.featuredItems.isEmpty else { return }
-            await vm.loadGenres(category: category, appState: appState)
-            await vm.loadCategory(category: category, appState: appState, genre: selectedGenre)
-        }
+            .task(id: appState.sessionId) {
+                guard vm.featuredItems.isEmpty else { return }
+                await vm.loadGenres(category: category, appState: appState)
+                await vm.loadCategory(category: category, appState: appState, genre: selectedGenre)
+            }
     }
 
     // MARK: - Category Title

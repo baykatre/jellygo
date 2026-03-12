@@ -54,86 +54,270 @@ struct HeroBannerView: View {
     var pullDown: CGFloat = 0
     var onPlay: (JellyfinItem) -> Void = { _ in }
 
-    // Start at 1: looped array is [last, ...items..., first]
-    @State private var currentIndex = 1
+    // Two stable layers: A and B. One is "current", the other is "next".
+    // On commit we toggle which is current — NO AsyncImage URL changes at snap time.
+    @State private var indexA = 0
+    @State private var indexB = 0
+    @State private var aIsCurrent = true
+    @State private var dragOffset: CGFloat = 0
+    @State private var isTransitioning = false
+    @State private var isDragging = false
     @State private var pauseUntil: Date = .distantPast
-    @State private var isAutoAdvance = false
-    @State private var ignoreNextChange = false
 
     private let autoTimer = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
 
-    // [items.last] + items + [items.first]
-    private var looped: [JellyfinItem] {
-        guard items.count > 1 else { return items }
-        return [items[items.count - 1]] + items + [items[0]]
+    private var progress: CGFloat {
+        let size = bannerSize
+        guard size.width > 0 else { return 0 }
+        return dragOffset / size.width
     }
 
-    // Dot indicator maps looped index → real index
-    private var dotIndex: Int {
-        guard items.count > 1 else { return 0 }
-        return max(0, min(currentIndex - 1, items.count - 1))
-    }
+    private var currentItemIndex: Int { aIsCurrent ? indexA : indexB }
 
     var body: some View {
         let size = bannerSize
+        // Crossfade: amplified so ~35% drag ≈ 100% opacity swap
+        let rawProg = min(abs(progress), 1.0)
+        let fadeProg = min(rawProg * 2.8, 1.0)
+        // Parallax: tracks raw finger movement, keeps drifting after crossfade is done
+        let curParallax = progress * 60
+        let nxtParallax = -progress * 20
+
         ZStack(alignment: .bottom) {
-            TabView(selection: $currentIndex) {
-                ForEach(Array(looped.enumerated()), id: \.offset) { i, item in
-                    BannerPageView(item: item, serverURL: serverURL, size: size, pullDown: pullDown, onPlay: onPlay)
-                        .tag(i)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(width: size.width, height: size.height + pullDown)
-            .onChange(of: currentIndex) { _, new in
-                // Silent loop-jump triggered by us — skip all logic
-                if ignoreNextChange {
-                    ignoreNextChange = false
-                    isAutoAdvance = false
-                    return
-                }
-                defer { isAutoAdvance = false }
+            // Layer A — stable identity, never changes URL at snap time
+            backdropLayer(item: items[indexA], size: size,
+                          parallaxOffset: aIsCurrent ? curParallax : nxtParallax)
+                .opacity(Double(aIsCurrent ? 1.0 - fadeProg : fadeProg))
 
-                // User swiped — pause timer
-                if !isAutoAdvance {
-                    pauseUntil = Date().addingTimeInterval(8)
-                }
+            // Layer B — stable identity
+            backdropLayer(item: items[indexB], size: size,
+                          parallaxOffset: aIsCurrent ? nxtParallax : curParallax)
+                .opacity(Double(aIsCurrent ? fadeProg : 1.0 - fadeProg))
 
-                // Hit duplicate boundary → silently snap to real counterpart
-                if new == 0 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
-                        ignoreNextChange = true
-                        currentIndex = items.count   // last real item
-                    }
-                } else if new == looped.count - 1 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
-                        ignoreNextChange = true
-                        currentIndex = 1             // first real item
-                    }
-                }
+            // Gradient
+            gradientOverlay(size: size)
+
+            // Content — hides during drag/transition
+            contentOverlay(item: items[currentItemIndex], size: size)
+                .opacity(isDragging ? 0 : 1)
+                .animation(.easeOut(duration: isDragging ? 0.08 : 0.25), value: isDragging)
+
+            // NavigationLink
+            if !isDragging {
+                NavigationLink(value: items[currentItemIndex]) { Color.clear }
+                    .buttonStyle(.plain)
             }
 
+            // Dot indicator
             if items.count > 1 {
                 HStack(spacing: 5) {
                     ForEach(items.indices, id: \.self) { i in
                         Capsule()
-                            .fill(i == dotIndex ? Color.white : Color.white.opacity(0.35))
-                            .frame(width: i == dotIndex ? 20 : 5, height: 5)
-                            .animation(.spring(duration: 0.3), value: dotIndex)
+                            .fill(i == currentItemIndex ? Color.white : Color.white.opacity(0.35))
+                            .frame(width: i == currentItemIndex ? 20 : 5, height: 5)
+                            .animation(.spring(duration: 0.3), value: currentItemIndex)
                     }
                 }
                 .padding(.bottom, 18)
             }
         }
+        .frame(width: size.width, height: size.height + pullDown)
         .offset(y: -pullDown)
         .padding(.bottom, -pullDown)
+        .contentShape(Rectangle())
+        .gesture(items.count > 1 ? dragGesture(size: size) : nil)
         .onReceive(autoTimer) { now in
-            guard items.count > 1, now >= pauseUntil else { return }
-            isAutoAdvance = true
-            withAnimation(.easeInOut(duration: 0.9)) {
-                currentIndex += 1
+            guard items.count > 1, now >= pauseUntil, !isTransitioning else { return }
+            commitTransition(direction: -1, size: size)
+        }
+    }
+
+    // MARK: - Drag Gesture
+
+    private func dragGesture(size: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onChanged { value in
+                guard !isTransitioning else { return }
+                isDragging = true
+                dragOffset = value.translation.width
+                // Update the "next" slot's index
+                let nextItemIdx: Int
+                if dragOffset < 0 {
+                    nextItemIdx = (currentItemIndex + 1) % items.count
+                } else {
+                    nextItemIdx = (currentItemIndex - 1 + items.count) % items.count
+                }
+                if aIsCurrent { indexB = nextItemIdx } else { indexA = nextItemIdx }
+            }
+            .onEnded { value in
+                guard !isTransitioning else { return }
+                let threshold = size.width * 0.2
+                let velocity = value.predictedEndTranslation.width - value.translation.width
+                if abs(dragOffset) > threshold || abs(velocity) > 200 {
+                    commitTransition(direction: dragOffset < 0 ? -1 : 1, size: size)
+                } else {
+                    withAnimation(.spring(duration: 0.3)) { dragOffset = 0 }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.31) {
+                        isDragging = false
+                    }
+                }
+                pauseUntil = Date().addingTimeInterval(8)
+            }
+    }
+
+    private func commitTransition(direction: CGFloat, size: CGSize) {
+        isTransitioning = true
+        isDragging = true
+
+        // Compute the pending next index
+        let pending: Int
+        if direction < 0 {
+            pending = (currentItemIndex + 1) % items.count
+        } else {
+            pending = (currentItemIndex - 1 + items.count) % items.count
+        }
+
+        // Auto-advance: seed the next slot and animate crossfade
+        if dragOffset == 0 {
+            if aIsCurrent { indexB = pending } else { indexA = pending }
+            dragOffset = direction < 0 ? -1 : 1
+
+            let target = direction < 0 ? -size.width : size.width
+            withAnimation(.easeOut(duration: 0.3)) { dragOffset = target }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+                finishTransition()
+            }
+            return
+        }
+
+        // User drag: crossfade already done visually — snap in place, no animation
+        finishTransition()
+    }
+
+    private func finishTransition() {
+        var t = Transaction(animation: nil)
+        withTransaction(t) {
+            aIsCurrent.toggle()
+            dragOffset = 0
+        }
+        isTransitioning = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+            isDragging = false
+        }
+    }
+
+    // MARK: - Extracted Layers
+
+    @ViewBuilder
+    private func backdropLayer(item: JellyfinItem, size: CGSize, parallaxOffset: CGFloat = 0) -> some View {
+        AsyncImage(url: bannerBackdropURL(item: item)) { phase in
+            switch phase {
+            case .success(let image):
+                image.resizable().aspectRatio(contentMode: .fill)
+                    .offset(x: parallaxOffset)
+            default:
+                Color(white: 0.12)
             }
         }
+        .frame(width: size.width, height: size.height + pullDown)
+        .clipped()
+    }
+
+    @ViewBuilder
+    private func gradientOverlay(size: CGSize) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black.opacity(0.75), location: 0.5),
+                    .init(color: .black, location: 1)
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(height: 280)
+        }
+        .frame(width: size.width, height: size.height + pullDown)
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func contentOverlay(item: JellyfinItem, size: CGSize) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LogoTitleView(
+                title: item.name,
+                logoURL: bannerLogoURL(item: item)
+            )
+            .frame(maxWidth: 280, alignment: .leading)
+
+            HStack(spacing: 8) {
+                if let year = item.productionYear {
+                    Text(String(year))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+                Text(item.isMovie ? LocalizedStringKey("Movie") : LocalizedStringKey("Series"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.white.opacity(0.2), in: Capsule())
+                if let r = item.communityRating {
+                    Label(String(format: "%.1f", r), systemImage: "star.fill")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.yellow)
+                }
+            }
+            .allowsHitTesting(false)
+
+            HStack(spacing: 10) {
+                if item.isMovie || item.isEpisode {
+                    Button { onPlay(item) } label: { bannerPlayLabel }
+                } else {
+                    NavigationLink(value: item) { bannerPlayLabel }.buttonStyle(.plain)
+                }
+
+                NavigationLink(value: item) {
+                    Label(String(localized: "More Info", bundle: AppState.currentBundle), systemImage: "info.circle")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 126, height: 44)
+                        .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(.white.opacity(0.25), lineWidth: 0.5)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 38)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var bannerPlayLabel: some View {
+        Label(String(localized: "Play", bundle: AppState.currentBundle), systemImage: "play.fill")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.black)
+            .frame(width: 126, height: 44)
+            .background(.white, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - URLs
+
+    private func bannerBackdropURL(item: JellyfinItem) -> URL? {
+        if let local = DownloadManager.localBackdropURL(itemId: item.id)
+            ?? DownloadManager.localPosterURL(itemId: item.id) {
+            return local
+        }
+        return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
+    }
+
+    private func bannerLogoURL(item: JellyfinItem) -> URL? {
+        DownloadManager.localLogoURL(itemId: item.id)
+            ?? JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: item.id)
     }
 }
 
@@ -180,135 +364,6 @@ struct HeroBannerPlaceholder: View {
     }
 }
 
-struct BannerPageView: View {
-    let item: JellyfinItem
-    let serverURL: String
-    let size: CGSize
-    var pullDown: CGFloat = 0
-    let onPlay: (JellyfinItem) -> Void
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            // Background image + gradients — tapping navigates to detail
-            NavigationLink(value: item) {
-                ZStack {
-                    // Backdrop image — grows with pullDown
-                    AsyncImage(url: backdropURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        default:
-                            Color(white: 0.12)
-                        }
-                    }
-                    .frame(width: size.width, height: size.height + pullDown)
-                    .clipped()
-
-                    // Bottom gradient
-                    VStack(spacing: 0) {
-                        Spacer()
-                        LinearGradient(
-                            stops: [
-                                .init(color: .clear, location: 0),
-                                .init(color: .black.opacity(0.75), location: 0.5),
-                                .init(color: .black, location: 1)
-                            ],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                        .frame(height: 280)
-                    }
-
-                    // Placeholder for button area so NavigationLink doesn't cover buttons
-                    VStack {
-                        Spacer()
-                        Color.clear.frame(height: 82)
-                    }
-                }
-                .frame(width: size.width, height: size.height + pullDown)
-            }
-            .buttonStyle(.plain)
-
-            // Content overlay — outside NavigationLink
-            VStack(alignment: .leading, spacing: 10) {
-                LogoTitleView(
-                    title: item.name,
-                    logoURL: logoURL
-                )
-                .frame(maxWidth: 280, alignment: .leading)
-
-                HStack(spacing: 8) {
-                    if let year = item.productionYear {
-                        Text(String(year))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.75))
-                    }
-                    Text(item.isMovie ? LocalizedStringKey("Movie") : LocalizedStringKey("Series"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.white.opacity(0.2), in: Capsule())
-                    if let r = item.communityRating {
-                        Label(String(format: "%.1f", r), systemImage: "star.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.yellow)
-                    }
-                }
-                .allowsHitTesting(false)
-
-                HStack(spacing: 10) {
-                    // Oynat — film ise direkt player, dizi ise detail
-                    if item.isMovie || item.isEpisode {
-                        Button { onPlay(item) } label: { playLabel }
-                    } else {
-                        NavigationLink(value: item) { playLabel }.buttonStyle(.plain)
-                    }
-
-                    // Bilgi Al — her zaman detail
-                    NavigationLink(value: item) {
-                        Label(String(localized: "More Info", bundle: AppState.currentBundle), systemImage: "info.circle")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 126, height: 44)
-                            .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(.white.opacity(0.25), lineWidth: 0.5)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 38)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-        }
-        .frame(width: size.width, height: size.height + pullDown)
-    }
-
-    private var playLabel: some View {
-        Label(String(localized: "Play", bundle: AppState.currentBundle), systemImage: "play.fill")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.black)
-            .frame(width: 126, height: 44)
-            .background(.white, in: RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var backdropURL: URL? {
-        // Prefer local cache for offline support
-        if let local = DownloadManager.localBackdropURL(itemId: item.id)
-            ?? DownloadManager.localPosterURL(itemId: item.id) {
-            return local
-        }
-        return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
-    }
-
-    private var logoURL: URL? {
-        DownloadManager.localLogoURL(itemId: item.id)
-            ?? JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: item.id)
-    }
-}
 
 // MARK: - Poster Card (2:3) — gradient title overlay
 

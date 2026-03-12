@@ -16,7 +16,6 @@ struct ItemDetailView: View {
     @State private var activeItem: JellyfinItem
     @State private var itemToPlay: JellyfinItem?
     @State private var selectedSeason: JellyfinItem?
-    @State private var pullDown: CGFloat = 0
     @State private var downloadPopoverStep: DownloadPopoverStep? = nil
     @State private var pendingDownloadSeason = false
     @State private var showDeleteConfirm = false
@@ -50,82 +49,7 @@ struct ItemDetailView: View {
 
     var body: some View {
         ScrollViewReader { scrollProxy in
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: 0).id("detailTop")
-                backdropOverlay
-                Color(.systemBackground).frame(height: 24)
-                mainContent
-                    .background(Color(.systemBackground))
-                Color(.systemBackground).frame(height: 100)
-            }
-        }
-        .ignoresSafeArea(edges: .top)
-        .onScrollGeometryChange(for: CGFloat.self) { geo in
-            geo.contentOffset.y + geo.contentInsets.top
-        } action: { _, offset in
-            pullDown = max(0, -offset)
-        }
-        .background(alignment: .top) {
-            backdropBackground
-                .ignoresSafeArea(edges: .top)
-        }
-        .background(Color(.systemBackground).ignoresSafeArea())
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbar {
-            if isFromDownloads {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        if !appState.manualOffline && !appState.serverUnreachable {
-                            isFromDownloads = false
-                            vm.seasons = []
-                            vm.episodes = [:]
-                            vm.fullItem = nil
-                            selectedSeason = nil
-                            Task {
-                                await vm.load(item: item, appState: appState)
-                                if item.isSeries {
-                                    let season = await vm.bestSeasonToOpen(appState: appState)
-                                    selectedSeason = season ?? vm.seasons.first
-                                } else {
-                                    selectedSeason = vm.seasons.first(where: { $0.indexNumber == item.parentIndexNumber })
-                                        ?? vm.seasons.first
-                                    if let sid = selectedSeason?.id {
-                                        await vm.loadEpisodes(seasonId: sid, appState: appState)
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .font(.system(size: 11, weight: .bold))
-                            Text(String(localized: "Downloaded View", bundle: AppState.currentBundle))
-                                .font(.caption.weight(.medium))
-                        }
-                        .foregroundStyle(appState.manualOffline || appState.serverUnreachable ? .gray : .green)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 5)
-                    }
-                }
-            } else {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        Task { await vm.toggleWatched(item: activeItem, appState: appState) }
-                    } label: {
-                        Image(systemName: vm.isWatched ? "eye.fill" : "eye")
-                            .foregroundStyle(.white)
-                    }
-                    Button {
-                        Task { await vm.toggleFavorite(item: activeItem, appState: appState) }
-                    } label: {
-                        Image(systemName: vm.isFavorite ? "heart.fill" : "heart")
-                            .foregroundStyle(vm.isFavorite ? .red : .white)
-                    }
-                }
-            }
-        }
-        .toolbar(.hidden, for: .tabBar)
+        detailScrollView
         .overlay {
             if overviewExpanded, let overview = activeItem.overview ?? displayItem.overview {
                 overviewPopup(overview)
@@ -288,14 +212,112 @@ struct ItemDetailView: View {
         }
     }
 
-    // MARK: - Backdrop Image (fixed at top via .background, grows on pull-down)
+    // MARK: - Toolbar Content
 
-    private var backdropBackground: some View {
+    @ToolbarContentBuilder
+    private var detailToolbarContent: some ToolbarContent {
+        if isFromDownloads {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    if !appState.manualOffline && !appState.serverUnreachable {
+                        isFromDownloads = false
+                        vm.seasons = []
+                        vm.episodes = [:]
+                        vm.fullItem = nil
+                        selectedSeason = nil
+                        Task {
+                            await vm.load(item: item, appState: appState)
+                            if item.isSeries {
+                                let season = await vm.bestSeasonToOpen(appState: appState)
+                                selectedSeason = season ?? vm.seasons.first
+                            } else {
+                                selectedSeason = vm.seasons.first(where: { $0.indexNumber == item.parentIndexNumber })
+                                    ?? vm.seasons.first
+                                if let sid = selectedSeason?.id {
+                                    await vm.loadEpisodes(seasonId: sid, appState: appState)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(String(localized: "Downloaded View", bundle: AppState.currentBundle))
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundStyle(appState.manualOffline || appState.serverUnreachable ? .gray : .green)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 5)
+                }
+            }
+        } else {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    Task { await vm.toggleWatched(item: activeItem, appState: appState) }
+                } label: {
+                    Image(systemName: vm.isWatched ? "eye.fill" : "eye")
+                        .foregroundStyle(.white)
+                }
+                Button {
+                    Task { await vm.toggleFavorite(item: activeItem, appState: appState) }
+                } label: {
+                    Image(systemName: vm.isFavorite ? "heart.fill" : "heart")
+                        .foregroundStyle(vm.isFavorite ? .red : .white)
+                }
+            }
+        }
+    }
+
+    // MARK: - Detail Scroll View
+
+    private var detailScrollView: some View {
+        ScrollView(showsIndicators: false) {
+            scrollContent
+        }
+        .coordinateSpace(name: "detailScroll")
+        .ignoresSafeArea(edges: .top)
+        .scrollEdgeEffectStyle(.none, for: .top)
+        .background(Color(.systemBackground).ignoresSafeArea())
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .navigationTitle("")
+        .toolbar { detailToolbarContent }
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    // MARK: - Scroll Content
+
+    private var scrollContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Color.clear.frame(height: 0).id("detailTop")
+            ZStack(alignment: .bottom) {
+                // Backdrop image with parallax
+                GeometryReader { geo in
+                    let minY = geo.frame(in: .named("detailScroll")).minY
+                    let stretch = max(0, minY)
+                    backdropImage
+                        .frame(width: geo.size.width, height: backdropHeight + stretch)
+                        .clipped()
+                        .offset(y: minY > 0 ? -minY : -minY * 0.4)
+                }
+                .frame(height: backdropHeight)
+
+                // Gradient overlay + title + buttons
+                backdropOverlayContent
+            }
+            Color(.systemBackground).frame(height: 24)
+            mainContent
+                .background(Color(.systemBackground))
+            Color(.systemBackground).frame(height: 100)
+        }
+    }
+
+    // MARK: - Backdrop Image
+
+    private var backdropImage: some View {
         let backdropId = activeItem.isEpisode ? (activeItem.seriesId ?? activeItem.id) : activeItem.id
-        // Prefer local cached backdrop, fall back to remote
         let url = DownloadManager.localBackdropURL(itemId: backdropId)
             ?? JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: backdropId, maxWidth: 1280)
-        let height = backdropHeight + pullDown
         return Group {
             if let url {
                 AsyncImage(url: url) { phase in
@@ -311,13 +333,11 @@ struct ItemDetailView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: height, alignment: .top)
-        .clipped()
     }
 
     // MARK: - Backdrop Overlay (gradient + title + buttons, scrolls with content)
 
-    private var backdropOverlay: some View {
+    private var backdropOverlayContent: some View {
         ZStack(alignment: .bottom) {
             LinearGradient(
                 stops: [
@@ -1837,4 +1857,6 @@ private extension View {
         transform(self)
     }
 }
+
+
 

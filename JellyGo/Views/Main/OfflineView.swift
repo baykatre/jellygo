@@ -212,7 +212,7 @@ struct OfflineView: View {
                                             try? await Task.sleep(for: .milliseconds(300))
                                             heroPlayItem = item
                                         }
-                                    }
+                                    },
                                 )
                             }
 

@@ -296,6 +296,10 @@
 "Explore" = "Keşfet";
 "Recently Added" = "Son Eklenenler";
 "Top Rated" = "En Beğenilenler";
+"Recently Added Movies" = "Son Eklenen Filmler";
+"Recently Added TV Shows" = "Son Eklenen Diziler";
+"Top Rated Movies" = "En Beğenilen Filmler";
+"Top Rated TV Shows" = "En Beğenilen Diziler";
 
 /* Player Extra */
 "Audio Language" = "Ses Dili";

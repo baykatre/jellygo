@@ -4,15 +4,12 @@ struct HomeView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
     @StateObject private var vm = HomeViewModel()
-    @StateObject private var moviesVM = MediaBrowseViewModel()
-    @StateObject private var seriesVM = MediaBrowseViewModel()
     @State private var heroPlayItem: JellyfinItem?
     @State private var showSettings = false
     @State private var showSearch = false
     @State private var downloadBanner: PausedDownload?
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedTab: Int = 0
-    @State private var exploreExpanded = false
     @State private var homePath = NavigationPath()
     @State private var heroPullDown: CGFloat = 0
 
@@ -22,36 +19,12 @@ struct HomeView: View {
                 mainTab
             }
 
-            if exploreExpanded {
-                Tab(String(localized: "Movies", bundle: AppState.currentBundle), systemImage: "film.fill", value: 1) {
-                    MediaBrowseView(category: "Movie", vm: moviesVM)
-                }
-                Tab(String(localized: "TV Shows", bundle: AppState.currentBundle), systemImage: "play.rectangle.on.rectangle.fill", value: 2) {
-                    MediaBrowseView(category: "Series", vm: seriesVM)
-                }
-                Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 3, role: .search) {
-                    DownloadsView()
-                }
-            } else {
-                Tab(String(localized: "Explore", bundle: AppState.currentBundle), systemImage: "safari.fill", value: 1) {
-                    Color.clear
-                }
-                Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 2, role: .search) {
-                    DownloadsView()
-                }
+            Tab(String(localized: "Explore", bundle: AppState.currentBundle), systemImage: "safari.fill", value: 1) {
+                ExploreView()
             }
-        }
-        .animation(.spring(duration: 0.3), value: exploreExpanded)
-        .onChange(of: selectedTab) { _, newTab in
-            if !exploreExpanded && newTab == 1 {
-                withAnimation(.spring(duration: 0.3)) { exploreExpanded = true }
-            } else if exploreExpanded && newTab == 0 {
-                withAnimation(.spring(duration: 0.3)) { exploreExpanded = false }
-            } else if exploreExpanded && newTab == 3 {
-                withAnimation(.spring(duration: 0.3)) {
-                    exploreExpanded = false
-                    selectedTab = 2
-                }
+
+            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 2, role: .search) {
+                DownloadsView()
             }
         }
         .overlay(alignment: .top) {
@@ -78,7 +51,7 @@ struct HomeView: View {
         Button {
             withAnimation { downloadBanner = nil }
             bannerTask?.cancel()
-            selectedTab = exploreExpanded ? 3 : 2
+            selectedTab = 2
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "arrow.down.circle.fill")
@@ -130,7 +103,7 @@ struct HomeView: View {
                                     try? await Task.sleep(for: .milliseconds(300))
                                     heroPlayItem = item
                                 }
-                            }
+                            },
                         )
                     }
 
