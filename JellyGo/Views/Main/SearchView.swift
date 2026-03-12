@@ -1,46 +1,61 @@
 import SwiftUI
 
 struct SearchView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = SearchViewModel()
     @State private var query = ""
     @State private var isSearchFocused = false
+    @State private var hasAppeared = false
 
     private let columns = [GridItem(.adaptive(minimum: 110, maximum: 140), spacing: 14)]
 
     var body: some View {
         NavigationStack {
-            Group {
-                if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                    if vm.recentItems.isEmpty {
-                        emptyPrompt
-                    } else {
-                        recentGrid
-                    }
-                } else if vm.isSearching {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if vm.filteredResults.isEmpty {
-                    ContentUnavailableView.search(text: query)
+        Group {
+            if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                if vm.recentItems.isEmpty {
+                    emptyPrompt
                 } else {
-                    resultsGrid
+                    recentGrid
+                }
+            } else if vm.isSearching {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if vm.filteredResults.isEmpty {
+                ContentUnavailableView.search(text: query)
+            } else {
+                resultsGrid
+            }
+        }
+        .navigationTitle(String(localized: "Search", bundle: AppState.currentBundle))
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $query, isPresented: $isSearchFocused, placement: .navigationBarDrawer(displayMode: .always), prompt: String(localized: "Movies, series...", bundle: AppState.currentBundle))
+        .onAppear {
+            guard !hasAppeared else { return }
+            hasAppeared = true
+            isSearchFocused = true
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle(String(localized: "Search", bundle: AppState.currentBundle))
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $query, isPresented: $isSearchFocused, placement: .navigationBarDrawer(displayMode: .always), prompt: String(localized: "Movies, series...", bundle: AppState.currentBundle))
-            .onAppear { isSearchFocused = true }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    filterMenu
-                }
+            ToolbarItem(placement: .topBarTrailing) {
+                filterMenu
             }
-            .onChange(of: query) { _, new in
-                vm.search(query: new, appState: appState)
-            }
-            .navigationDestination(for: JellyfinItem.self) { item in
-                ItemDetailView(item: item)
-            }
+        }
+        .onChange(of: query) { _, new in
+            vm.search(query: new, appState: appState)
+        }
+        .navigationDestination(for: JellyfinItem.self) { item in
+            ItemDetailView(item: item)
+        }
         }
     }
 

@@ -291,3 +291,13 @@
 "Remove \u{201C}%@\u{201D} from your downloads?" = "Remove \u{201C}%@\u{201D} from your downloads?";
 "Remove \"%@\" from your downloads?" = "Remove \"%@\" from your downloads?";
 "Downloaded View" = "Downloaded View";
+
+/* Browse */
+"Explore" = "Explore";
+"Recently Added" = "Recently Added";
+"Top Rated" = "Top Rated";
+
+/* Player Extra */
+"Audio Language" = "Audio Language";
+"On" = "On";
+"Speed" = "Speed";

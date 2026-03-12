@@ -3,6 +3,7 @@ import SwiftUI
 struct DownloadedSeriesDetailView: View {
     let seriesId: String
     var onPlay: ((DownloadedItem) -> Void)? = nil
+    var onNavigate: ((JellyfinItem) -> Void)? = nil
     var isSheet: Bool = true
 
     @Environment(\.dismiss) private var dismiss
@@ -591,6 +592,10 @@ struct DownloadedSeriesDetailView: View {
         .onTapGesture {
             if isSelecting {
                 toggleSelection(ep.id)
+            } else if isSheet, let onNavigate {
+                let item = ep.toJellyfinItem()
+                dismiss()
+                onNavigate(item)
             } else {
                 navigationTarget = ep.toJellyfinItem()
             }

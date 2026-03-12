@@ -35,6 +35,12 @@ final class VLCPlayerViewModel: ObservableObject {
     @Published var error: String?
     @Published var position: Float = 0
     @Published var selectedQuality: VideoQuality = .direct
+    @Published var playbackSpeed: Float = 1.0
+
+    func setPlaybackSpeed(_ speed: Float) {
+        playbackSpeed = speed
+        player.rate = speed
+    }
 
     /// VLC audio volume boost (100 = normal, 200 = 2× boost).
     @Published var volumeBoost: Int32 = 100
@@ -200,6 +206,7 @@ final class VLCPlayerViewModel: ObservableObject {
             }
         }
         await waitForPlaying()
+        if playbackSpeed != 1.0 { player.rate = playbackSpeed }
 
         // If runTimeTicks is missing (old downloads), read duration from the media file
         if item.runTimeTicks == nil || item.runTimeTicks == 0,
@@ -312,6 +319,7 @@ final class VLCPlayerViewModel: ObservableObject {
             }
             player.play()
             await waitForPlaying()
+            if playbackSpeed != 1.0 { player.rate = playbackSpeed }
             if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
             DispatchQueue.main.async {
                 // Keep loading if resume seek is pending
@@ -441,6 +449,7 @@ final class VLCPlayerViewModel: ObservableObject {
         if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
         player.play()
         await waitForPlaying()
+        if playbackSpeed != 1.0 { player.rate = playbackSpeed }
         if disableVLCSubtitles { player.currentVideoSubTitleIndex = -1 }
         DispatchQueue.main.async {
             if self.resumeMs <= 0 { self.isLoading = false }

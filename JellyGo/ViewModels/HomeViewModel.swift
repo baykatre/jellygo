@@ -15,9 +15,15 @@ final class HomeViewModel: ObservableObject {
     /// Server URL captured at load time — used for image URLs so they don't flicker on same-user server switch.
     @Published var serverURL: String = ""
 
+    private var topRatedPool: [JellyfinItem] = []
+
     private func buildFeatured() {
-        let pool = Array(latestMovies.prefix(8)) + Array(latestShows.prefix(8))
-        featuredItems = Array(pool.shuffled().prefix(6))
+        if !topRatedPool.isEmpty {
+            featuredItems = Array(topRatedPool.prefix(6))
+        } else {
+            let pool = Array(latestMovies.prefix(8)) + Array(latestShows.prefix(8))
+            featuredItems = Array(pool.shuffled().prefix(6))
+        }
     }
 
     func load(appState: AppState) async {
@@ -43,6 +49,10 @@ final class HomeViewModel: ObservableObject {
             serverURL: url, userId: uid, token: token,
             itemTypes: ["Series"], sortBy: "DateCreated", sortOrder: "Descending",
             limit: 16, recursive: true)
+        async let trTask   = JellyfinAPI.shared.getItems(
+            serverURL: url, userId: uid, token: token,
+            itemTypes: ["Movie", "Series"], sortBy: "Random",
+            limit: 20, recursive: true)
         async let libsTask = JellyfinAPI.shared.getLibraries(serverURL: url, userId: uid, token: token)
 
         continueWatching = (try? await cwTask)  ?? []
@@ -70,6 +80,7 @@ final class HomeViewModel: ObservableObject {
             if error == nil { error = err.errorDescription }
         } catch { /* non-API errors intentionally ignored */ }
 
+        topRatedPool = (try? await trTask)?.items ?? []
         libraries = (try? await libsTask) ?? []
         buildFeatured()
 

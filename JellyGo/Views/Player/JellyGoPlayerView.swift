@@ -64,6 +64,10 @@ struct JellyGoPlayerView: View {
     @State private var doubleTapLocation: CGPoint = .zero
     enum DoubleTapSide { case left, right }
 
+    // Long press 2× speed
+    @State private var isLongPressSpeed = false
+    @State private var preHoldSpeed: Float = 1.0
+
     // Episode list
     @State private var showEpisodeList = false
     @State private var episodeListItems: [JellyfinItem] = []
@@ -109,6 +113,17 @@ struct JellyGoPlayerView: View {
                                     }
                                 }
                         )
+                        .onLongPressGesture(minimumDuration: 0.5, pressing: { pressing in
+                            if !pressing && isLongPressSpeed {
+                                vm.setPlaybackSpeed(preHoldSpeed)
+                                withAnimation { isLongPressSpeed = false }
+                            }
+                        }, perform: {
+                            preHoldSpeed = vm.playbackSpeed
+                            vm.setPlaybackSpeed(2.0)
+                            withAnimation { isLongPressSpeed = true }
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        })
                         .onTapGesture(count: 1) {
                             if showEpisodeList { withAnimation(.spring(duration: 0.4, bounce: 0.15)) { showEpisodeList = false } }
                             else if showDelayBar { showDelayBar = false }
@@ -133,6 +148,17 @@ struct JellyGoPlayerView: View {
                         .transition(.opacity)
                         .allowsHitTesting(false)
                         .animation(.smooth(duration: 0.2), value: skipAccum)
+                    }
+
+                    // Long press 2× speed indicator
+                    if isLongPressSpeed {
+                        Text("2\u{00D7}")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .padding(.top, 60)
+                            .transition(.scale.combined(with: .opacity))
+                            .allowsHitTesting(false)
                     }
 
                     // Custom subtitle overlay (independent of video scale)
@@ -256,7 +282,7 @@ struct JellyGoPlayerView: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 12)
                     .onChanged { val in
-                        guard !showEpisodeList else { return }
+                        guard !showEpisodeList, !isLongPressSpeed else { return }
                         let h = abs(val.translation.width)
                         let v = abs(val.translation.height)
                         if !isSwipeActive {
@@ -835,8 +861,15 @@ struct JellyGoPlayerView: View {
                     .foregroundStyle(.white.opacity(0.6))
             }
             if vm.statsDroppedFrames > 0 {
+                let dropColor: Color = {
+                    let rate = vm.statsDecodedFrames > 100
+                        ? Double(vm.statsDroppedFrames) / Double(vm.statsDecodedFrames) : 0
+                    if rate > 0.03 { return .red }
+                    if rate > 0.005 { return .orange }
+                    return .yellow
+                }()
                 Text("Dropped: \(vm.statsDroppedFrames) frames")
-                    .foregroundStyle(.red.opacity(0.8))
+                    .foregroundStyle(dropColor.opacity(0.8))
             }
         }
         .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -927,6 +960,8 @@ struct JellyGoPlayerView: View {
             } },
             onDelayChanged: { vm.setSubtitleDelay($0); subtitleManager.delaySecs = vm.subtitleDelaySecs },
             onShowDelayBar: { showDelayBar = true },
+            currentSpeed: vm.playbackSpeed,
+            onSpeedChanged: { vm.setPlaybackSpeed($0) },
             showHUD: showHUD,
             onToggleHUD: { showHUD.toggle() },
             onPressed: { p in if p { stopTimer() } else { pokeTimer() } }
@@ -1747,6 +1782,8 @@ private struct JGMoreMenuView: View {
     let onQualityChanged: (VideoQuality) -> Void
     let onDelayChanged: (Double) -> Void
     let onShowDelayBar: () -> Void
+    let currentSpeed: Float
+    let onSpeedChanged: (Float) -> Void
     let showHUD: Bool
     let onToggleHUD: () -> Void
     let onPressed: (Bool) -> Void
@@ -1759,6 +1796,7 @@ private struct JGMoreMenuView: View {
             subtitleSection
             subtitleDelaySection
             audioSection
+            speedSection
 
             Divider()
 
@@ -1845,6 +1883,27 @@ private struct JGMoreMenuView: View {
         }
     }
 
+    private var speedSection: some View {
+        let speeds: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        let label = currentSpeed == 1.0 ? "1\u{00D7}" : String(format: "%.2g\u{00D7}", currentSpeed)
+        return Menu {
+            ForEach(speeds, id: \.self) { s in
+                Button {
+                    onSpeedChanged(s)
+                } label: {
+                    let sLabel = s == 1.0 ? "1\u{00D7}" : String(format: "%.2g\u{00D7}", s)
+                    if currentSpeed == s {
+                        Label(sLabel, systemImage: "checkmark")
+                    } else {
+                        Text(sLabel)
+                    }
+                }
+            }
+        } label: {
+            Label("\(String(localized: "Speed", bundle: AppState.currentBundle)) \u{2022} \(label)", systemImage: "gauge.with.dots.needle.67percent")
+        }
+    }
+
     private var qualitySection: some View {
         Menu {
             ForEach(VideoQuality.allCases) { q in
@@ -1873,6 +1932,7 @@ extension JGMoreMenuView: Equatable {
         lhs.subtitleDelay == rhs.subtitleDelay &&
         lhs.subtitleStreams.count == rhs.subtitleStreams.count &&
         lhs.audioTracks == rhs.audioTracks &&
+        lhs.currentSpeed == rhs.currentSpeed &&
         lhs.showHUD == rhs.showHUD
     }
 }

@@ -11,12 +11,25 @@ final class LibraryViewModel: ObservableObject {
     private var totalCount = 0
     private let pageSize = 50
     private var libraryId: String = ""
+    private var itemTypes: [String]?
     private var appState: AppState?
 
     var hasMore: Bool { items.count < totalCount }
 
     func load(libraryId: String, appState: AppState) async {
         self.libraryId = libraryId
+        self.itemTypes = nil
+        self.appState = appState
+        items = []
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+        await fetchPage(startIndex: 0)
+    }
+
+    func load(itemTypes: [String], appState: AppState) async {
+        self.libraryId = ""
+        self.itemTypes = itemTypes
         self.appState = appState
         items = []
         isLoading = true
@@ -39,12 +52,13 @@ final class LibraryViewModel: ObservableObject {
                 serverURL: appState.serverURL,
                 userId: appState.userId,
                 token: appState.token,
-                parentId: libraryId,
+                parentId: itemTypes != nil ? nil : libraryId,
+                itemTypes: itemTypes,
                 sortBy: "SortName",
                 sortOrder: "Ascending",
                 startIndex: startIndex,
                 limit: pageSize,
-                recursive: false
+                recursive: itemTypes != nil
             )
             totalCount = response.totalRecordCount
             if startIndex == 0 {

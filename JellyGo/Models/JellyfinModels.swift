@@ -90,7 +90,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
     let seasonName: String?
     let indexNumber: Int?
     let parentIndexNumber: Int?
-    let userData: JellyfinUserData?
+    var userData: JellyfinUserData?
     let imageBlurHashes: [String: [String: String]]?
     let primaryImageAspectRatio: Double?
     let genres: [String]?
@@ -186,9 +186,9 @@ struct JellyfinPerson: Codable, Identifiable, Hashable {
 }
 
 struct JellyfinUserData: Codable, Hashable {
-    let playbackPositionTicks: Int64?
-    let played: Bool?
-    let isFavorite: Bool?
+    var playbackPositionTicks: Int64?
+    var played: Bool?
+    var isFavorite: Bool?
     let playCount: Int?
 
     enum CodingKeys: String, CodingKey {

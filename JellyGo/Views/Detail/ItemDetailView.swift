@@ -7,7 +7,7 @@ private enum DownloadPopoverStep: Identifiable {
 
 struct ItemDetailView: View {
     let item: JellyfinItem
-    var isFromDownloads: Bool = false
+    @State var isFromDownloads: Bool = false
     var autoPlay: Bool = false
 
     @EnvironmentObject private var appState: AppState
@@ -75,15 +75,38 @@ struct ItemDetailView: View {
         .toolbar {
             if isFromDownloads {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 11, weight: .bold))
-                        Text(String(localized: "Downloaded View", bundle: AppState.currentBundle))
-                            .font(.caption.weight(.medium))
+                    Button {
+                        if !appState.manualOffline && !appState.serverUnreachable {
+                            isFromDownloads = false
+                            vm.seasons = []
+                            vm.episodes = [:]
+                            vm.fullItem = nil
+                            selectedSeason = nil
+                            Task {
+                                await vm.load(item: item, appState: appState)
+                                if item.isSeries {
+                                    let season = await vm.bestSeasonToOpen(appState: appState)
+                                    selectedSeason = season ?? vm.seasons.first
+                                } else {
+                                    selectedSeason = vm.seasons.first(where: { $0.indexNumber == item.parentIndexNumber })
+                                        ?? vm.seasons.first
+                                    if let sid = selectedSeason?.id {
+                                        await vm.loadEpisodes(seasonId: sid, appState: appState)
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(String(localized: "Downloaded View", bundle: AppState.currentBundle))
+                                .font(.caption.weight(.medium))
+                        }
+                        .foregroundStyle(appState.manualOffline || appState.serverUnreachable ? .gray : .green)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 5)
                     }
-                    .foregroundStyle(.green)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
                 }
             } else {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -230,6 +253,17 @@ struct ItemDetailView: View {
                                 await startPlayback()
                                 playAfterSheetDismiss = false
                             }
+                        }
+                    },
+                    onNavigate: { jellyfinItem in
+                        showDownloadDetail = false
+                        let targetSeason = vm.seasons.first(where: { $0.indexNumber == jellyfinItem.parentIndexNumber })
+                        if let targetSeason {
+                            selectedSeason = targetSeason
+                        }
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(400))
+                            activeItem = jellyfinItem
                         }
                     }
                 )
@@ -830,8 +864,7 @@ struct ItemDetailView: View {
                         serverURL: appState.serverURL, itemId: episode.id,
                         userId: appState.userId, token: appState.token, played: true)
                     if let sid = selectedSeason?.id {
-                        vm.episodes[sid] = nil
-                        await vm.loadEpisodes(seasonId: sid, appState: appState)
+                        updateEpisodeUserData(seasonId: sid, episodeId: episode.id, played: true)
                     }
                 }
             } label: {
@@ -846,8 +879,7 @@ struct ItemDetailView: View {
                         serverURL: appState.serverURL, itemId: episode.id,
                         userId: appState.userId, token: appState.token, played: false)
                     if let sid = selectedSeason?.id {
-                        vm.episodes[sid] = nil
-                        await vm.loadEpisodes(seasonId: sid, appState: appState)
+                        updateEpisodeUserData(seasonId: sid, episodeId: episode.id, played: false)
                     }
                 }
             } label: {
@@ -889,6 +921,19 @@ struct ItemDetailView: View {
             } label: {
                 Label(String(localized: "Download", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
             }
+        }
+    }
+
+    private func updateEpisodeUserData(seasonId: String, episodeId: String, played: Bool) {
+        if var eps = vm.episodes[seasonId],
+           let idx = eps.firstIndex(where: { $0.id == episodeId }) {
+            var ep = eps[idx]
+            var ud = ep.userData ?? JellyfinUserData(playbackPositionTicks: 0, played: played, isFavorite: nil, playCount: nil)
+            ud.played = played
+            if played { ud.playbackPositionTicks = 0 }
+            ep.userData = ud
+            eps[idx] = ep
+            vm.episodes[seasonId] = eps
         }
     }
 
@@ -1283,7 +1328,19 @@ struct ItemDetailView: View {
             set: { if !$0 { episodeDeleteTarget = nil } }
         )) {
             Button(String(localized: "Delete", bundle: AppState.currentBundle), role: .destructive) {
-                if let ep = episodeDeleteTarget { dm.deleteDownload(ep.id) }
+                if let ep = episodeDeleteTarget {
+                    dm.deleteDownload(ep.id)
+                    if isFromDownloads, let sid = selectedSeason?.id {
+                        // Pick adjacent episode before removing
+                        if let eps = vm.episodes[sid],
+                           let idx = eps.firstIndex(where: { $0.id == ep.id }) {
+                            let neighbor = idx + 1 < eps.count ? eps[idx + 1]
+                                         : idx > 0 ? eps[idx - 1] : nil
+                            if let neighbor { activeItem = neighbor }
+                        }
+                        vm.episodes[sid]?.removeAll { $0.id == ep.id }
+                    }
+                }
                 episodeDeleteTarget = nil
             }
             Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { episodeDeleteTarget = nil }

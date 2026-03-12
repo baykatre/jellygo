@@ -293,3 +293,13 @@
 "Remove \u{201C}%@\u{201D} from your downloads?" = "从下载中移除\u{201C}%@\u{201D}？";
 "Remove \"%@\" from your downloads?" = "从下载中移除\u{201C}%@\u{201D}？";
 "Downloaded View" = "已下载视图";
+
+/* Browse */
+"Explore" = "探索";
+"Recently Added" = "最近添加";
+"Top Rated" = "最高评分";
+
+/* Player Extra */
+"Audio Language" = "音频语言";
+"On" = "开启";
+"Speed" = "速度";

@@ -293,3 +293,13 @@
 "Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D} yükləmələrinizdən silinsin?";
 "Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D} yükləmələrinizdən silinsin?";
 "Downloaded View" = "Yüklənmişlər Görünüşü";
+
+/* Browse */
+"Explore" = "Kəşf et";
+"Recently Added" = "Son əlavə edilənlər";
+"Top Rated" = "Ən yüksək reytinqli";
+
+/* Player Extra */
+"Audio Language" = "Səs dili";
+"On" = "Açıq";
+"Speed" = "Sürət";

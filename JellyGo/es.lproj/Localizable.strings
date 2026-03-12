@@ -293,3 +293,13 @@
 "Remove \u{201C}%@\u{201D} from your downloads?" = "¿Eliminar \u{201C}%@\u{201D} de tus descargas?";
 "Remove \"%@\" from your downloads?" = "¿Eliminar \u{201C}%@\u{201D} de tus descargas?";
 "Downloaded View" = "Vista de descargas";
+
+/* Browse */
+"Explore" = "Explorar";
+"Recently Added" = "Añadido recientemente";
+"Top Rated" = "Mejor valorado";
+
+/* Player Extra */
+"Audio Language" = "Idioma de audio";
+"On" = "Activado";
+"Speed" = "Velocidad";

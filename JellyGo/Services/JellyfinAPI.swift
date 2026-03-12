@@ -189,7 +189,8 @@ final class JellyfinAPI {
         startIndex: Int = 0,
         limit: Int = 50,
         recursive: Bool = false,
-        filters: String? = nil
+        filters: String? = nil,
+        genres: [String]? = nil
     ) async throws -> JellyfinItemsResponse {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [
@@ -203,6 +204,7 @@ final class JellyfinAPI {
         if let parentId { queryItems.append(URLQueryItem(name: "ParentId", value: parentId)) }
         if let types = itemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
         if let filters { queryItems.append(URLQueryItem(name: "Filters", value: filters)) }
+        if let genres, !genres.isEmpty { queryItems.append(URLQueryItem(name: "Genres", value: genres.joined(separator: ","))) }
         let url = try buildURL(base, path: "Users/\(userId)/Items", queryItems: queryItems)
         let req = baseRequest(url: url, token: token)
         let data = try await perform(req)

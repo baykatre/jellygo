@@ -293,3 +293,13 @@
 "Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D}을(를) 다운로드에서 제거하시겠습니까?";
 "Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D}을(를) 다운로드에서 제거하시겠습니까?";
 "Downloaded View" = "다운로드 보기";
+
+/* Browse */
+"Explore" = "탐색";
+"Recently Added" = "최근 추가됨";
+"Top Rated" = "최고 평점";
+
+/* Player Extra */
+"Audio Language" = "오디오 언어";
+"On" = "켜기";
+"Speed" = "속도";

@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct LibraryView: View {
-    let library: JellyfinLibrary
+    var library: JellyfinLibrary? = nil
+    var itemTypes: [String]? = nil
+    var title: String? = nil
 
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = LibraryViewModel()
@@ -42,12 +44,20 @@ struct LibraryView: View {
                 }
             }
         }
-        .navigationTitle(library.name)
+        .navigationTitle(title ?? library?.name ?? "")
         .navigationBarTitleDisplayMode(.large)
         .navigationDestination(for: JellyfinItem.self) { item in
             ItemDetailView(item: item)
         }
-        .task { await vm.load(libraryId: library.id, appState: appState) }
-        .refreshable { await vm.load(libraryId: library.id, appState: appState) }
+        .task { await loadContent() }
+        .refreshable { await loadContent() }
+    }
+
+    private func loadContent() async {
+        if let itemTypes {
+            await vm.load(itemTypes: itemTypes, appState: appState)
+        } else if let library {
+            await vm.load(libraryId: library.id, appState: appState)
+        }
     }
 }

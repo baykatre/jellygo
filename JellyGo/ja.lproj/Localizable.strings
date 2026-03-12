@@ -293,3 +293,13 @@
 "Remove \u{201C}%@\u{201D} from your downloads?" = "\u{201C}%@\u{201D}をダウンロードから削除しますか？";
 "Remove \"%@\" from your downloads?" = "\u{201C}%@\u{201D}をダウンロードから削除しますか？";
 "Downloaded View" = "ダウンロード表示";
+
+/* Browse */
+"Explore" = "探索";
+"Recently Added" = "最近追加";
+"Top Rated" = "高評価";
+
+/* Player Extra */
+"Audio Language" = "音声言語";
+"On" = "オン";
+"Speed" = "速度";
