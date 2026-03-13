@@ -4,7 +4,12 @@ struct OfflineView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
     @State private var heroPlayItem: JellyfinItem?
+    @State private var autoPlayItem: JellyfinItem?
     @State private var showSettings = false
+    @State private var showOverlay = true
+    @State private var heroPullDown: CGFloat = 0
+    @State private var heroScrollOffset: CGFloat = 0
+    @State private var offlinePath = NavigationPath()
 
     // MARK: - Computed Data
 
@@ -179,14 +184,14 @@ struct OfflineView: View {
             Tab(String(localized: "Home", bundle: AppState.currentBundle), systemImage: "house.fill", value: 0) {
                 offlineHomeTab
             }
-            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "arrow.down.circle.fill", value: 1) {
+            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 1) {
                 DownloadsView()
             }
         }
     }
 
     private var offlineHomeTab: some View {
-        NavigationStack {
+        NavigationStack(path: $offlinePath) {
             Group {
                 if dm.downloads.isEmpty {
                     ContentUnavailableView {
@@ -203,15 +208,10 @@ struct OfflineView: View {
                                 HeroBannerView(
                                     items: featuredItems,
                                     serverURL: appState.serverURL,
+                                    pullDown: heroPullDown,
+                                    scrollOffset: heroScrollOffset,
                                     onPlay: { item in
-                                        // Series banner → navigate to detail, movie → play
-                                        guard item.isMovie || item.isEpisode else { return }
-                                        AppDelegate.orientationLock = .landscape
-                                        PlayerContainerView.rotate(to: .landscapeRight)
-                                        Task {
-                                            try? await Task.sleep(for: .milliseconds(300))
-                                            heroPlayItem = item
-                                        }
+                                        offlinePath.append(item)
                                     },
                                 )
                             }
@@ -234,30 +234,49 @@ struct OfflineView: View {
                     }
                     .ignoresSafeArea(edges: .top)
                     .scrollEdgeEffectStyle(.none, for: .top)
+                    .onScrollGeometryChange(for: CGFloat.self) { geo in
+                        geo.contentOffset.y + geo.contentInsets.top
+                    } action: { old, offset in
+                        heroPullDown = max(0, -offset)
+                        heroScrollOffset = max(0, offset)
+                        let delta = offset - old
+                        if delta > 4 && offset > 50 {
+                            withAnimation(.easeOut(duration: 0.25)) { showOverlay = false }
+                        } else if delta < -4 || offset < 50 {
+                            withAnimation(.easeOut(duration: 0.25)) { showOverlay = true }
+                        }
+                    }
                     .coordinateSpace(name: "homeScroll")
                 }
             }
             .background(Color(.systemBackground).ignoresSafeArea())
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showSettings = true } label: { offlineBadge }
-                        .buttonStyle(.plain)
+            .navigationBarHidden(true)
+            .overlay(alignment: .top) {
+                HStack {
+                    Text(String(localized: "Home", bundle: AppState.currentBundle))
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
+
+                    Spacer()
+
+                    offlineBadge
+                        .onTapGesture { showSettings = true }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
-                    }
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .frame(minHeight: 44)
+                .opacity(showOverlay ? 1 : 0)
+                .offset(y: showOverlay ? 0 : -20)
             }
             .navigationDestination(isPresented: $showSettings) {
                 SettingsView()
             }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item, isFromDownloads: true)
+            }
+            .navigationDestination(item: $autoPlayItem) { item in
+                ItemDetailView(item: item, isFromDownloads: true, autoPlay: true)
             }
             .fullScreenCover(item: $heroPlayItem, onDismiss: {
                 appState.isPlayerActive = false
@@ -280,9 +299,7 @@ struct OfflineView: View {
 
     private var offlineBadge: some View {
         HStack(spacing: 10) {
-            avatarCircle
-
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 2) {
                 Text(appState.username)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
@@ -297,8 +314,9 @@ struct OfflineView: View {
                 .foregroundStyle(.orange)
                 .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
             }
+
+            avatarCircle
         }
-        .padding(.trailing, 16)
         .fixedSize()
     }
 
@@ -310,7 +328,7 @@ struct OfflineView: View {
                     case .success(let img):
                         img.resizable()
                             .scaledToFill()
-                            .frame(width: 36, height: 36)
+                            .frame(width: 48, height: 48)
                             .clipShape(Circle())
                     default:
                         avatarFallback
@@ -325,10 +343,10 @@ struct OfflineView: View {
     private var avatarFallback: some View {
         Circle()
             .fill(.white.opacity(0.25))
-            .frame(width: 36, height: 36)
+            .frame(width: 48, height: 48)
             .overlay {
                 Text(appState.username.prefix(1).uppercased())
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
             }
     }
@@ -341,8 +359,10 @@ struct OfflineView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(continueWatching) { item in
-                        NavigationLink(value: item) {
-                            BackdropCardView(item: item, serverURL: appState.serverURL)
+                        Button {
+                            autoPlayItem = item
+                        } label: {
+                            BackdropCardView(item: item, serverURL: appState.serverURL, showPlayOverlay: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -358,8 +378,10 @@ struct OfflineView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(nextUp) { item in
-                        NavigationLink(value: item) {
-                            BackdropCardView(item: item, serverURL: appState.serverURL)
+                        Button {
+                            autoPlayItem = item
+                        } label: {
+                            BackdropCardView(item: item, serverURL: appState.serverURL, showPlayOverlay: true)
                         }
                         .buttonStyle(.plain)
                     }

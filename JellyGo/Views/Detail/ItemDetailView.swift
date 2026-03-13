@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 private enum DownloadPopoverStep: Identifiable {
     case scope, quality, audio, progress
@@ -26,7 +27,9 @@ struct ItemDetailView: View {
     @State private var episodeDeleteTarget: JellyfinItem? = nil
     @State private var pendingQuality: (label: String, bitrate: Int?)? = nil
     @State private var selectedAudioStreamIndex: Int? = nil
-    private let backdropHeight: CGFloat = 580
+    private let backdropHeight: CGFloat = 680
+    private let imageHeight: CGFloat = 520
+    @State private var backdropDominantColor: Color = Color(white: 0.12)
     @State private var showPlayQualityDialog = false
     @State private var playQualityOverride: VideoQuality?
     private let qualities: [(label: String, bitrate: Int?)] = [
@@ -282,7 +285,7 @@ struct ItemDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationTitle("")
         .toolbar { detailToolbarContent }
-        .toolbar(.hidden, for: .tabBar)
+        //.toolbar(.hidden, for: .tabBar)
     }
 
     // MARK: - Scroll Content
@@ -291,20 +294,25 @@ struct ItemDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: 0).id("detailTop")
             ZStack(alignment: .bottom) {
-                // Backdrop image with parallax
+                // Dominant color fills entire backdrop area
+                backdropDominantColor
+
+                // Backdrop image with parallax — only imageHeight tall
                 GeometryReader { geo in
                     let minY = geo.frame(in: .named("detailScroll")).minY
                     let stretch = max(0, minY)
                     backdropImage
-                        .frame(width: geo.size.width, height: backdropHeight + stretch)
+                        .frame(width: geo.size.width, height: imageHeight + stretch)
                         .clipped()
                         .offset(y: minY > 0 ? -minY : -minY * 0.4)
                 }
-                .frame(height: backdropHeight)
+                .frame(height: imageHeight)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 // Gradient overlay + title + buttons
                 backdropOverlayContent
             }
+            .frame(height: backdropHeight)
             Color(.systemBackground).frame(height: 24)
             mainContent
                 .background(Color(.systemBackground))
@@ -324,6 +332,9 @@ struct ItemDetailView: View {
                     switch phase {
                     case .success(let img):
                         img.resizable().aspectRatio(contentMode: .fill)
+                            .onAppear {
+                                extractDominantColor(from: url)
+                            }
                     default:
                         Color(white: 0.12)
                     }
@@ -335,22 +346,39 @@ struct ItemDetailView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private func extractDominantColor(from url: URL) {
+        Task.detached(priority: .utility) {
+            guard let data = try? Data(contentsOf: url),
+                  let uiImage = UIImage(data: data) else { return }
+            let color = uiImage.averageBottomColor()
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    backdropDominantColor = Color(color)
+                }
+            }
+        }
+    }
+
     // MARK: - Backdrop Overlay (gradient + title + buttons, scrolls with content)
 
     private var backdropOverlayContent: some View {
         ZStack(alignment: .bottom) {
+            // Progressive blur
+            VariableBlurView(startPoint: 0.35, endPoint: 0.6)
+
+            // Subtle dark gradient for readability
             LinearGradient(
                 stops: [
                     .init(color: .clear, location: 0),
-                    .init(color: .clear, location: 0.35),
-                    .init(color: .black.opacity(0.42), location: 0.58),
-                    .init(color: .black.opacity(0.82), location: 0.78),
-                    .init(color: .black.opacity(0.93), location: 1)
+                    .init(color: .clear, location: 0.4),
+                    .init(color: .black.opacity(0.3), location: 0.7),
+                    .init(color: .black.opacity(0.5), location: 1)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            VStack(alignment: .center, spacing: 12) {
+
+            VStack(alignment: .center, spacing: 10) {
                 let logoItemId = activeItem.isEpisode ? (activeItem.seriesId ?? activeItem.id) : activeItem.id
                 LogoTitleView(
                     title: activeItem.isEpisode ? (activeItem.seriesName ?? activeItem.name) : activeItem.name,
@@ -361,71 +389,202 @@ struct ItemDetailView: View {
                 if activeItem.isEpisode {
                     let sLabel = activeItem.parentIndexNumber.map { "S\($0)" } ?? ""
                     let eLabel = activeItem.indexNumber.map { "B\($0)" } ?? ""
-                    Text("\(sLabel) • \(eLabel) - \(activeItem.name)")
+                    Text("\(sLabel) \u{00B7} \(eLabel) - \(activeItem.name)")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.white.opacity(0.85))
                         .multilineTextAlignment(.center)
                 }
 
-                metaChips
-
-                if let genres = displayItem.genres, !genres.isEmpty {
-                    Text(genres.prefix(3).joined(separator: ", "))
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.65))
-                        .multilineTextAlignment(.center)
-                }
+                // Genre line: Type · Genre1 · Genre2
+                overlayGenreLine
 
                 actionButtons
+                    .padding(.vertical, 6)
+
+                // Overview (moved from mainContent)
+                overlayOverview
+
+                // Compact meta + badge line
+                overlayMetaBadgeLine
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(height: backdropHeight)
     }
 
-    private var metaChips: some View {
-        HStack(spacing: 8) {
-            if activeItem.isSeries {
-                let count = (displayItem.childCount ?? activeItem.childCount) ?? vm.seasons.count
-                if count > 0 {
-                    Text(verbatim: count == 1 ? String(localized: "1 Season", bundle: AppState.currentBundle) : String(format: String(localized: "%lld Seasons", bundle: AppState.currentBundle), Int64(count)))
-                        .metaStyle()
-                }
-            } else if activeItem.isSeason {
-                if let seasonId = activeItem.id.isEmpty ? nil : activeItem.id,
-                   let eps = vm.episodes[seasonId] {
-                    let count = eps.count
-                    if count > 0 {
-                        Text(verbatim: count == 1 ? String(localized: "1 Episode", bundle: AppState.currentBundle) : String(format: String(localized: "%lld Episodes", bundle: AppState.currentBundle), Int64(count)))
-                            .metaStyle()
+    // MARK: - Overlay Genre Line
+
+    @ViewBuilder
+    private var overlayGenreLine: some View {
+        let genres = (displayItem.genres ?? item.genres ?? activeItem.genres)?.prefix(3).map { $0 } ?? []
+        if !genres.isEmpty {
+            Text(genres.joined(separator: " \u{00B7} "))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    // MARK: - Overlay Overview
+
+    @ViewBuilder
+    private var overlayOverview: some View {
+        if let overview = activeItem.overview ?? displayItem.overview, !overview.isEmpty {
+            let needsExpand = overview.count > 100
+            let moreLabel = String(localized: "MORE", bundle: AppState.currentBundle)
+            Text(overview)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
+                .lineSpacing(4)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .mask {
+                    if needsExpand {
+                        VStack(spacing: 0) {
+                            Rectangle()
+                            HStack(spacing: 0) {
+                                Rectangle()
+                                LinearGradient(stops: [
+                                    .init(color: .white, location: 0),
+                                    .init(color: .white.opacity(0.15), location: 0.25),
+                                    .init(color: .clear, location: 0.5)
+                                ], startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: 180)
+                            }
+                            .frame(height: 20)
+                        }
+                    } else {
+                        Rectangle()
                     }
                 }
-            } else if let mins = activeItem.runtimeMinutes, mins > 0 {
-                Text(verbatim: String(format: String(localized: "%lld min.", bundle: AppState.currentBundle), Int64(mins)))
-                    .metaStyle()
-            }
-            if let date = activeItem.formattedPremiereDate {
-                Text(date).metaStyle()
-            }
-            if let rating = displayItem.officialRating ?? activeItem.officialRating {
-                Text(rating)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(.white.opacity(0.5), lineWidth: 1))
+                .overlay(alignment: .bottomTrailing) {
+                    if needsExpand {
+                        Text(moreLabel)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .offset(y: 4)
+                    }
+                }
+                .onTapGesture {
+                    guard needsExpand else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        overviewExpanded = true
+                    }
+                }
+        }
+    }
+
+    // MARK: - Overlay Meta+Badge Line
+
+    @ViewBuilder
+    private var overlayMetaBadgeLine: some View {
+        let parts = buildCompactMetaParts()
+        if !parts.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(Array(parts.enumerated()), id: \.offset) { idx, part in
+                        if idx > 0 {
+                            Text(" \u{00B7} ")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        Text(part)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
             }
         }
+    }
+
+    private func buildCompactMetaParts() -> [String] {
+        var parts: [String] = []
+
+        // Year
+        if let year = activeItem.productionYear ?? displayItem.productionYear {
+            parts.append(String(year))
+        }
+
+        // Runtime
+        if activeItem.isSeries {
+            let count = (displayItem.childCount ?? activeItem.childCount) ?? vm.seasons.count
+            if count > 0 {
+                parts.append(count == 1 ? String(localized: "1 Season", bundle: AppState.currentBundle) : String(format: String(localized: "%lld Seasons", bundle: AppState.currentBundle), Int64(count)))
+            }
+        } else if let mins = activeItem.runtimeMinutes, mins > 0 {
+            let h = mins / 60
+            let m = mins % 60
+            if h > 0 && m > 0 {
+                parts.append("\(h)h \(m)m")
+            } else if h > 0 {
+                parts.append("\(h)h")
+            } else {
+                parts.append("\(m)m")
+            }
+        }
+
+        // Ratings
+        let mediaItem: JellyfinItem = {
+            if activeItem.isEpisode {
+                if let cached = DownloadManager.loadItemDetails(itemId: activeItem.id),
+                   cached.mediaStreams != nil { return cached }
+                if activeItem.mediaStreams != nil { return activeItem }
+            }
+            if let full = vm.fullItem, full.mediaStreams != nil { return full }
+            if activeItem.mediaStreams != nil { return activeItem }
+            return displayItem
+        }()
+
+        if let rating = displayItem.communityRating {
+            parts.append(String(format: "TMDb %.1f", rating))
+        }
+        if let critic = displayItem.criticRating {
+            parts.append("\(Int(critic))%")
+        }
+
+        // Official rating (age)
+        if let rating = displayItem.officialRating ?? activeItem.officialRating {
+            parts.append(rating)
+        }
+
+        // Media badges
+        let videoStream = mediaItem.mediaStreams?.first(where: { $0.isVideo })
+        let audioStream = mediaItem.mediaStreams?.first(where: { $0.isAudio })
+
+        if let video = videoStream {
+            if let w = video.width {
+                if w >= 3840 { parts.append("4K") }
+                else if w >= 1920 { parts.append("FHD") }
+                else if w >= 1280 { parts.append("HD") }
+            }
+            let rangeType = video.videoRangeType ?? video.videoRange ?? ""
+            if rangeType.contains("DOVI") { parts.append("Dolby Vision") }
+            else if rangeType.contains("HDR10Plus") { parts.append("HDR10+") }
+            else if rangeType.contains("HDR10") { parts.append("HDR10") }
+            else if rangeType.contains("HLG") { parts.append("HLG") }
+            else if rangeType == "HDR" { parts.append("HDR") }
+        }
+        if let audio = audioStream {
+            let aCodec = (audio.codec ?? "").lowercased()
+            if aCodec.contains("truehd") || aCodec.contains("atmos") { parts.append("Atmos") }
+            else if aCodec.contains("eac3") { parts.append("DD+") }
+            else if aCodec == "ac3" { parts.append("DD") }
+            else if aCodec.contains("dts") { parts.append("DTS") }
+        }
+
+        return parts
     }
 
     // MARK: - Main Content
 
     private var mainContent: some View {
         VStack(alignment: .leading, spacing: 20) {
-            overviewSection
-            ratingsAndBadges
             if item.isSeries || item.isEpisode, !vm.seasons.isEmpty {
                 episodeSection
             }
@@ -523,22 +682,17 @@ struct ItemDetailView: View {
             dm.downloads.contains { $0.seriesId == activeItem.id }
 
         if isDownloaded, let dl = downloadedItem, activeItem.isEpisode || activeItem.isMovie {
-            // Downloaded: tap quality+size badge to open download detail sheet
+            // Downloaded: circle with checkmark
             Button { showDownloadDetail = true } label: {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(dl.quality)
-                        .font(.caption.weight(.semibold))
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
-                    if !dl.formattedSize.isEmpty {
-                        Text(dl.formattedSize)
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(.white.opacity(0.25), lineWidth: 0.5))
+                .frame(width: 44, height: 44)
+                .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 0.5))
             }
             .buttonStyle(.plain)
         } else {
@@ -557,42 +711,43 @@ struct ItemDetailView: View {
                 }
             } label: {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white)
+                    Circle()
+                        .fill(.ultraThinMaterial)
 
                     if isDownloading, let dl = activeDownload {
                         let progress = dl.progress
                         if progress > 0 {
                             ZStack {
                                 Circle()
-                                    .stroke(Color.black.opacity(0.15), lineWidth: 3)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 3)
                                 Circle()
                                     .trim(from: 0, to: progress)
-                                    .stroke(Color.black, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                    .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                                     .rotationEffect(.degrees(-90))
                                     .animation(.linear(duration: 0.3), value: progress)
                             }
                             .frame(width: 22, height: 22)
                         } else {
                             ProgressView()
-                                .tint(.black)
+                                .tint(.white)
                                 .scaleEffect(0.85)
                         }
                     } else if isQueued {
                         Image(systemName: "clock")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Color.black.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.6))
                     } else if isPaused {
                         Image(systemName: "pause.circle.fill")
                             .font(.system(size: 22, weight: .medium))
-                            .foregroundStyle(Color.black)
+                            .foregroundStyle(.white)
                     } else {
                         Image(systemName: anySeriesDownloaded ? "arrow.down.circle.fill" : "arrow.down.to.line")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Color.black)
+                            .foregroundStyle(.white)
                     }
                 }
                 .frame(width: 44, height: 44)
+                .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 0.5))
             }
             .buttonStyle(.plain)
             .popover(item: $downloadPopoverStep, arrowEdge: .bottom) { step in
@@ -1032,53 +1187,6 @@ struct ItemDetailView: View {
         }
     }
 
-    // MARK: - Overview
-
-    @ViewBuilder
-    private var overviewSection: some View {
-        if let overview = activeItem.overview ?? displayItem.overview, !overview.isEmpty {
-            let needsExpand = overview.count > 150
-            VStack(alignment: .center, spacing: 8) {
-                Text(overview)
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.label).opacity(0.72))
-                    .lineSpacing(5)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .overlay(alignment: .bottomTrailing) {
-                        if needsExpand {
-                            HStack(spacing: 0) {
-                                LinearGradient(
-                                    colors: [Color(.systemBackground).opacity(0),
-                                             Color(.systemBackground)],
-                                    startPoint: .leading, endPoint: .trailing
-                                )
-                                .frame(width: 44, height: 18)
-                                HStack(spacing: 2) {
-                                    Text(String(localized: "Show More", bundle: AppState.currentBundle))
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 9, weight: .bold))
-                                }
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tint)
-                                    .frame(height: 18)
-                                    .background(Color(.systemBackground))
-                            }
-                        }
-                    }
-            }
-            .padding(.horizontal, 16)
-            .onTapGesture {
-                guard needsExpand else { return }
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    overviewExpanded = true
-                }
-            }
-            .onChange(of: activeItem.id) { _, _ in overviewExpanded = false }
-        }
-    }
-
     // MARK: - Overview Popup
 
     private func overviewPopup(_ text: String) -> some View {
@@ -1102,155 +1210,6 @@ struct ItemDetailView: View {
                         .frame(maxHeight: geo.size.height * 0.4, alignment: .center)
                 }
         }
-    }
-
-    // MARK: - Ratings & Media Badges
-
-    private struct MediaBadge: Identifiable {
-        let id: String
-        let icon: String?
-        let label: String
-    }
-
-    @ViewBuilder
-    private var ratingsAndBadges: some View {
-        let mediaItem: JellyfinItem = {
-            // 1) Episode: try cached details, then activeItem itself
-            if activeItem.isEpisode {
-                if let cached = DownloadManager.loadItemDetails(itemId: activeItem.id),
-                   cached.mediaStreams != nil { return cached }
-                if activeItem.mediaStreams != nil { return activeItem }
-            }
-            // 2) For movies/series: try fullItem, then activeItem
-            if let full = vm.fullItem, full.mediaStreams != nil { return full }
-            if activeItem.mediaStreams != nil { return activeItem }
-            return displayItem
-        }()
-        let videoStream = mediaItem.mediaStreams?.first(where: { $0.isVideo })
-        let audioStream = mediaItem.mediaStreams?.first(where: { $0.isAudio })
-        let badges = buildMediaBadges(video: videoStream, audio: audioStream)
-        let hasRatings = displayItem.communityRating != nil || displayItem.criticRating != nil
-
-        if hasRatings || !badges.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    // TMDb rating
-                    if let rating = displayItem.communityRating {
-                        HStack(spacing: 5) {
-                            Image("TMDbLogo")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 28, height: 28)
-                            Text(String(format: "%.1f", rating))
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    // Critic rating
-                    if let critic = displayItem.criticRating {
-                        HStack(spacing: 4) {
-                            Image(systemName: "rosette")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                            Text("\(Int(critic))%")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    // Media badges
-                    ForEach(badges) { badge in
-                        HStack(spacing: 3) {
-                            if let icon = badge.icon {
-                                Image(systemName: icon)
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(badge.label)
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.secondary.opacity(0.4), lineWidth: 1))
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-        }
-    }
-
-    private func buildMediaBadges(video: JellyfinMediaStream?, audio: JellyfinMediaStream?) -> [MediaBadge] {
-        var badges: [MediaBadge] = []
-
-        if let video {
-            let codec = (video.codec ?? "").lowercased()
-            if codec.contains("hevc") || codec.contains("h265") {
-                badges.append(MediaBadge(id: "vcodec", icon: nil, label: "HEVC"))
-            } else if codec.contains("h264") || codec.contains("avc") {
-                badges.append(MediaBadge(id: "vcodec", icon: nil, label: "H.264"))
-            } else if codec.contains("av1") {
-                badges.append(MediaBadge(id: "vcodec", icon: nil, label: "AV1"))
-            } else if !codec.isEmpty {
-                badges.append(MediaBadge(id: "vcodec", icon: nil, label: codec.uppercased()))
-            }
-
-            if let w = video.width {
-                if w >= 3840 {
-                    badges.append(MediaBadge(id: "res", icon: "4k.tv", label: "UHD"))
-                } else if w >= 1920 {
-                    badges.append(MediaBadge(id: "res", icon: nil, label: "FHD"))
-                } else if w >= 1280 {
-                    badges.append(MediaBadge(id: "res", icon: nil, label: "HD"))
-                }
-            }
-
-            let rangeType = video.videoRangeType ?? video.videoRange ?? ""
-            switch rangeType {
-            case "DOVIWithHDR10Plus":
-                badges.append(MediaBadge(id: "dv", icon: "sparkles", label: "DV"))
-                badges.append(MediaBadge(id: "hdr10p", icon: nil, label: "HDR10+"))
-            case "DOVI":
-                badges.append(MediaBadge(id: "dv", icon: "sparkles", label: "DV"))
-            case "DOVIWithHDR10":
-                badges.append(MediaBadge(id: "dv", icon: "sparkles", label: "DV"))
-                badges.append(MediaBadge(id: "hdr10", icon: nil, label: "HDR10"))
-            case "HDR10Plus":
-                badges.append(MediaBadge(id: "hdr10p", icon: nil, label: "HDR10+"))
-            case "HDR10":
-                badges.append(MediaBadge(id: "hdr10", icon: nil, label: "HDR10"))
-            case "HLG":
-                badges.append(MediaBadge(id: "hlg", icon: nil, label: "HLG"))
-            case "HDR":
-                badges.append(MediaBadge(id: "hdr", icon: nil, label: "HDR"))
-            default:
-                break
-            }
-        }
-
-        if let audio {
-            let aCodec = (audio.codec ?? "").lowercased()
-            if aCodec.contains("truehd") || aCodec.contains("atmos") {
-                badges.append(MediaBadge(id: "acodec", icon: "hifispeaker.2.fill", label: "Atmos"))
-            } else if aCodec.contains("eac3") || aCodec == "ac3" {
-                badges.append(MediaBadge(id: "acodec", icon: "speaker.wave.3.fill", label: aCodec == "ac3" ? "DD" : "DD+"))
-            } else if aCodec.contains("flac") {
-                badges.append(MediaBadge(id: "acodec", icon: nil, label: "FLAC"))
-            } else if aCodec.contains("dts") {
-                badges.append(MediaBadge(id: "acodec", icon: nil, label: "DTS"))
-            } else if !aCodec.isEmpty {
-                badges.append(MediaBadge(id: "acodec", icon: nil, label: aCodec.uppercased()))
-            }
-
-            if let dt = audio.displayTitle?.lowercased() {
-                if dt.contains("7.1") {
-                    badges.append(MediaBadge(id: "channels", icon: nil, label: "7.1"))
-                } else if dt.contains("5.1") {
-                    badges.append(MediaBadge(id: "channels", icon: nil, label: "5.1"))
-                }
-            }
-        }
-
-        return badges
     }
 
     // MARK: - Episodes
@@ -1474,39 +1433,62 @@ struct ItemDetailView: View {
         let totalSecs = activeItem.runTimeTicks.map { Double($0) / 10_000_000 }
         let hasResume = (resumePos ?? 0) > 60
 
-        HStack(spacing: 8) {
-            Image(systemName: "play.fill")
-            playButtonLabel
-        }
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
-        .frame(height: 44)
-        .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.25), lineWidth: 0.5))
-        .overlay(alignment: .leading) {
-            if hasResume, let pos = resumePos, let total = totalSecs, total > 0 {
-                let progress = min(pos / total, 1)
-                GeometryReader { geo in
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(white: 1).opacity(0.12))
-                        .frame(width: geo.size.width * progress)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+        if hasResume, let pos = resumePos, let total = totalSecs, total > 0 {
+            // Resume style: play icon + progress bar + remaining time
+            let progress = min(pos / total, 1)
+            let remainingSecs = total - pos
+            HStack(spacing: 12) {
+                Image(systemName: "play.fill")
+                    .font(.title2.weight(.semibold))
+
+                // Capsule progress bar
+                Capsule()
+                    .fill(.black.opacity(0.15))
+                    .frame(width: 80, height: 9)
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(.black)
+                            .frame(width: 80 * progress, height: 9)
+                    }
+
+                Text(playRemainingTimeString(remainingSecs))
+                    .font(.callout.weight(.semibold))
+                    .fixedSize()
             }
+            .foregroundStyle(.black)
+            .padding(.horizontal, 28)
+            .frame(height: 50)
+            .background { Capsule().fill(.white) }
+        } else {
+            // Normal play button
+            HStack(spacing: 8) {
+                Image(systemName: "play.fill")
+                playButtonLabel
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 48)
+            .frame(height: 48)
+            .background { Capsule().fill(.white) }
+        }
+    }
+
+    private func playRemainingTimeString(_ seconds: Double) -> String {
+        let totalMinutes = Int(seconds) / 60
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        if hours > 0 {
+            return String(format: String(localized: "%d sa. %d dk.", bundle: AppState.currentBundle), hours, minutes)
+        } else {
+            return String(format: String(localized: "%d dk.", bundle: AppState.currentBundle), minutes)
         }
     }
 
     @ViewBuilder
     private var playButtonLabel: some View {
-        if activeItem.isEpisode || activeItem.isMovie,
-           let pos = activeItem.userData?.resumePositionSeconds, pos > 60 {
-            Text(verbatim: String(format: String(localized: "Continue  %@", bundle: AppState.currentBundle), formatTimestamp(pos)))
-        } else if activeItem.isSeries {
+        if activeItem.isSeries {
             let ep = selectedSeason.flatMap { vm.resumeEpisode(seasonId: $0.id) }
-            if let ep, let pos = ep.userData?.resumePositionSeconds, pos > 60 {
-                Text(verbatim: String(format: String(localized: "Continue  S%lldE%lld", bundle: AppState.currentBundle), Int64(ep.parentIndexNumber ?? 1), Int64(ep.indexNumber ?? 1)))
-            } else if let ep, let epNum = ep.indexNumber {
+            if let ep, let epNum = ep.indexNumber {
                 Text(verbatim: String(format: String(localized: "Play  S%lldE%lld", bundle: AppState.currentBundle), Int64(ep.parentIndexNumber ?? 1), Int64(epNum)))
             } else {
                 Text(String(localized: "Play", bundle: AppState.currentBundle))
@@ -1799,7 +1781,7 @@ struct CastCardView: View {
                         }
                     }
                 }
-                .frame(width: 72, height: 72)
+                .frame(width: 88, height: 88)
                 .clipShape(Circle())
 
                 VStack(spacing: 2) {
@@ -1815,7 +1797,7 @@ struct CastCardView: View {
                             .lineLimit(1)
                     }
                 }
-                .frame(width: 80)
+                .frame(width: 96)
             }
         }
         .buttonStyle(.plain)
@@ -1836,16 +1818,6 @@ struct CastCardView: View {
             guard !Task.isCancelled else { return }
             imageVersion += 1
         }
-    }
-}
-
-// MARK: - Meta text style
-
-private extension Text {
-    func metaStyle() -> some View {
-        self
-            .font(.subheadline)
-            .foregroundStyle(.white.opacity(0.75))
     }
 }
 

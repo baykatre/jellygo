@@ -45,13 +45,17 @@ var bannerSize: CGSize {
     let screen = UIApplication.shared.connectedScenes
         .compactMap { $0 as? UIWindowScene }
         .first?.screen.bounds.size ?? CGSize(width: 390, height: 844)
-    return CGSize(width: screen.width, height: screen.height * 0.62)
+    return CGSize(width: screen.width, height: 680)
 }
+
+/// Image occupies top portion; bottom fills with dominant color
+private var bannerImageHeight: CGFloat { 590 }
 
 struct HeroBannerView: View {
     let items: [JellyfinItem]
     let serverURL: String
     var pullDown: CGFloat = 0
+    var scrollOffset: CGFloat = 0
     var onPlay: (JellyfinItem) -> Void = { _ in }
 
     // Two stable layers: A and B. One is "current", the other is "next".
@@ -63,6 +67,7 @@ struct HeroBannerView: View {
     @State private var isTransitioning = false
     @State private var isDragging = false
     @State private var pauseUntil: Date = .distantPast
+    @State private var dominantColor: Color = Color(white: 0.12)
 
     private let autoTimer = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
 
@@ -84,6 +89,9 @@ struct HeroBannerView: View {
         let nxtParallax = -progress * 20
 
         ZStack(alignment: .bottom) {
+            // Dominant color background
+            dominantColor.animation(.easeInOut(duration: 0.5), value: dominantColor)
+
             // Layer A — stable identity, never changes URL at snap time
             backdropLayer(item: items[indexA], size: size,
                           parallaxOffset: aIsCurrent ? curParallax : nxtParallax)
@@ -94,19 +102,13 @@ struct HeroBannerView: View {
                           parallaxOffset: aIsCurrent ? nxtParallax : curParallax)
                 .opacity(Double(aIsCurrent ? fadeProg : 1.0 - fadeProg))
 
-            // Gradient
+            // Progressive blur + subtle gradient
             gradientOverlay(size: size)
 
             // Content — hides during drag/transition
             contentOverlay(item: items[currentItemIndex], size: size)
                 .opacity(isDragging ? 0 : 1)
                 .animation(.easeOut(duration: isDragging ? 0.08 : 0.25), value: isDragging)
-
-            // NavigationLink
-            if !isDragging {
-                NavigationLink(value: items[currentItemIndex]) { Color.clear }
-                    .buttonStyle(.plain)
-            }
 
             // Dot indicator
             if items.count > 1 {
@@ -125,10 +127,17 @@ struct HeroBannerView: View {
         .offset(y: -pullDown)
         .padding(.bottom, -pullDown)
         .contentShape(Rectangle())
+        .onTapGesture {
+            onPlay(items[currentItemIndex])
+        }
         .gesture(items.count > 1 ? dragGesture(size: size) : nil)
         .onReceive(autoTimer) { now in
             guard items.count > 1, now >= pauseUntil, !isTransitioning else { return }
             commitTransition(direction: -1, size: size)
+        }
+        .onAppear { extractDominantColor(for: items[currentItemIndex]) }
+        .onChange(of: currentItemIndex) { _, newIndex in
+            extractDominantColor(for: items[newIndex])
         }
     }
 
@@ -211,32 +220,43 @@ struct HeroBannerView: View {
 
     @ViewBuilder
     private func backdropLayer(item: JellyfinItem, size: CGSize, parallaxOffset: CGFloat = 0) -> some View {
-        AsyncImage(url: bannerBackdropURL(item: item)) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().aspectRatio(contentMode: .fill)
-                    .offset(x: parallaxOffset)
-            default:
-                Color(white: 0.12)
+        // Vertical parallax: image moves at half scroll speed
+        let verticalParallax = scrollOffset > 0 ? scrollOffset * 0.5 : 0
+
+        return VStack(spacing: 0) {
+            AsyncImage(url: bannerBackdropURL(item: item)) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().aspectRatio(contentMode: .fill)
+                        .offset(x: parallaxOffset, y: verticalParallax)
+                default:
+                    Color(white: 0.12)
+                }
             }
+            .frame(width: size.width, height: bannerImageHeight + pullDown)
+            .clipped()
+
+            Spacer(minLength: 0)
         }
         .frame(width: size.width, height: size.height + pullDown)
-        .clipped()
     }
 
     @ViewBuilder
     private func gradientOverlay(size: CGSize) -> some View {
-        VStack(spacing: 0) {
-            Spacer()
+        ZStack(alignment: .bottom) {
+            // Progressive blur
+            VariableBlurView(startPoint: 0.45, endPoint: 0.7)
+
+            // Subtle dark gradient for readability
             LinearGradient(
                 stops: [
                     .init(color: .clear, location: 0),
-                    .init(color: .black.opacity(0.75), location: 0.5),
-                    .init(color: .black, location: 1)
+                    .init(color: .clear, location: 0.4),
+                    .init(color: .black.opacity(0.3), location: 0.7),
+                    .init(color: .black.opacity(0.5), location: 1)
                 ],
                 startPoint: .top, endPoint: .bottom
             )
-            .frame(height: 280)
         }
         .frame(width: size.width, height: size.height + pullDown)
         .allowsHitTesting(false)
@@ -244,65 +264,75 @@ struct HeroBannerView: View {
 
     @ViewBuilder
     private func contentOverlay(item: JellyfinItem, size: CGSize) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .center, spacing: 10) {
             LogoTitleView(
                 title: item.name,
                 logoURL: bannerLogoURL(item: item)
             )
-            .frame(maxWidth: 280, alignment: .leading)
+            .frame(maxWidth: 280, alignment: .center)
+            .multilineTextAlignment(.center)
 
-            HStack(spacing: 8) {
-                if let year = item.productionYear {
-                    Text(String(year))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.75))
-                }
-                Text(item.isMovie ? LocalizedStringKey("Movie") : LocalizedStringKey("Series"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(.white.opacity(0.2), in: Capsule())
-                if let r = item.communityRating {
-                    Label(String(format: "%.1f", r), systemImage: "star.fill")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.yellow)
-                }
-            }
-            .allowsHitTesting(false)
+            // Genre line: Type · Genre1 · Genre2
+            genreLine(item: item)
 
             HStack(spacing: 10) {
-                if item.isMovie || item.isEpisode {
-                    Button { onPlay(item) } label: { bannerPlayLabel }
-                } else {
-                    NavigationLink(value: item) { bannerPlayLabel }.buttonStyle(.plain)
-                }
+                Button { onPlay(item) } label: { bannerPlayLabel }
 
-                NavigationLink(value: item) {
-                    Label(String(localized: "More Info", bundle: AppState.currentBundle), systemImage: "info.circle")
-                        .font(.subheadline.weight(.semibold))
+                Button { onPlay(item) } label: {
+                    Image(systemName: "info.circle")
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 126, height: 44)
-                        .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(.white.opacity(0.25), lineWidth: 0.5)
-                        )
+                        .frame(width: 48, height: 48)
+                        .background(.ultraThinMaterial, in: Circle())
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 38)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func genreLine(item: JellyfinItem) -> some View {
+        let typeLabel: String = if item.isMovie {
+            String(localized: "Movie", bundle: AppState.currentBundle)
+        } else if item.isEpisode {
+            String(localized: "Episode", bundle: AppState.currentBundle)
+        } else {
+            String(localized: "Series", bundle: AppState.currentBundle)
+        }
+        let genres = item.genres ?? []
+        let parts = [typeLabel] + genres.prefix(2)
+        Text(parts.joined(separator: " \u{00B7} "))
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.white.opacity(0.75))
+            .allowsHitTesting(false)
     }
 
     private var bannerPlayLabel: some View {
         Label(String(localized: "Play", bundle: AppState.currentBundle), systemImage: "play.fill")
-            .font(.subheadline.weight(.semibold))
+            .font(.body.weight(.semibold))
             .foregroundStyle(.black)
-            .frame(width: 126, height: 44)
-            .background(.white, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 52)
+            .padding(.vertical, 14)
+            .background(.white, in: Capsule())
+    }
+
+    // MARK: - Dominant Color
+
+    private func extractDominantColor(for item: JellyfinItem) {
+        guard let url = bannerBackdropURL(item: item) else { return }
+        Task.detached(priority: .utility) {
+            guard let data = try? Data(contentsOf: url),
+                  let uiImage = UIImage(data: data) else { return }
+            let color = uiImage.averageBottomColor()
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    dominantColor = Color(color)
+                }
+            }
+        }
     }
 
     // MARK: - URLs
@@ -327,13 +357,13 @@ struct HeroBannerPlaceholder: View {
 
     var body: some View {
         let size = bannerSize
-        ZStack(alignment: .bottomLeading) {
+        ZStack(alignment: .bottom) {
             LinearGradient(
                 colors: [Color(white: 0.18), Color(white: 0.08)],
                 startPoint: .top, endPoint: .bottom
             )
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .center, spacing: 12) {
                 // Logo placeholder
                 RoundedRectangle(cornerRadius: 6)
                     .fill(.white.opacity(shimmer ? 0.12 : 0.07))
@@ -344,15 +374,15 @@ struct HeroBannerPlaceholder: View {
                     .frame(width: 110, height: 14)
                 // Buttons
                 HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 12)
+                    Capsule()
                         .fill(.white.opacity(shimmer ? 0.18 : 0.1))
-                        .frame(width: 126, height: 44)
-                    RoundedRectangle(cornerRadius: 12)
+                        .frame(width: 120, height: 44)
+                    Capsule()
                         .fill(.white.opacity(shimmer ? 0.1 : 0.06))
-                        .frame(width: 126, height: 44)
+                        .frame(width: 120, height: 44)
                 }
             }
-            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity)
             .padding(.bottom, 38)
         }
         .frame(width: size.width, height: size.height)
@@ -443,12 +473,50 @@ struct PosterCardView: View {
 
 // MARK: - Backdrop Card (16:9)
 
-struct BackdropCardView: View {
+struct BackdropCardView<MenuContent: View>: View {
     let item: JellyfinItem
     let serverURL: String
     var width: CGFloat = 280
+    var showPlayOverlay: Bool = false
+    var overlayMenu: (() -> MenuContent)?
 
     var height: CGFloat { width * 9 / 16 }
+}
+
+extension BackdropCardView where MenuContent == EmptyView {
+    init(item: JellyfinItem, serverURL: String, width: CGFloat = 280, showPlayOverlay: Bool = false) {
+        self.item = item
+        self.serverURL = serverURL
+        self.width = width
+        self.showPlayOverlay = showPlayOverlay
+        self.overlayMenu = nil
+    }
+}
+
+extension BackdropCardView {
+
+    private var progressValue: Double? {
+        guard let userData = item.userData,
+              let position = userData.resumePositionSeconds,
+              let totalTicks = item.runTimeTicks else { return nil }
+        let total = Double(totalTicks) / 10_000_000
+        guard total > 0 else { return nil }
+        return min(position / total, 1.0)
+    }
+
+    private var remainingTimeString: String {
+        guard let totalTicks = item.runTimeTicks else { return "" }
+        let totalSeconds = Double(totalTicks) / 10_000_000
+        let resumeSeconds = item.userData?.resumePositionSeconds ?? 0
+        let remaining = max(totalSeconds - resumeSeconds, 0)
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        if hours > 0 {
+            return "\(hours) sa. \(minutes) dk."
+        } else {
+            return "\(minutes) dk."
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -458,27 +526,28 @@ struct BackdropCardView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
 
-                // Bottom gradient
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.65)],
-                    startPoint: .center, endPoint: .bottom
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                if showPlayOverlay {
+                    // Play overlay with blur
+                    playOverlay
+                } else {
+                    // Bottom gradient
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.65)],
+                        startPoint: .center, endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                // Progress bar
-                if let userData = item.userData,
-                   let position = userData.resumePositionSeconds,
-                   let totalTicks = item.runTimeTicks {
-                    let total = Double(totalTicks) / 10_000_000
-                    let progress = min(position / total, 1.0)
-                    VStack {
-                        Spacer()
-                        ProgressView(value: progress)
-                            .tint(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.bottom, 6)
+                    // Progress bar
+                    if let progress = progressValue {
+                        VStack {
+                            Spacer()
+                            ProgressView(value: progress)
+                                .tint(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.bottom, 6)
+                        }
+                        .frame(width: width, height: height)
                     }
-                    .frame(width: width, height: height)
                 }
 
                 // Watched badge
@@ -505,7 +574,7 @@ struct BackdropCardView: View {
                     .frame(width: width, alignment: .leading)
 
                 if item.isEpisode, let season = item.parentIndexNumber, let ep = item.indexNumber {
-                    Text(String(localized: "S\(season) · B\(ep) — \(item.name)", bundle: AppState.currentBundle))
+                    Text(String(localized: "S\(season) \u{00B7} B\(ep) \u{2014} \(item.name)", bundle: AppState.currentBundle))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -516,6 +585,54 @@ struct BackdropCardView: View {
                 }
             }
         }
+    }
+
+    private var playOverlay: some View {
+        VStack {
+            Spacer()
+
+            // Blur background with fade
+            VariableBlurView(startPoint: 0, endPoint: 0.5, style: .systemUltraThinMaterialDark)
+                .frame(width: width, height: 44)
+                .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 12, bottomTrailingRadius: 12))
+                .overlay(alignment: .bottom) {
+                    // Content — pinned to bottom of blur
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.fill")
+                            .font(.caption)
+                            .foregroundStyle(.white)
+
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.white.opacity(0.3))
+                            Capsule().fill(.white)
+                                .frame(width: 32 * (progressValue ?? 0))
+                        }
+                        .frame(width: 32, height: 4)
+
+                        Text(remainingTimeString)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .fixedSize()
+
+                        Spacer()
+
+                        if let overlayMenu {
+                            Menu {
+                                overlayMenu()
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.8))
+                                    .frame(width: 24, height: 24)
+                                    .contentShape(Rectangle())
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 6)
+                }
+        }
+        .frame(width: width, height: height)
     }
 
     private var backdropPrimaryURL: URL? {

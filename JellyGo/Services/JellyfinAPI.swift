@@ -199,7 +199,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "StartIndex", value: "\(startIndex)"),
             URLQueryItem(name: "Limit", value: "\(limit)"),
             URLQueryItem(name: "Recursive", value: recursive ? "true" : "false"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating")
         ]
         if let parentId { queryItems.append(URLQueryItem(name: "ParentId", value: parentId)) }
         if let types = itemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
@@ -215,7 +215,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         let url = try buildURL(base, path: "Users/\(userId)/Items/Resume", queryItems: [
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources"),
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating"),
             URLQueryItem(name: "MediaTypes", value: "Video")
         ])
         let req = baseRequest(url: url, token: token)
@@ -228,7 +228,7 @@ final class JellyfinAPI {
         let url = try buildURL(base, path: "Shows/NextUp", queryItems: [
             URLQueryItem(name: "UserId", value: userId),
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating")
         ])
         let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
@@ -239,7 +239,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "Limit", value: "16"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating")
         ]
         if let libraryId { queryItems.append(URLQueryItem(name: "ParentId", value: libraryId)) }
         if let types = includeItemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }

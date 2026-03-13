@@ -5,13 +5,17 @@ struct HomeView: View {
     @EnvironmentObject private var dm: DownloadManager
     @StateObject private var vm = HomeViewModel()
     @State private var heroPlayItem: JellyfinItem?
+    @State private var autoPlayItem: JellyfinItem?
     @State private var showSettings = false
-    @State private var showSearch = false
     @State private var downloadBanner: PausedDownload?
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedTab: Int = 0
     @State private var homePath = NavigationPath()
     @State private var heroPullDown: CGFloat = 0
+    @State private var heroScrollOffset: CGFloat = 0
+    @State private var showOverlay = true
+    @State private var lastScrollOffset: CGFloat = 0
+    @State private var badgeBounce = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -96,13 +100,9 @@ struct HomeView: View {
                             items: vm.featuredItems,
                             serverURL: vm.serverURL,
                             pullDown: heroPullDown,
+                            scrollOffset: heroScrollOffset,
                             onPlay: { item in
-                                AppDelegate.orientationLock = .landscape
-                                PlayerContainerView.rotate(to: .landscapeRight)
-                                Task {
-                                    try? await Task.sleep(for: .milliseconds(300))
-                                    heroPlayItem = item
-                                }
+                                homePath.append(item)
                             },
                         )
                     }
@@ -134,38 +134,47 @@ struct HomeView: View {
             .scrollEdgeEffectStyle(.none, for: .top)
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y + geo.contentInsets.top
-            } action: { _, offset in
+            } action: { old, offset in
                 heroPullDown = max(0, -offset)
+                heroScrollOffset = max(0, offset)
+                let delta = offset - old
+                if delta > 4 && offset > 50 {
+                    withAnimation(.easeOut(duration: 0.25)) { showOverlay = false }
+                } else if delta < -4 || offset < 50 {
+                    withAnimation(.easeOut(duration: 0.25)) { showOverlay = true }
+                }
             }
             .background(Color(.systemBackground).ignoresSafeArea())
             .coordinateSpace(name: "homeScroll")
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { switchToNextAccount() } label: { serverBadge }
-                        .buttonStyle(.plain)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button {
-                            showSearch = true
-                        } label: {
-                            Image(systemName: "magnifyingglass")
-                                .font(.title3)
-                                .foregroundStyle(.white)
-                                .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
+            .navigationBarHidden(true)
+            .overlay(alignment: .top) {
+                HStack {
+                    Text(String(localized: "Home", bundle: AppState.currentBundle))
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
+
+                    Spacer()
+
+                    serverBadge
+                        .scaleEffect(badgeBounce ? 0.85 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.4), value: badgeBounce)
+                        .onTapGesture { showSettings = true }
+                        .onLongPressGesture(minimumDuration: 0.5, pressing: { pressing in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                badgeBounce = pressing
+                            }
+                        }) {
+                            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                            switchToNextAccount()
+                            badgeBounce = false
                         }
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.title3)
-                                .foregroundStyle(.white)
-                                .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
-                        }
-                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .frame(minHeight: 44)
+                .opacity(showOverlay ? 1 : 0)
+                .offset(y: showOverlay ? 0 : -20)
             }
             .navigationDestination(isPresented: $showSettings) {
                 SettingsView()
@@ -173,12 +182,11 @@ struct HomeView: View {
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }
+            .navigationDestination(item: $autoPlayItem) { item in
+                ItemDetailView(item: item, autoPlay: true)
+            }
             .navigationDestination(for: JellyfinLibrary.self) { library in
                 LibraryView(library: library)
-            }
-            .fullScreenCover(isPresented: $showSearch) {
-                SearchView()
-                    .environmentObject(appState)
             }
             .overlay(alignment: .bottom) {
                 if let error = vm.error {
@@ -212,9 +220,7 @@ struct HomeView: View {
 
     private var serverBadge: some View {
         HStack(spacing: 10) {
-            avatarCircle
-
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 2) {
                 Text(appState.username)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
@@ -224,8 +230,9 @@ struct HomeView: View {
                     .foregroundStyle(.white.opacity(0.75))
                     .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
             }
+
+            avatarCircle
         }
-        .padding(.trailing, 16)
         .fixedSize()
     }
 
@@ -246,15 +253,15 @@ struct HomeView: View {
             case .success(let img):
                 img.resizable()
                    .scaledToFill()
-                   .frame(width: 36, height: 36)
+                   .frame(width: 48, height: 48)
                    .clipShape(Circle())
             default:
                 Circle()
                     .fill(.white.opacity(0.25))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 48, height: 48)
                     .overlay {
                         Text(appState.username.prefix(1).uppercased())
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(.white)
                     }
             }
@@ -285,18 +292,20 @@ struct HomeView: View {
 
     private var continueWatchingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Continue Watching")
+            SectionHeaderView(title: "\(String(localized: "Continue Watching", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(vm.continueWatching) { item in
-                        NavigationLink(value: item) {
-                            BackdropCardView(item: item, serverURL: vm.serverURL)
+                        Button {
+                            autoPlayItem = item
+                        } label: {
+                            BackdropCardView(item: item, serverURL: vm.serverURL, width: 280, showPlayOverlay: true, overlayMenu: { cardContextMenu(item: item) })
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
                             cardContextMenu(item: item)
                         } preview: {
-                            BackdropCardView(item: item, serverURL: vm.serverURL)
+                            BackdropCardView(item: item, serverURL: vm.serverURL, showPlayOverlay: true)
                                 .padding()
                         }
                     }
@@ -308,18 +317,20 @@ struct HomeView: View {
 
     private var nextUpSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Next Up")
+            SectionHeaderView(title: "\(String(localized: "Next Up", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(vm.nextUp) { item in
-                        NavigationLink(value: item) {
-                            BackdropCardView(item: item, serverURL: vm.serverURL)
+                        Button {
+                            autoPlayItem = item
+                        } label: {
+                            BackdropCardView(item: item, serverURL: vm.serverURL, width: 280, showPlayOverlay: true, overlayMenu: { cardContextMenu(item: item) })
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
                             cardContextMenu(item: item)
                         } preview: {
-                            BackdropCardView(item: item, serverURL: vm.serverURL)
+                            BackdropCardView(item: item, serverURL: vm.serverURL, showPlayOverlay: true)
                                 .padding()
                         }
                     }
@@ -389,7 +400,7 @@ struct HomeView: View {
 
     private var latestMoviesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Latest Movies")
+            SectionHeaderView(title: "\(String(localized: "Latest Movies", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(vm.latestMovies) { item in
@@ -406,7 +417,7 @@ struct HomeView: View {
 
     private var latestShowsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Latest TV Shows")
+            SectionHeaderView(title: "\(String(localized: "Latest TV Shows", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(vm.latestShows) { item in
@@ -423,7 +434,7 @@ struct HomeView: View {
 
     private var librariesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Libraries")
+            SectionHeaderView(title: "\(String(localized: "Libraries", bundle: AppState.currentBundle))")
             VStack(spacing: 8) {
                 ForEach(vm.libraries) { library in
                     NavigationLink(value: library) {

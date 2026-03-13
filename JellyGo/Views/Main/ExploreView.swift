@@ -8,6 +8,7 @@ struct ExploreView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
     @State private var pullTriggered = false
+    @State private var showSearch = false
 
     var body: some View {
         NavigationStack {
@@ -121,15 +122,29 @@ struct ExploreView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: isRefreshing)
-            .overlay(alignment: .topLeading) {
-                Text(String(localized: "Explore", bundle: AppState.currentBundle))
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                    .opacity(max(0.0, 1.0 - (scrollOffset / 100.0)))
-                    .allowsHitTesting(false)
+            .overlay(alignment: .top) {
+                HStack {
+                    Text(String(localized: "Explore", bundle: AppState.currentBundle))
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
+
+                    Spacer()
+
+                    Button {
+                        showSearch = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
+                            .padding(8)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .opacity(max(0.0, 1.0 - (scrollOffset / 100.0)))
             }
             .background(Color(.systemBackground).ignoresSafeArea())
             .navigationDestination(for: JellyfinItem.self) { item in
@@ -146,6 +161,10 @@ struct ExploreView: View {
                 PlayerContainerView(item: item)
                     .environmentObject(appState)
                     .onAppear { appState.isPlayerActive = true }
+            }
+            .fullScreenCover(isPresented: $showSearch) {
+                SearchView()
+                    .environmentObject(appState)
             }
         }
         .task(id: appState.sessionId) {

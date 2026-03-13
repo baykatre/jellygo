@@ -11,9 +11,11 @@ struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var networkMonitor: NetworkMonitor
     @State private var retryTask: Task<Void, Never>?
+    @State private var initialCheckDone = false
 
     private var showOffline: Bool {
-        !networkMonitor.isConnected || appState.serverUnreachable || appState.manualOffline
+        guard initialCheckDone || appState.manualOffline else { return false }
+        return !networkMonitor.isConnected || appState.serverUnreachable || appState.manualOffline
     }
 
     /// Skip connectivity checks while player is active or manual offline
@@ -80,8 +82,12 @@ struct ContentView: View {
             }
         }
         .task {
-            guard networkMonitor.isConnected && appState.isAuthenticated && !shouldSkipChecks else { return }
+            guard networkMonitor.isConnected && appState.isAuthenticated && !shouldSkipChecks else {
+                initialCheckDone = true
+                return
+            }
             await appState.validateAndFallback()
+            initialCheckDone = true
             if !appState.serverUnreachable {
                 await LocalPlaybackStore.syncPendingPositions(
                     serverURL: appState.serverURL, token: appState.token
