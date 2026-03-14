@@ -9,21 +9,63 @@ struct DownloadsView: View {
     @EnvironmentObject private var dm: DownloadManager
     @State private var showDeleteSeriesConfirm: String? = nil
     @State private var showDeleteMovieConfirm: String? = nil
+    @State private var scrollOffset: CGFloat = 0
+
+    private var totalSizeFormatted: String {
+        let bytes = dm.downloads.compactMap(\.fileSize).reduce(0, +)
+        guard bytes > 0 else { return "" }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
+    }
 
     var body: some View {
         NavigationStack {
             Group {
                 if dm.downloads.isEmpty && dm.downloadOrder.isEmpty {
-                    ContentUnavailableView {
-                        Label(String(localized: "No Downloads", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
-                    } description: {
-                        Text(String(localized: "Downloaded content will appear here.", bundle: AppState.currentBundle))
+                    ScrollView {
+                        Color.clear.frame(height: 44)
+                        VStack(spacing: 16) {
+                            Image(systemName: "arrow.down.circle")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.tertiary)
+                            Text("No Downloads")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 80)
                     }
                 } else {
                     downloadsList
                 }
             }
-            .navigationTitle(String(localized: "Downloads", bundle: AppState.currentBundle))
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .navigationTitle("")
+            .overlay(alignment: .top) {
+                HStack {
+                    Text(String(localized: "Downloads", bundle: AppState.currentBundle))
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    if !totalSizeFormatted.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "internaldrive")
+                                .font(.caption.weight(.semibold))
+                            Text(totalSizeFormatted)
+                                .font(.caption.weight(.semibold))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .opacity(max(0.0, 1.0 - (scrollOffset / 100.0)))
+            }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item, isFromDownloads: true)
             }
@@ -60,6 +102,7 @@ struct DownloadsView: View {
                 let name = dm.downloads.first { $0.id == showDeleteMovieConfirm }?.name ?? ""
                 Text("Remove \"\(name)\" from your downloads?")
             }
+            .background(Color(.systemBackground).ignoresSafeArea())
         }
     }
 
@@ -67,7 +110,9 @@ struct DownloadsView: View {
 
     private var downloadsList: some View {
         ScrollView(showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: 28) {
+            Color.clear.frame(height: 44)
+
+            VStack(alignment: .leading, spacing: 32) {
 
                 if !dm.downloadOrder.isEmpty {
                     activeSection
@@ -75,7 +120,7 @@ struct DownloadsView: View {
 
                 let movies = dm.downloads.filter { $0.isMovie }
                 if !movies.isEmpty {
-                    posterSection(title: String(localized: "Movies", bundle: AppState.currentBundle), items: movies)
+                    posterSection(title: "Movies", items: movies)
                 }
 
                 let episodes = dm.downloads.filter { $0.isEpisode }
@@ -83,15 +128,17 @@ struct DownloadsView: View {
                     seriesSection(episodes: episodes)
                 }
             }
-            .padding(.vertical, 16)
+            .padding(.top, 28)
+            .padding(.bottom, 40)
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { geo in
+            geo.contentOffset.y + geo.contentInsets.top
+        } action: { _, offset in
+            scrollOffset = offset
         }
     }
 
-    private let gridColumns = [
-        GridItem(.adaptive(minimum: 100, maximum: 140), spacing: 12)
-    ]
-
-    // MARK: - Series Section (grid → navigate to detail page)
+    // MARK: - Series Section
 
     private func seriesSection(episodes: [DownloadedItem]) -> some View {
         let groups = Dictionary(grouping: episodes) { $0.seriesId ?? $0.id }
@@ -99,29 +146,34 @@ struct DownloadsView: View {
             (groups[$0]?.first?.seriesName ?? "") < (groups[$1]?.first?.seriesName ?? "")
         }
         return VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "TV Shows", bundle: AppState.currentBundle))
-                .font(.title3.bold())
-                .padding(.horizontal, 20)
+            SectionHeaderView(title: "TV Shows")
 
-            LazyVGrid(columns: gridColumns, spacing: 16) {
-                ForEach(seriesIds, id: \.self) { sid in
-                    if let groupEps = groups[sid], let first = groupEps.first {
-                        let seriesItem = makeSeriesItem(first: first)
-                        NavigationLink(value: DownloadedSeriesNav(seriesId: sid)) {
-                            PosterCardView(item: seriesItem, serverURL: first.serverURL)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                showDeleteSeriesConfirm = sid
-                            } label: {
-                                Label(String(localized: "Delete All (\(groupEps.count) episodes)", bundle: AppState.currentBundle), systemImage: "trash")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(seriesIds, id: \.self) { sid in
+                        if let groupEps = groups[sid], let first = groupEps.first {
+                            let seriesItem = makeSeriesItem(first: first)
+                            let seasonCount = Set(groupEps.compactMap(\.seasonNumber)).count
+                            NavigationLink(value: DownloadedSeriesNav(seriesId: sid)) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    BackdropCardView(item: seriesItem, serverURL: first.serverURL, width: 260)
+                                    seriesDetailText(seasonCount: seasonCount, episodeCount: groupEps.count, totalSize: groupEps.compactMap(\.fileSize).reduce(0, +))
+                                        .frame(width: 260, alignment: .leading)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    showDeleteSeriesConfirm = sid
+                                } label: {
+                                    Label(String(localized: "Delete All (\(groupEps.count) episodes)", bundle: AppState.currentBundle), systemImage: "trash")
+                                }
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
         }
     }
 
@@ -143,30 +195,79 @@ struct DownloadsView: View {
         )
     }
 
-    // MARK: - Poster Section (vertical grid)
+    private func makeMovieCardItem(_ item: DownloadedItem) -> JellyfinItem {
+        JellyfinItem(
+            id: item.id, name: item.name, type: "Movie",
+            overview: nil, productionYear: nil,
+            communityRating: nil, criticRating: nil,
+            runTimeTicks: nil, seriesName: nil, seriesId: nil,
+            seasonName: nil, indexNumber: nil, parentIndexNumber: nil,
+            userData: nil, imageBlurHashes: nil,
+            primaryImageAspectRatio: nil, genres: nil,
+            officialRating: nil, taglines: nil, people: nil,
+            premiereDate: nil, mediaStreams: nil, mediaSources: nil,
+            childCount: nil, providerIds: nil,
+            endDate: nil, productionLocations: nil
+        )
+    }
 
-    private func posterSection(title: String, items: [DownloadedItem]) -> some View {
+    private func seriesDetailText(seasonCount: Int, episodeCount: Int, totalSize: Int64) -> some View {
+        let parts: [String] = [
+            seasonCount > 0 ? "\(seasonCount) Sezon" : nil,
+            "\(episodeCount) B\u{00F6}l\u{00FC}m",
+            totalSize > 0 ? ByteCountFormatter().string(fromByteCount: totalSize) : nil
+        ].compactMap { $0 }
+        return Text(parts.joined(separator: " \u{00B7} "))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+
+    private func movieDetailText(item: DownloadedItem) -> some View {
+        let parts: [String] = [
+            item.productionYear.map { "\($0)" },
+            item.runTimeTicks.map { ticks in
+                let totalMinutes = Int(ticks / 10_000_000 / 60)
+                let hours = totalMinutes / 60
+                let mins = totalMinutes % 60
+                return hours > 0 ? "\(hours) sa. \(mins) dk." : "\(mins) dk."
+            },
+            item.fileSize.flatMap { $0 > 0 ? ByteCountFormatter().string(fromByteCount: $0) : nil }
+        ].compactMap { $0 }
+        return Text(parts.joined(separator: " \u{00B7} "))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+
+    // MARK: - Poster Section (horizontal scroll)
+
+    private func posterSection(title: LocalizedStringKey, items: [DownloadedItem]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.title3.bold())
-                .padding(.horizontal, 20)
+            SectionHeaderView(title: title)
 
-            LazyVGrid(columns: gridColumns, spacing: 16) {
-                ForEach(items) { item in
-                    NavigationLink(value: DownloadedSeriesNav(seriesId: item.id)) {
-                        PosterCardView(item: item.toJellyfinItem(), serverURL: item.serverURL)
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            showDeleteMovieConfirm = item.id
-                        } label: {
-                            Label(String(localized: "Delete Download", bundle: AppState.currentBundle), systemImage: "trash")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(items) { item in
+                        NavigationLink(value: DownloadedSeriesNav(seriesId: item.id)) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                BackdropCardView(item: makeMovieCardItem(item), serverURL: item.serverURL, width: 260)
+                                movieDetailText(item: item)
+                                    .frame(width: 260, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                showDeleteMovieConfirm = item.id
+                            } label: {
+                                Label(String(localized: "Delete Download", bundle: AppState.currentBundle), systemImage: "trash")
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
         }
     }
 
@@ -174,9 +275,7 @@ struct DownloadsView: View {
 
     private var activeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "Downloading", bundle: AppState.currentBundle))
-                .font(.title3.bold())
-                .padding(.horizontal, 20)
+            SectionHeaderView(title: "Downloading")
 
             VStack(spacing: 10) {
                 ForEach(dm.downloadOrder, id: \.self) { itemId in
@@ -189,7 +288,7 @@ struct DownloadsView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
         }
     }
 
