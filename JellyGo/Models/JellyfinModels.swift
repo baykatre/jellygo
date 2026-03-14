@@ -331,6 +331,12 @@ struct JellyfinMediaStream: Codable, Hashable {
         return name
     }
 
+    /// True if this subtitle is SDH or Hearing Impaired (detected from displayTitle).
+    var isSDH: Bool {
+        let t = (displayTitle ?? "").lowercased()
+        return t.contains("sdh") || t.contains("hearing impaired") || t.contains("hi)") || t.contains("[hi]")
+    }
+
     /// True if Jellyfin can serve this subtitle as an external SRT file.
     var canDownloadAsSRT: Bool {
         guard isSubtitle else { return false }

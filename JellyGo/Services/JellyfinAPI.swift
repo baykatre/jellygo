@@ -266,7 +266,7 @@ final class JellyfinAPI {
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, subtitleStreamIndex: Int? = nil, forceTranscode: Bool = false) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, forceTranscode: Bool = false) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
         if startTimeTicks > 0 {
@@ -275,8 +275,8 @@ final class JellyfinAPI {
         if let idx = audioStreamIndex {
             queryItems.append(URLQueryItem(name: "AudioStreamIndex", value: "\(idx)"))
         }
-        if let idx = subtitleStreamIndex {
-            queryItems.append(URLQueryItem(name: "SubtitleStreamIndex", value: "\(idx)"))
+        if externalSubtitles {
+            queryItems.append(URLQueryItem(name: "SubtitleStreamIndex", value: "-1"))
         }
         let url = try buildURL(base, path: "Items/\(itemId)/PlaybackInfo", queryItems: queryItems)
         var req = baseRequest(url: url, token: token)
@@ -322,12 +322,18 @@ final class JellyfinAPI {
                         ]
                     ]
                 ],
-                "SubtitleProfiles": [
-                    ["Format": "vtt", "Method": subMethod],
-                    ["Format": "ass", "Method": subMethod],
-                    ["Format": "ssa", "Method": subMethod],
-                    ["Format": "srt", "Method": subMethod]
-                ],
+                "SubtitleProfiles": externalSubtitles
+                    ? [] as [[String: String]]   // No subtitle support → server won't burn-in any subs
+                    : [
+                        ["Format": "vtt", "Method": "Hls"],
+                        ["Format": "ass", "Method": "Hls"],
+                        ["Format": "ssa", "Method": "Hls"],
+                        ["Format": "srt", "Method": "Hls"],
+                        ["Format": "pgssub", "Method": "Encode"],
+                        ["Format": "dvdsub", "Method": "Encode"],
+                        ["Format": "dvbsub", "Method": "Encode"],
+                        ["Format": "sub", "Method": "Encode"]
+                    ],
                 "ResponseProfiles": [
                     ["Type": "Video", "Container": "m4v", "MimeType": "video/mp4"]
                 ]

@@ -220,7 +220,6 @@ struct HeroBannerView: View {
 
     @ViewBuilder
     private func backdropLayer(item: JellyfinItem, size: CGSize, parallaxOffset: CGFloat = 0) -> some View {
-        // Vertical parallax: image moves at half scroll speed
         let verticalParallax = scrollOffset > 0 ? scrollOffset * 0.5 : 0
 
         return VStack(spacing: 0) {
@@ -348,6 +347,39 @@ struct HeroBannerView: View {
     private func bannerLogoURL(item: JellyfinItem) -> URL? {
         DownloadManager.localLogoURL(itemId: item.id)
             ?? JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: item.id)
+    }
+}
+
+// MARK: - Cached Backdrop Image
+
+/// Caches UIImage in @State so it persists across SwiftUI view rebuilds (e.g. returning from player).
+private struct CachedBackdropImage: View {
+    let url: URL?
+    var parallaxX: CGFloat = 0
+    var parallaxY: CGFloat = 0
+
+    @State private var image: UIImage?
+    @State private var loadedURL: URL?
+
+    var body: some View {
+        if let image {
+            Image(uiImage: image)
+                .resizable().aspectRatio(contentMode: .fill)
+                .offset(x: parallaxX, y: parallaxY)
+        } else {
+            Color(white: 0.12)
+                .onAppear { loadImage() }
+        }
+    }
+
+    private func loadImage() {
+        guard let url, url != loadedURL else { return }
+        loadedURL = url
+        Task.detached(priority: .utility) {
+            guard let data = try? Data(contentsOf: url),
+                  let img = UIImage(data: data) else { return }
+            await MainActor.run { image = img }
+        }
     }
 }
 

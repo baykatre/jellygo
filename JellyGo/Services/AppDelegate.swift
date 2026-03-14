@@ -8,9 +8,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Pre-warm VLC shared library so the first player open doesn't stutter
+        // Pre-warm the selected player engine on a background thread
+        let enginePref = PlayerEngine(rawValue: UserDefaults.standard.string(forKey: "jellygo.playerEngine") ?? "") ?? .vlc
         DispatchQueue.global(qos: .utility).async {
-            let _ = VLCMediaPlayer()
+            switch enginePref {
+            case .vlc:
+                let _ = VLCMediaPlayer()
+            case .ksplayer:
+                // KSPlayer initializes lazily; no pre-warm needed
+                break
+            }
         }
         return true
     }

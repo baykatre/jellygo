@@ -1,5 +1,4 @@
 import SwiftUI
-import MobileVLCKit
 import MediaPlayer
 import AVFoundation
 import os
@@ -20,7 +19,7 @@ struct JellyGoPlayerView: View {
     }
 
     @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = VLCPlayerViewModel()
+    @StateObject private var vm = PlayerViewModel()
     @StateObject private var subtitleManager = SubtitleManager()
     @Environment(\.dismiss) private var dismiss
 
@@ -88,9 +87,11 @@ struct JellyGoPlayerView: View {
                 ZStack {
                     Color.black.ignoresSafeArea()
 
-                    VLCVideoSurface(player: vm.player)
+                    vm.makeVideoSurface()
                         .scaleEffect(videoScale)
                         .opacity(vm.isLoading ? 0 : 1)
+                        .modifier(GammaBoostModifier(
+                            boost: vm.needsViewBrightnessBoost ? vm.brightnessBoost : 1.0))
                         .ignoresSafeArea()
 
                     // Dim overlay: 0.5 when overlay visible & not scrubbing
@@ -368,7 +369,7 @@ struct JellyGoPlayerView: View {
         .background(Color.black.ignoresSafeArea())
         .animation(.spring(duration: 0.4, bounce: 0.15), value: showEpisodeList)
         .task {
-            vm.disableVLCSubtitles = true
+            vm.disableEngineSubtitles()
             // Start subtitle fetch and episode list in parallel with video load
             async let subtitleTask: () = autoSelectSubtitle()
             async let episodeTask: () = loadEpisodeList()
@@ -709,7 +710,7 @@ struct JellyGoPlayerView: View {
     }
 
     private var sfCapsuleSlider: some View {
-        JGProgressBar(progress: displayProgress)
+        JGProgressBar(progress: displayProgress, buffered: vm.bufferedPosition)
             .frame(height: isScrubbing ? 20 : 10)
             .foregroundStyle(vm.isLoading ? AnyShapeStyle(Color.gray) : AnyShapeStyle(.primary))
             .background(GeometryReader { g in
@@ -807,6 +808,10 @@ struct JellyGoPlayerView: View {
     private var statsHUD: some View {
         let isLocal = localURL != nil
         return VStack(alignment: .leading, spacing: 3) {
+            // ── Engine ──
+            Text(vm.statsEngineLabel)
+                .foregroundStyle(.cyan)
+
             // ── Source ──
             Text(isLocal ? "LOCAL FILE" : appState.serverURL)
                 .foregroundStyle(.gray)
@@ -857,8 +862,10 @@ struct JellyGoPlayerView: View {
                         Text(String(format: "%.1f Mbps", vm.statsBitrateMbps))
                     }
                 }
-                Text("· \(Self.formatBytes(vm.statsReadBytes))")
-                    .foregroundStyle(.white.opacity(0.6))
+                if vm.statsReadBytes > 0 {
+                    Text("\u{00B7} \(Self.formatBytes(vm.statsReadBytes))")
+                        .foregroundStyle(.white.opacity(0.6))
+                }
             }
             if vm.statsDroppedFrames > 0 {
                 let dropColor: Color = {
@@ -871,6 +878,26 @@ struct JellyGoPlayerView: View {
                 Text("Dropped: \(vm.statsDroppedFrames) frames")
                     .foregroundStyle(dropColor.opacity(0.8))
             }
+
+            // ── Performance ──
+            HStack(spacing: 6) {
+                let cpuColor: Color = vm.statsCpuUsage > 80 ? .red : vm.statsCpuUsage > 40 ? .orange : .green
+                Text(String(format: "CPU %.0f%%", vm.statsCpuUsage))
+                    .foregroundStyle(cpuColor)
+                if vm.statsFps > 0 {
+                    Text(String(format: "\u{00B7} %.0f fps", vm.statsFps))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                let thermalColor: Color = {
+                    switch vm.statsThermal {
+                    case "Serious": return .orange
+                    case "Critical": return .red
+                    default: return .white.opacity(0.5)
+                    }
+                }()
+                Text("\u{00B7} \(vm.statsThermal)")
+                    .foregroundStyle(thermalColor)
+            }
         }
         .font(.system(size: 10, weight: .medium, design: .monospaced))
         .foregroundStyle(.white)
@@ -882,9 +909,18 @@ struct JellyGoPlayerView: View {
     /// inputBitrate = how fast data arrives from network. 0 means buffer is full (good) or no data (bad).
     /// demuxBitrate = how fast player consumes data. If input < demux consistently, buffering will happen.
     private static func networkQuality(inputBitrate: Double, demuxBitrate: Double, dropped: Int32, decoded: Int32) -> (label: String, color: Color) {
-        // No data yet
         let b = AppState.currentBundle
-        if decoded == 0 { return (String(localized: "Connecting", bundle: b), .yellow) }
+        // No data flowing yet
+        if inputBitrate == 0 && decoded == 0 {
+            return (String(localized: "Connecting", bundle: b), .yellow)
+        }
+        // Can't analyze quality without decoded frame count — just show bitrate is flowing
+        if decoded == 0 {
+            return (inputBitrate > 0
+                ? (String(format: "%.1f Mbps", inputBitrate), Color.green)
+                : (String(localized: "Buffering", bundle: b), .yellow))
+        }
+        // Full analysis available (VLC / KSMEPlayer)
         let dropRate = decoded > 100 ? Double(dropped) / Double(decoded) : 0
         if dropRate > 0.03 { return (String(localized: "Poor", bundle: b), .red) }
         if demuxBitrate > 0 && inputBitrate > 0 && inputBitrate < demuxBitrate * 0.5 {
@@ -1580,14 +1616,17 @@ struct JellyGoPlayerView: View {
         let secondary = appState.secondarySubtitleLanguage.lowercased()
         var candidates: [JellyfinMediaStream] = []
 
-        // Helper to add streams for a language (text-based first, then image-based)
+        // Helper to add streams for a language (non-SDH text first, then SDH, then forced)
         func addLang(_ lang: String) {
             guard !lang.isEmpty else { return }
             let langStreams = subtitleStreams.filter { $0.language?.lowercased() == lang }
-            // Non-forced text first, then non-forced image, then forced
             let nonForced = langStreams.filter { $0.isForced != true }
             let forced = langStreams.filter { $0.isForced == true }
-            let sorted = nonForced.sorted { $0.canDownloadAsSRT && !$1.canDownloadAsSRT } + forced
+            // Priority: non-SDH text → SDH text → non-SDH image → SDH image → forced
+            let sorted = nonForced.sorted { lhs, rhs in
+                if lhs.isSDH != rhs.isSDH { return !lhs.isSDH }
+                return lhs.canDownloadAsSRT && !rhs.canDownloadAsSRT
+            } + forced
             for s in sorted where !candidates.contains(where: { $0.index == s.index }) { candidates.append(s) }
         }
 
@@ -1734,11 +1773,22 @@ private struct JGOverlayButtonStyle: ButtonStyle {
 
 private struct JGProgressBar: View {
     let progress: Double
+    var buffered: Double = 0
     @State private var sz: CGSize = .zero
 
     var body: some View {
         Capsule().foregroundStyle(.secondary).opacity(0.2)
             .overlay(alignment: .leading) {
+                // Buffer indicator (light gray, behind playback)
+                if buffered > 0 {
+                    let bw = sz.width * max(0, min(1, buffered)) + sz.height
+                    Capsule()
+                        .frame(width: bw).offset(x: -sz.height)
+                        .foregroundStyle(.white.opacity(0.15))
+                }
+            }
+            .overlay(alignment: .leading) {
+                // Playback progress (primary, on top)
                 let w = sz.width * max(0, min(1, progress)) + sz.height
                 Rectangle()
                     .clipShape(JGRoundedCorner(radius: sz.height / 2, corners: [.topLeft, .bottomLeft]))
@@ -1766,6 +1816,26 @@ private struct JGAudioTrack: Identifiable, Equatable {
     let index: Int32
     let name: String
     var id: Int32 { index }
+}
+
+// MARK: - Gamma Boost Modifier (for engines without native gamma support)
+
+/// Simulates VLC-style gamma correction using contrast + brightness combination.
+/// Pure `.brightness()` washes out highlights. This preserves dark tones while lifting midtones.
+private struct GammaBoostModifier: ViewModifier {
+    let boost: Float
+
+    func body(content: Content) -> some View {
+        if boost > 1.001 {
+            let t = Double(boost - 1.0) / 0.5 // 0→1
+            content
+                .contrast(1.0 + t * 0.5)       // strong contrast lift to keep blacks punchy
+                .brightness(t * 0.35)           // noticeable brightness push
+                .saturation(1.0 - t * 0.15)     // slight desaturation to prevent color shift
+        } else {
+            content
+        }
+    }
 }
 
 // MARK: - Isolated More Menu (won't re-render from vm.position changes)
@@ -1842,7 +1912,7 @@ private struct JGMoreMenuView: View {
             Menu {
                 Picker(String(localized: "Subtitles", bundle: AppState.currentBundle), selection: $selectedSub) {
                     Text(String(localized: "Off", bundle: AppState.currentBundle)).tag(Int32(-1))
-                    ForEach(subtitleStreams, id: \.index) { s in
+                    ForEach(subtitleStreams.sorted { ($0.languageName ?? "").localizedCompare($1.languageName ?? "") == .orderedDescending }, id: \.index) { s in
                         Text(s.languageName ?? "Track \(s.index)")
                             .tag(Int32(s.index))
                     }

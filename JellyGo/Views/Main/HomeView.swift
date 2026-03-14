@@ -4,6 +4,7 @@ struct HomeView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
     @StateObject private var vm = HomeViewModel()
+    @StateObject private var exploreVM = ExploreViewModel()
     @State private var heroPlayItem: JellyfinItem?
     @State private var autoPlayItem: JellyfinItem?
     @State private var showSettings = false
@@ -24,7 +25,7 @@ struct HomeView: View {
             }
 
             Tab(String(localized: "Explore", bundle: AppState.currentBundle), systemImage: "safari.fill", value: 1) {
-                ExploreView()
+                ExploreView(vm: exploreVM)
             }
 
             Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 2, role: .search) {
@@ -39,7 +40,17 @@ struct HomeView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: downloadBanner?.id)
-        .task(id: appState.sessionId) { await vm.load(appState: appState) }
+        .task(id: appState.serverValidated) {
+            guard appState.serverValidated else { return }
+            await vm.load(appState: appState)
+            Task { await exploreVM.load(appState: appState) }
+        }
+        .task(id: appState.sessionId) {
+            // Session changed (account switch) → reload if already validated
+            guard appState.serverValidated else { return }
+            await vm.load(appState: appState)
+            Task { await exploreVM.load(appState: appState) }
+        }
         .onReceive(dm.downloadStarted) { started in
             bannerTask?.cancel()
             withAnimation { downloadBanner = started }
@@ -776,6 +787,16 @@ struct PlaybackSettingsView: View {
 
     var body: some View {
         List {
+            Section(String(localized: "Player Engine", bundle: AppState.currentBundle)) {
+                Picker(String(localized: "Player Engine", bundle: AppState.currentBundle),
+                       selection: $appState.playerEngine) {
+                    ForEach(PlayerEngine.allCases) { engine in
+                        Text(engine.rawValue).tag(engine)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
             Section(String(localized: "Default Quality", bundle: AppState.currentBundle)) {
                 Picker(String(localized: "Default Quality", bundle: AppState.currentBundle), selection: $appState.defaultVideoQuality) {
                     ForEach(VideoQuality.allCases) { quality in

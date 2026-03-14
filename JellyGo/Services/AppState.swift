@@ -29,6 +29,12 @@ struct SavedAccount: Codable, Identifiable, Equatable {
 
 // MARK: - Enums
 
+enum PlayerEngine: String, CaseIterable, Identifiable {
+    case ksplayer = "KSPlayer"
+    case vlc = "VLC"
+    var id: String { rawValue }
+}
+
 enum VideoQuality: String, CaseIterable, Identifiable {
     case direct = "Direct"
     case p1080  = "1080p"
@@ -88,6 +94,7 @@ final class AppState: ObservableObject {
     // MARK: Session
     @Published var isAuthenticated = false
     @Published var serverUnreachable = false   // true = authenticated but no server reachable → offline
+    @Published var serverValidated = false     // true after first validateAndFallback completes
     @Published var manualOffline: Bool =
         UserDefaults.standard.bool(forKey: "jellygo.manualOffline") {
         didSet { UserDefaults.standard.set(manualOffline, forKey: "jellygo.manualOffline") }
@@ -107,6 +114,12 @@ final class AppState: ObservableObject {
     @Published var closeAddAccountSheet: Bool = false  // set true to dismiss the sheet from anywhere
 
     // MARK: Playback
+    @Published var playerEngine: PlayerEngine = PlayerEngine(
+        rawValue: UserDefaults.standard.string(forKey: "jellygo.playerEngine") ?? ""
+    ) ?? .ksplayer {
+        didSet { UserDefaults.standard.set(playerEngine.rawValue, forKey: "jellygo.playerEngine") }
+    }
+
     @Published var defaultVideoQuality: VideoQuality = VideoQuality(
         rawValue: UserDefaults.standard.string(forKey: "jellygo.defaultQuality") ?? ""
     ) ?? .direct {
@@ -388,10 +401,15 @@ final class AppState: ObservableObject {
 
     /// Try to reach the current server; if it fails, try other saved accounts.
     /// If none are reachable, set `serverUnreachable = true` (shows offline mode).
-    func validateAndFallback() async {
-        guard isAuthenticated else { return }
+    /// Guard against concurrent calls — only one check runs at a time.
+    private var isValidating = false
 
-        // Try current server first (fast 2s timeout)
+    func validateAndFallback() async {
+        guard isAuthenticated, !isValidating else { return }
+        isValidating = true
+        defer { isValidating = false; serverValidated = true }
+
+        // Try current server first
         if await isServerReachable(serverURL) {
             serverUnreachable = false
             return
@@ -433,10 +451,10 @@ final class AppState: ObservableObject {
 
     /// Lightweight reachability ping with a short timeout.
     /// Any HTTP response (even 403) means the server is reachable.
-    private nonisolated func isServerReachable(_ url: String) async -> Bool {
+    private nonisolated func isServerReachable(_ url: String, timeout: TimeInterval = 3) async -> Bool {
         guard let base = URL(string: url) else { return false }
         let endpoint = base.appendingPathComponent("System/Info/Public")
-        var req = URLRequest(url: endpoint, timeoutInterval: 1)
+        var req = URLRequest(url: endpoint, timeoutInterval: timeout)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         do {
             let (_, response) = try await URLSession.shared.data(for: req)

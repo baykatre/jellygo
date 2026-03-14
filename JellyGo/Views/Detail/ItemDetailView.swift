@@ -1695,28 +1695,49 @@ struct LogoTitleView: View {
     let title: String
     let logoURL: URL?
 
+    @State private var logoImage: UIImage?
     @State private var logoFailed = false
+    @State private var loadedURL: URL?
 
     var body: some View {
-        if !logoFailed, let url = logoURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
+        Group {
+            if !logoFailed, logoURL != nil {
+                if let uiImage = logoImage {
+                    Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: 260, maxHeight: 100)
                         .shadow(color: .black.opacity(0.6), radius: 6)
-                case .failure:
-                    fallbackText.onAppear { logoFailed = true }
-                case .empty:
+                } else {
                     fallbackText.opacity(0)
-                @unknown default:
-                    fallbackText
+                        .onAppear { loadLogo() }
                 }
+            } else {
+                fallbackText
             }
-        } else {
-            fallbackText
+        }
+        .onChange(of: logoURL) { _, newURL in
+            guard newURL != loadedURL else { return }
+            logoImage = nil
+            logoFailed = false
+            loadLogo()
+        }
+    }
+
+    private func loadLogo() {
+        guard let url = logoURL, url != loadedURL else { return }
+        loadedURL = url
+        Task.detached(priority: .utility) {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard let img = UIImage(data: data) else {
+                    await MainActor.run { logoFailed = true }
+                    return
+                }
+                await MainActor.run { logoImage = img }
+            } catch {
+                await MainActor.run { logoFailed = true }
+            }
         }
     }
 

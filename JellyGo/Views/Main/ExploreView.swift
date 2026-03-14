@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ExploreView: View {
     @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = ExploreViewModel()
+    @ObservedObject var vm: ExploreViewModel
     @State private var heroPlayItem: JellyfinItem?
     @State private var heroPullDown: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0

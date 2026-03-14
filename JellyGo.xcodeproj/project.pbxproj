@@ -96,6 +96,7 @@
 			);
 			name = JellyGo;
 			packageProductDependencies = (
+				A1B2C3D4E5F6A7B800000002 /* KSPlayer */,
 			);
 			productName = JellyGo;
 			productReference = 045AD0762F5CCFC5003D29D1 /* JellyGo.app */;
@@ -143,6 +144,7 @@
 			mainGroup = 045AD06D2F5CCFC5003D29D1;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				A1B2C3D4E5F6A7B800000001 /* XCRemoteSwiftPackageReference "KSPlayer" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 045AD0772F5CCFC5003D29D1 /* Products */;
@@ -384,6 +386,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1B2C3D4E5F6A7B800000001 /* XCRemoteSwiftPackageReference "KSPlayer" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kingslay/KSPlayer";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1B2C3D4E5F6A7B800000002 /* KSPlayer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4E5F6A7B800000001 /* XCRemoteSwiftPackageReference "KSPlayer" */;
+			productName = KSPlayer;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 045AD06E2F5CCFC5003D29D1 /* Project object */;
 }

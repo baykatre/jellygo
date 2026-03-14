@@ -8,7 +8,7 @@ final class HomeViewModel: ObservableObject {
     @Published var latestMovies: [JellyfinItem] = []
     @Published var latestShows: [JellyfinItem] = []
     @Published var libraries: [JellyfinLibrary] = []
-    @Published var isLoading = false
+    @Published var isLoading = true
     @Published var error: String?
 
     @Published var featuredItems: [JellyfinItem] = []
@@ -27,6 +27,7 @@ final class HomeViewModel: ObservableObject {
     }
 
     func load(appState: AppState) async {
+        guard appState.serverValidated, !appState.serverUnreachable else { return }
         isLoading = true
         error = nil
         defer { isLoading = false }

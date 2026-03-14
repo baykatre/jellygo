@@ -8,16 +8,16 @@
   <img src="https://img.shields.io/badge/iOS-26.0+-blue.svg" alt="iOS" />
   <img src="https://img.shields.io/badge/Swift-5-F05138.svg" alt="Swift" />
   <img src="https://img.shields.io/badge/Jellyfin-10.8.0+-8A2BE2.svg" alt="Jellyfin" />
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" />
+  <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" />
 </p>
 
 **JellyGo** is a fast, modern, and fully native iOS client for [Jellyfin](https://jellyfin.org/) media servers. Built from the ground up with SwiftUI, it provides a seamless way to browse and play your self-hosted media library on the go.
 
-## ✨ Features
+## Features
 
 - **Hero Browse:** Full-screen hero banner with featured content, Continue Watching, Next Up, Latest Movies & Shows sections on the home screen.
+- **Explore Tab:** Discover top-rated movies & series, favorites, and genre-based sections — preloaded in the background for instant access.
 - **Detail Pages:** Backdrop with parallax, logo, metadata chips, genres, ratings (TMDb & critic), cast & crew, season/episode browser with resume highlighting.
-- **Custom Player:** VLC-powered player with pinch-to-zoom, brightness/volume swipe gestures with glass indicator, subtitle/audio track picker, transcode audio switching, and aspect-fill by default.
 - **Resume Playback:** Picks up exactly where you left off — both on the detail page and inside the player.
 - **Playback Reporting:** Reports start, progress (every 10 s), and stop events to the Jellyfin server.
 - **Search:** Full-text search across your entire library.
@@ -27,7 +27,48 @@
 - **Apple Liquid Glass UI:** Action buttons and player indicators use iOS 26 native `glassEffect`.
 - **Secure Auth:** Token-based login with Keychain storage; session restores automatically on launch.
 - **Multi-Account & Quick Switch:** Seamlessly switch between multiple Jellyfin servers and accounts without re-authenticating. Tokens are shared across URL variants of the same server (e.g. local IP vs domain), so you never get logged out when your network changes.
+- **Smart Connectivity:** Automatic server validation with parallel fallback — if the current server is unreachable, JellyGo tries all saved servers before going offline.
 - **Localization:** 18 languages — English, Turkish, Arabic, Azerbaijani, Danish, German, Spanish, Persian, French, Italian, Japanese, Korean, Dutch, Portuguese, Russian, Swedish, Ukrainian, Chinese.
+
+### Player
+
+JellyGo features a custom native player with two selectable engines:
+
+#### KSPlayer (Recommended)
+
+The default player engine with a hybrid architecture for optimal performance:
+
+- **Hybrid Playback:** Apple AVPlayer for native formats (MP4/TS/HLS) with automatic FFmpeg fallback for unsupported containers (MKV, WebM).
+- **VideoToolbox Hardware Decode:** Near-zero CPU usage on supported codecs (H.264, HEVC, VP9, AV1).
+- **Metal Renderer:** Direct GPU rendering — eliminates frame timing jank on 4K content.
+- **HDR & Dolby Vision:** Native HDR passthrough when using AVPlayer path.
+- **PiP & AirPlay Ready:** Native Picture-in-Picture and AirPlay support via AVPlayer.
+- **Smart Buffer:** 10-minute forward buffer on AVPlayer path; buffer position shown on the progress bar.
+- **Instant Audio Switch:** Audio track changes apply immediately with buffer flush — no delay.
+- **Performance HUD:** Real-time CPU usage, FPS, thermal state, decoder info (VideoToolbox HW / FFmpeg SW), codec details, and network quality.
+
+#### VLC
+
+Alternative engine powered by MobileVLCKit:
+
+- **Broad Codec Support:** Plays virtually any format without transcoding.
+- **VideoToolbox Decode:** Hardware acceleration detected and reported at runtime via log sniffing.
+- **Native Gamma Boost:** Built-in brightness/gamma adjustment via VLC's adjust filter.
+- **Proven Stability:** Battle-tested VLC core with extensive format compatibility.
+
+#### Shared Player Features
+
+- Pinch-to-zoom with aspect-fill toggle
+- Brightness/volume swipe gestures with glass indicator
+- Subtitle/audio track picker with alphabetical sorting
+- SDH subtitle avoidance — prefers regular subtitles over SDH/HI tracks
+- Transcode quality switching (Direct / 1080p / 720p / 480p)
+- Subtitle delay adjustment
+- Playback speed control
+- Double-tap skip (10s back / 30s forward)
+- Long-press 2x speed
+- Dolby Vision content automatically transcoded (both engines)
+- Burned-in subtitle prevention on transcode streams
 
 ### Offline & Downloads
 
@@ -42,25 +83,26 @@
 - **In-App Banner:** A banner notification appears when a download starts; tap it to open the item's detail page directly.
 - **Progress Popover:** Tap the download button on an actively downloading item to see a live progress popover with pause and cancel controls.
 
-## 📱 Screenshots
+## Screenshots
 
 | Home | Media Details | Player |
 | :---: | :---: | :---: |
 | <img src="docs/assets/home.png" width="250" alt="Home Screen"/> | <img src="docs/assets/detail.png" width="250" alt="Detail Screen"/> | <img src="docs/assets/player.png" width="250" alt="Player Screen"/> |
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Language | Swift 5 |
 | UI Framework | SwiftUI |
-| Player Engine | MobileVLCKit 3.7.3 (XCFramework) |
+| Player Engine (Default) | [KSPlayer](https://github.com/kingslay/KSPlayer) 2.x — AVPlayer + FFmpeg hybrid, Metal renderer |
+| Player Engine (Alt) | [MobileVLCKit](https://code.videolan.org/videolan/VLCKit) 3.x — VLC core, VideoToolbox HW decode |
 | Networking | URLSession + async/await |
 | Background Downloads | URLSession background session + URLSessionDownloadDelegate |
 | Auth Storage | Keychain |
 | State Management | ObservableObject / @EnvironmentObject |
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -78,19 +120,29 @@
 
 2. Open `JellyGo.xcodeproj` in Xcode.
 
-3. The MobileVLCKit XCFramework is included locally under `MobileVLCKit-binary/` (not tracked in git due to size). Download it from the [MobileVLCKit releases](https://code.videolan.org/videolan/VLCKit/-/releases) and place it there.
+3. **KSPlayer** is added as a Swift Package dependency and resolves automatically.
 
-4. Select your target device/simulator and hit **Run**.
+4. The **MobileVLCKit** XCFramework is included locally under `MobileVLCKit-binary/`. Download it from the [MobileVLCKit releases](https://code.videolan.org/videolan/VLCKit/-/releases) and place it there.
+
+5. Select your target device/simulator and hit **Run**.
 
 ### Quick Switch Setup
 
 If you access your Jellyfin server from different URLs (e.g. `192.168.1.100:8096` at home and `jellyfin.example.com` outside), add both URLs to the same account:
 
-1. Go to **Settings → Accounts**.
+1. Go to **Settings > Accounts**.
 2. Log in with your first server URL.
 3. Tap **Add Server** and log in with the second URL using the same credentials.
 4. JellyGo automatically shares your session token across both URLs, so switching networks never logs you out.
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Licenses
+
+| Component | License |
+|---|---|
+| [KSPlayer](https://github.com/kingslay/KSPlayer) | GPLv3 |
+| [FFmpegKit](https://github.com/kingslay/FFmpegKit) (KSPlayer dependency) | LGPLv3 |
+| [MobileVLCKit](https://code.videolan.org/videolan/VLCKit) | LGPLv2.1+ |
