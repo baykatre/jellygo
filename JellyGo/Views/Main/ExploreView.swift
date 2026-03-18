@@ -5,7 +5,7 @@ struct ExploreView: View {
     @ObservedObject var vm: ExploreViewModel
     @State private var heroPlayItem: JellyfinItem?
     @State private var heroPullDown: CGFloat = 0
-    @State private var scrollOffset: CGFloat = 0
+    @State private var titleOpacity: Double = 1
     @State private var isRefreshing = false
     @State private var pullTriggered = false
     @State private var showSearch = false
@@ -35,7 +35,7 @@ struct ExploreView: View {
                         )
                     }
 
-                    // Content sections
+                    // Sabit section'lar (hep yüklü, progressive olarak dolar)
                     VStack(alignment: .leading, spacing: 32) {
                         if !vm.latestMovies.isEmpty {
                             posterSection(
@@ -76,17 +76,28 @@ struct ExploreView: View {
                                 destination: .favorites()
                             )
                         }
-
-                        // Genre sections
-                        ForEach(vm.genreSections, id: \.genre) { section in
-                            posterSection(
-                                title: LocalizedStringKey(section.genre),
-                                items: section.items
-                            )
-                        }
                     }
                     .padding(.top, 28)
-                    .padding(.bottom, 40)
+
+                    // Genre section'lar — LazyVStack'in direkt child'ı,
+                    // sadece ekrana gelince yüklenir
+                    ForEach(vm.pendingGenres, id: \.self) { genre in
+                        Group {
+                            if let section = vm.genreSections.first(where: { $0.genre == genre }) {
+                                posterSection(
+                                    title: LocalizedStringKey(section.genre),
+                                    items: section.items
+                                )
+                            } else {
+                                // Yüklenirken iskelet göster
+                                genreSkeletonRow
+                            }
+                        }
+                        .padding(.top, 32)
+                        .task { await vm.loadGenreIfNeeded(genre) }
+                    }
+
+                    Color.clear.frame(height: 40)
                 }
             }
             .ignoresSafeArea(edges: .top)
@@ -96,8 +107,9 @@ struct ExploreView: View {
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y + geo.contentInsets.top
             } action: { _, offset in
-                scrollOffset = offset
                 heroPullDown = max(0, -offset)
+                let opacity = max(0.0, 1.0 - (offset / 100.0))
+                if abs(opacity - titleOpacity) > 0.02 { titleOpacity = opacity }
                 if offset < -100 && !isRefreshing && !pullTriggered {
                     pullTriggered = true
                     isRefreshing = true
@@ -144,7 +156,7 @@ struct ExploreView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
-                .opacity(max(0.0, 1.0 - (scrollOffset / 100.0)))
+                .opacity(titleOpacity)
             }
             .background(Color(.systemBackground).ignoresSafeArea())
             .navigationDestination(for: JellyfinItem.self) { item in
@@ -199,7 +211,7 @@ struct ExploreView: View {
                 SectionHeaderView(title: title)
             }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
+                LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(items) { item in
                         NavigationLink(value: item) {
                             PosterCardView(item: item, serverURL: vm.serverURL)
@@ -209,6 +221,28 @@ struct ExploreView: View {
                 }
                 .padding(.horizontal, 20)
             }
+        }
+    }
+
+    // MARK: - Genre Skeleton
+
+    private var genreSkeletonRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.quaternary)
+                .frame(width: 140, height: 18)
+                .padding(.horizontal, 20)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(0..<5, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(.quaternary)
+                            .frame(width: 120, height: 180)
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .disabled(true)
         }
     }
 }

@@ -346,7 +346,7 @@ final class AppState: ObservableObject {
     }
 
     func logout() {
-        // Remove current account from the saved list
+        APICache.shared.clear()
         removeAccount(SavedAccount(userId: userId, username: username,
                                    serverURL: serverURL, serverName: serverName))
     }

@@ -10,105 +10,133 @@ final class ExploreViewModel: ObservableObject {
     @Published var topRatedSeries: [JellyfinItem] = []
     @Published var favorites: [JellyfinItem] = []
     @Published var genreSections: [(genre: String, items: [JellyfinItem])] = []
+    @Published var pendingGenres: [String] = []
     @Published var isLoading = false
 
     var serverURL: String = ""
+    private var userId: String = ""
+    private var token: String = ""
+    private var loadingGenres = Set<String>()
 
     // MARK: - Load All Sections
 
+    private enum SectionResult {
+        case featured([JellyfinItem])
+        case latestMovies([JellyfinItem])
+        case latestSeries([JellyfinItem])
+        case topMovies([JellyfinItem])
+        case topSeries([JellyfinItem])
+        case favorites([JellyfinItem])
+    }
+
     func load(appState: AppState) async {
         isLoading = true
+        genreSections = []
+        pendingGenres = []
+        loadingGenres = []
 
-        let url = appState.serverURL
-        serverURL = url
-        let uid = appState.userId
-        let token = appState.token
+        serverURL = appState.serverURL
+        userId = appState.userId
+        token = appState.token
+        let url = serverURL
+        let uid = userId
+        let tok = token
 
-        let featuredTask = Task.detached { try? await JellyfinAPI.shared.getItems(
-            serverURL: url, userId: uid, token: token,
-            itemTypes: ["Movie", "Series"], sortBy: "Random", sortOrder: "Descending",
-            limit: 6, recursive: true
-        )}
-        let latestMoviesTask = Task.detached { try? await JellyfinAPI.shared.getItems(
-            serverURL: url, userId: uid, token: token,
-            itemTypes: ["Movie"], sortBy: "DateCreated", sortOrder: "Descending",
-            limit: 16, recursive: true
-        )}
-        let latestSeriesTask = Task.detached { try? await JellyfinAPI.shared.getItems(
-            serverURL: url, userId: uid, token: token,
-            itemTypes: ["Series"], sortBy: "DateCreated", sortOrder: "Descending",
-            limit: 16, recursive: true
-        )}
-        let topMoviesTask = Task.detached { try? await JellyfinAPI.shared.getItems(
-            serverURL: url, userId: uid, token: token,
-            itemTypes: ["Movie"], sortBy: "CommunityRating", sortOrder: "Descending",
-            limit: 16, recursive: true
-        )}
-        let topSeriesTask = Task.detached { try? await JellyfinAPI.shared.getItems(
-            serverURL: url, userId: uid, token: token,
-            itemTypes: ["Series"], sortBy: "CommunityRating", sortOrder: "Descending",
-            limit: 16, recursive: true
-        )}
-        let favoritesTask = Task.detached { try? await JellyfinAPI.shared.getItems(
-            serverURL: url, userId: uid, token: token,
-            itemTypes: ["Movie", "Series"], sortBy: "SortName",
-            limit: 16, recursive: true, filters: "IsFavorite"
-        )}
+        await withTaskGroup(of: SectionResult.self) { group in
+            group.addTask { .featured((try? await JellyfinAPI.shared.getItems(
+                serverURL: url, userId: uid, token: tok,
+                itemTypes: ["Movie", "Series"], sortBy: "Random", sortOrder: "Descending",
+                limit: 6, recursive: true
+            ))?.items ?? []) }
 
-        featuredItems = (await featuredTask.value)?.items ?? []
-        latestMovies = (await latestMoviesTask.value)?.items ?? []
-        latestSeries = (await latestSeriesTask.value)?.items ?? []
-        topRatedMovies = (await topMoviesTask.value)?.items ?? []
-        topRatedSeries = (await topSeriesTask.value)?.items ?? []
-        favorites = (await favoritesTask.value)?.items ?? []
+            group.addTask { .latestMovies((try? await JellyfinAPI.shared.getItems(
+                serverURL: url, userId: uid, token: tok,
+                itemTypes: ["Movie"], sortBy: "DateCreated", sortOrder: "Descending",
+                limit: 16, recursive: true
+            ))?.items ?? []) }
 
-        await loadGenreSections(appState: appState)
+            group.addTask { .latestSeries((try? await JellyfinAPI.shared.getItems(
+                serverURL: url, userId: uid, token: tok,
+                itemTypes: ["Series"], sortBy: "DateCreated", sortOrder: "Descending",
+                limit: 16, recursive: true
+            ))?.items ?? []) }
+
+            group.addTask { .topMovies((try? await JellyfinAPI.shared.getItems(
+                serverURL: url, userId: uid, token: tok,
+                itemTypes: ["Movie"], sortBy: "CommunityRating", sortOrder: "Descending",
+                limit: 16, recursive: true
+            ))?.items ?? []) }
+
+            group.addTask { .topSeries((try? await JellyfinAPI.shared.getItems(
+                serverURL: url, userId: uid, token: tok,
+                itemTypes: ["Series"], sortBy: "CommunityRating", sortOrder: "Descending",
+                limit: 16, recursive: true
+            ))?.items ?? []) }
+
+            group.addTask { .favorites((try? await JellyfinAPI.shared.getItems(
+                serverURL: url, userId: uid, token: tok,
+                itemTypes: ["Movie", "Series"], sortBy: "SortName",
+                limit: 16, recursive: true, filters: "IsFavorite"
+            ))?.items ?? []) }
+
+            // UI her section hazır olunca güncellenir
+            for await result in group {
+                switch result {
+                case .featured(let items):
+                    featuredItems = items
+                    isLoading = false
+                case .latestMovies(let items):
+                    latestMovies = items
+                    updatePendingGenres()
+                case .latestSeries(let items):
+                    latestSeries = items
+                    updatePendingGenres()
+                case .topMovies(let items):
+                    topRatedMovies = items
+                case .topSeries(let items):
+                    topRatedSeries = items
+                case .favorites(let items):
+                    favorites = items
+                }
+            }
+        }
 
         isLoading = false
+    }
+
+    // MARK: - Lazy Genre Loading
+
+    private func updatePendingGenres() {
+        var genreSet = Set<String>()
+        for item in latestMovies + latestSeries {
+            genreSet.formUnion(item.genres ?? [])
+        }
+        let sorted = genreSet.sorted().prefix(10).map { $0 }
+        // Only update if changed to avoid unnecessary redraws
+        if sorted != pendingGenres {
+            pendingGenres = sorted
+        }
+    }
+
+    func loadGenreIfNeeded(_ genre: String) async {
+        guard !loadingGenres.contains(genre),
+              !genreSections.contains(where: { $0.genre == genre }) else { return }
+        loadingGenres.insert(genre)
+        let items = (try? await JellyfinAPI.shared.getItems(
+            serverURL: serverURL, userId: userId, token: token,
+            itemTypes: ["Movie", "Series"], sortBy: "Random",
+            limit: 16, recursive: true, genres: [genre]
+        ))?.items ?? []
+        loadingGenres.remove(genre)
+        if !items.isEmpty {
+            genreSections.append((genre: genre, items: items))
+            genreSections.sort { $0.genre < $1.genre }
+        }
     }
 
     // MARK: - Refresh
 
     func refresh(appState: AppState) async {
         await load(appState: appState)
-    }
-
-    // MARK: - Genre Sections
-
-    private func loadGenreSections(appState: AppState) async {
-        let url = appState.serverURL
-        let uid = appState.userId
-        let token = appState.token
-
-        // Collect genres from latest movies + series
-        var genreSet = Set<String>()
-        for item in latestMovies + latestSeries {
-            if let genres = item.genres {
-                genreSet.formUnion(genres)
-            }
-        }
-
-        let genresToLoad = Array(genreSet.sorted().prefix(10))
-        var sections: [(genre: String, items: [JellyfinItem])] = []
-
-        await withTaskGroup(of: (String, [JellyfinItem]).self) { group in
-            for genre in genresToLoad {
-                group.addTask {
-                    let items = (try? await JellyfinAPI.shared.getItems(
-                        serverURL: url, userId: uid, token: token,
-                        itemTypes: ["Movie", "Series"], sortBy: "Random",
-                        limit: 16, recursive: true, genres: [genre]
-                    ).items) ?? []
-                    return (genre, items)
-                }
-            }
-            for await (genre, items) in group {
-                if !items.isEmpty {
-                    sections.append((genre: genre, items: items))
-                }
-            }
-        }
-
-        genreSections = sections.sorted { $0.genre < $1.genre }
     }
 }

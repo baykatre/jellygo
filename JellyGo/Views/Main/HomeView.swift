@@ -13,9 +13,7 @@ struct HomeView: View {
     @State private var selectedTab: Int = 0
     @State private var homePath = NavigationPath()
     @State private var heroPullDown: CGFloat = 0
-    @State private var heroScrollOffset: CGFloat = 0
     @State private var showOverlay = true
-    @State private var lastScrollOffset: CGFloat = 0
     @State private var badgeBounce = false
 
     var body: some View {
@@ -111,7 +109,6 @@ struct HomeView: View {
                             items: vm.featuredItems,
                             serverURL: vm.serverURL,
                             pullDown: heroPullDown,
-                            scrollOffset: heroScrollOffset,
                             onPlay: { item in
                                 homePath.append(item)
                             },
@@ -147,7 +144,6 @@ struct HomeView: View {
                 geo.contentOffset.y + geo.contentInsets.top
             } action: { old, offset in
                 heroPullDown = max(0, -offset)
-                heroScrollOffset = max(0, offset)
                 let delta = offset - old
                 if delta > 4 && offset > 50 {
                     withAnimation(.easeOut(duration: 0.25)) { showOverlay = false }
@@ -305,7 +301,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeaderView(title: "\(String(localized: "Continue Watching", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
+                LazyHStack(spacing: 14) {
                     ForEach(vm.continueWatching) { item in
                         Button {
                             autoPlayItem = item
@@ -330,7 +326,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeaderView(title: "\(String(localized: "Next Up", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
+                LazyHStack(spacing: 14) {
                     ForEach(vm.nextUp) { item in
                         Button {
                             autoPlayItem = item
@@ -413,7 +409,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeaderView(title: "\(String(localized: "Latest Movies", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
+                LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(vm.latestMovies) { item in
                         NavigationLink(value: item) {
                             PosterCardView(item: item, serverURL: vm.serverURL)
@@ -430,7 +426,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeaderView(title: "\(String(localized: "Latest TV Shows", bundle: AppState.currentBundle))")
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
+                LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(vm.latestShows) { item in
                         NavigationLink(value: item) {
                             PosterCardView(item: item, serverURL: vm.serverURL)
@@ -521,9 +517,7 @@ struct SettingsView: View {
     @State private var editAliasAccount: SavedAccount?
 
     private var appVersion: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
-        return "\(v) (\(b))"
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
 
     var body: some View {
@@ -874,9 +868,7 @@ struct AppSettingsView: View {
 
 struct AboutSettingsView: View {
     private var appVersion: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
-        return "\(v) (\(b))"
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
 
     var body: some View {

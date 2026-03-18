@@ -8,7 +8,6 @@ struct OfflineView: View {
     @State private var showSettings = false
     @State private var showOverlay = true
     @State private var heroPullDown: CGFloat = 0
-    @State private var heroScrollOffset: CGFloat = 0
     @State private var offlinePath = NavigationPath()
 
     // MARK: - Computed Data
@@ -209,7 +208,6 @@ struct OfflineView: View {
                                     items: featuredItems,
                                     serverURL: appState.serverURL,
                                     pullDown: heroPullDown,
-                                    scrollOffset: heroScrollOffset,
                                     onPlay: { item in
                                         offlinePath.append(item)
                                     },
@@ -238,7 +236,6 @@ struct OfflineView: View {
                         geo.contentOffset.y + geo.contentInsets.top
                     } action: { old, offset in
                         heroPullDown = max(0, -offset)
-                        heroScrollOffset = max(0, offset)
                         let delta = offset - old
                         if delta > 4 && offset > 50 {
                             withAnimation(.easeOut(duration: 0.25)) { showOverlay = false }

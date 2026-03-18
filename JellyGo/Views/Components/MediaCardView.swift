@@ -41,12 +41,12 @@ struct FallbackAsyncImage<Placeholder: View>: View {
 
 // MARK: - Hero Banner
 
-var bannerSize: CGSize {
+let bannerSize: CGSize = {
     let screen = UIApplication.shared.connectedScenes
         .compactMap { $0 as? UIWindowScene }
         .first?.screen.bounds.size ?? CGSize(width: 390, height: 844)
     return CGSize(width: screen.width, height: 680)
-}
+}()
 
 /// Image occupies top portion; bottom fills with dominant color
 private var bannerImageHeight: CGFloat { 590 }
@@ -55,7 +55,6 @@ struct HeroBannerView: View {
     let items: [JellyfinItem]
     let serverURL: String
     var pullDown: CGFloat = 0
-    var scrollOffset: CGFloat = 0
     var onPlay: (JellyfinItem) -> Void = { _ in }
 
     // Two stable layers: A and B. One is "current", the other is "next".
@@ -117,9 +116,9 @@ struct HeroBannerView: View {
                         Capsule()
                             .fill(i == currentItemIndex ? Color.white : Color.white.opacity(0.35))
                             .frame(width: i == currentItemIndex ? 20 : 5, height: 5)
-                            .animation(.spring(duration: 0.3), value: currentItemIndex)
                     }
                 }
+                .animation(.spring(duration: 0.3), value: currentItemIndex)
                 .padding(.bottom, 18)
             }
         }
@@ -220,14 +219,12 @@ struct HeroBannerView: View {
 
     @ViewBuilder
     private func backdropLayer(item: JellyfinItem, size: CGSize, parallaxOffset: CGFloat = 0) -> some View {
-        let verticalParallax = scrollOffset > 0 ? scrollOffset * 0.5 : 0
-
-        return VStack(spacing: 0) {
+        VStack(spacing: 0) {
             AsyncImage(url: bannerBackdropURL(item: item)) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().aspectRatio(contentMode: .fill)
-                        .offset(x: parallaxOffset, y: verticalParallax)
+                        .offset(x: parallaxOffset)
                 default:
                     Color(white: 0.12)
                 }
@@ -322,14 +319,12 @@ struct HeroBannerView: View {
 
     private func extractDominantColor(for item: JellyfinItem) {
         guard let url = bannerBackdropURL(item: item) else { return }
-        Task.detached(priority: .utility) {
-            guard let data = try? Data(contentsOf: url),
+        Task {
+            guard let (data, _) = try? await URLSession.shared.data(from: url),
                   let uiImage = UIImage(data: data) else { return }
-            let color = uiImage.averageBottomColor()
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    dominantColor = Color(color)
-                }
+            let color = await Task.detached(priority: .utility) { uiImage.averageBottomColor() }.value
+            withAnimation(.easeInOut(duration: 0.5)) {
+                dominantColor = Color(color)
             }
         }
     }

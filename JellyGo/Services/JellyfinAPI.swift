@@ -34,7 +34,7 @@ final class JellyfinAPI {
     static let shared = JellyfinAPI()
 
     private let clientName = "JellyGo"
-    private let clientVersion = "0.1.0"
+    private let clientVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     private let deviceName = "iPhone"
 
     private lazy var deviceId: String = {
@@ -80,18 +80,31 @@ final class JellyfinAPI {
         }
     }
 
-    private func perform(_ request: URLRequest) async throws -> Data {
+    private func perform(_ request: URLRequest, cacheTTL: TimeInterval? = nil) async throws -> Data {
         // Block all API calls when manual offline mode is active
         if await MainActor.run(body: { AppState.shared?.manualOffline ?? false }) {
             throw JellyfinAPIError.networkError(URLError(.notConnectedToInternet))
         }
+
+        // Cache lookup — sadece GET istekleri için
+        let isGet = request.httpMethod == nil || request.httpMethod == "GET"
+        if let ttl = cacheTTL, isGet, let url = request.url,
+           let cached = APICache.shared.get(for: url) {
+            return cached
+        }
+
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else {
                 throw JellyfinAPIError.networkError(URLError(.badServerResponse))
             }
             switch http.statusCode {
-            case 200...299: return data
+            case 200...299:
+                // Cache'e yaz
+                if let ttl = cacheTTL, isGet, let url = request.url {
+                    APICache.shared.set(data, for: url, ttl: ttl)
+                }
+                return data
             case 401, 403:  throw JellyfinAPIError.unauthorized
             default:        throw JellyfinAPIError.serverError(http.statusCode)
             }
@@ -136,7 +149,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CommunityRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,EndDate,ProductionLocations,MediaStreams,MediaSources,ChildCount,ProviderIds")
         ])
         let req = baseRequest(url: url, token: token)
-        let data = try await perform(req)
+        let data = try await perform(req, cacheTTL: 6 * 3600)   // 6 saat
         return try decode(JellyfinItem.self, from: data)
     }
 
@@ -146,6 +159,7 @@ final class JellyfinAPI {
         var req = baseRequest(url: url, token: token)
         req.httpMethod = isFavorite ? "POST" : "DELETE"
         _ = try await perform(req)
+        APICache.shared.invalidate(itemId: itemId)
     }
 
     func setPlayed(serverURL: String, itemId: String, userId: String, token: String, played: Bool) async throws {
@@ -154,6 +168,7 @@ final class JellyfinAPI {
         var req = baseRequest(url: url, token: token)
         req.httpMethod = played ? "POST" : "DELETE"
         _ = try await perform(req)
+        APICache.shared.invalidate(itemId: itemId)
     }
 
     func personImageURL(serverURL: String, person: JellyfinPerson, maxWidth: Int = 200) -> URL? {
@@ -171,7 +186,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "fields", value: "PrimaryImageAspectRatio")
         ])
         let req = baseRequest(url: url, token: token)
-        let data = try await perform(req)
+        let data = try await perform(req, cacheTTL: 24 * 3600)  // 24 saat
         let response = try decode(JellyfinLibrariesResponse.self, from: data)
         return response.items
     }
@@ -207,7 +222,11 @@ final class JellyfinAPI {
         if let genres, !genres.isEmpty { queryItems.append(URLQueryItem(name: "Genres", value: genres.joined(separator: ","))) }
         let url = try buildURL(base, path: "Users/\(userId)/Items", queryItems: queryItems)
         let req = baseRequest(url: url, token: token)
-        let data = try await perform(req)
+        // IsFavorite listesi dinamik; diğerleri cache'lenebilir
+        let ttl: TimeInterval? = filters == "IsFavorite" ? nil
+                               : sortBy == "Random"      ? 30 * 60   // 30 dakika
+                               :                           3600       // 1 saat
+        let data = try await perform(req, cacheTTL: ttl)
         return try decode(JellyfinItemsResponse.self, from: data)
     }
 
@@ -245,7 +264,7 @@ final class JellyfinAPI {
         if let types = includeItemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
         let url = try buildURL(base, path: "Users/\(userId)/Items/Latest", queryItems: queryItems)
         let req = baseRequest(url: url, token: token)
-        let data = try await perform(req)
+        let data = try await perform(req, cacheTTL: 30 * 60)    // 30 dakika
         return try decode([JellyfinItem].self, from: data)
     }
 
@@ -447,7 +466,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "Limit", value: "100"),
         ])
         let req = baseRequest(url: url, token: token)
-        let data = try await perform(req)
+        let data = try await perform(req, cacheTTL: 6 * 3600)   // 6 saat
         let all = try decode(JellyfinItemsResponse.self, from: data).items
 
         // De-duplicate: prefer Series/Movie over individual episodes
@@ -470,7 +489,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "Fields", value: "PrimaryImageAspectRatio,ProductionYear,CommunityRating"),
         ])
         let req = baseRequest(url: url, token: token)
-        let data = try await perform(req)
+        let data = try await perform(req, cacheTTL: 6 * 3600)   // 6 saat
         return try decode(JellyfinItemsResponse.self, from: data).items
     }
 }
