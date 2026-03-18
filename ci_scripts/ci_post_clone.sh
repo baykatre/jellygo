@@ -1,14 +1,13 @@
 #!/bin/sh
 set -e
 
-# MobileVLCKit 3.6.0b12 — latest stable 3.6.x from VideoLAN
-TARBALL="MobileVLCKit-3.6.0b12-8a6d7aeb-6ceb56b8.tar.xz"
-URL="https://download.videolan.org/pub/cocoapods/unstable/${TARBALL}"
+TARBALL="MobileVLCKit-3.6.0-c73b779f-dd8bfdba.tar.xz"
+URL="https://download.videolan.org/pub/cocoapods/prod/${TARBALL}"
 DEST="$CI_WORKSPACE/MobileVLCKit-binary"
 TMP_TAR="/tmp/MobileVLCKit.tar.xz"
 TMP_DIR="/tmp/vlckit_extract"
 
-echo "Downloading MobileVLCKit..."
+echo "Downloading MobileVLCKit 3.6.0 (stable)..."
 curl -L --fail --retry 3 --retry-delay 5 "$URL" -o "$TMP_TAR"
 
 echo "Extracting..."
