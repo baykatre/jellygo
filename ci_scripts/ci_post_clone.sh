@@ -1,24 +1,24 @@
 #!/bin/sh
 set -e
 
-VLCKIT_VERSION="3.6.0"
+# MobileVLCKit 3.6.0b12 — latest stable 3.6.x from VideoLAN
+TARBALL="MobileVLCKit-3.6.0b12-8a6d7aeb-6ceb56b8.tar.xz"
+URL="https://download.videolan.org/pub/cocoapods/unstable/${TARBALL}"
 DEST="$CI_WORKSPACE/MobileVLCKit-binary"
-ZIP_URL="https://download.videolan.org/pub/cocoapods/unstable/MobileVLCKit-${VLCKIT_VERSION}.zip"
-TMP_ZIP="/tmp/MobileVLCKit.zip"
+TMP_TAR="/tmp/MobileVLCKit.tar.xz"
 TMP_DIR="/tmp/vlckit_extract"
 
-echo "Downloading MobileVLCKit ${VLCKIT_VERSION}..."
-curl -L --retry 3 --retry-delay 5 "$ZIP_URL" -o "$TMP_ZIP"
+echo "Downloading MobileVLCKit..."
+curl -L --fail --retry 3 --retry-delay 5 "$URL" -o "$TMP_TAR"
 
 echo "Extracting..."
 rm -rf "$TMP_DIR"
 mkdir -p "$TMP_DIR"
-unzip -q "$TMP_ZIP" -d "$TMP_DIR"
+tar -xJf "$TMP_TAR" -C "$TMP_DIR"
 
 echo "Moving to workspace..."
 mkdir -p "$DEST"
-# Zip içindeki klasör yapısını bul ve içeriği taşı
-INNER=$(find "$TMP_DIR" -maxdepth 1 -type d | tail -1)
+INNER=$(find "$TMP_DIR" -maxdepth 1 -mindepth 1 -type d | head -1)
 cp -R "$INNER/." "$DEST/"
 
 echo "MobileVLCKit ready at $DEST"
