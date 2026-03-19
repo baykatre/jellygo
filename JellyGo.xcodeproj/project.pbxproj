@@ -25,6 +25,27 @@
 		};
 /* End PBXCopyFilesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		EE1B2C3D4E5F6A7B8C9D0E1F /* Fix KSPlayer Bundle IDs */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Fix KSPlayer Bundle IDs";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "find \"${CODESIGNING_FOLDER_PATH}/Frameworks\" -name \"Info.plist\" 2>/dev/null | while read plist; do\n  id=$(/usr/libexec/PlistBuddy -c \"Print :CFBundleIdentifier\" \"$plist\" 2>/dev/null || true)\n  fixed=$(echo \"$id\" | tr '_' '-')\n  if [ \"$id\" != \"$fixed\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleIdentifier $fixed\" \"$plist\"\n    echo \"Patched: $id -> $fixed\"\n  fi\ndone\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXFileReference section */
 		045AD0762F5CCFC5003D29D1 /* JellyGo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JellyGo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA1B2C3D4E5F6A7B8C9D0E1F /* MobileVLCKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = MobileVLCKit.xcframework; path = "MobileVLCKit-binary/MobileVLCKit.xcframework"; sourceTree = "<group>"; };
@@ -86,6 +107,7 @@
 				045AD0732F5CCFC5003D29D1 /* Frameworks */,
 				045AD0742F5CCFC5003D29D1 /* Resources */,
 				DD1B2C3D4E5F6A7B8C9D0E1F /* Embed Frameworks */,
+				EE1B2C3D4E5F6A7B8C9D0E1F /* Fix KSPlayer Bundle IDs */,
 			);
 			buildRules = (
 			);
