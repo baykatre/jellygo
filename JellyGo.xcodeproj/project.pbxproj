@@ -26,7 +26,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		EE1B2C3D4E5F6A7B8C9D0E1F /* Fix KSPlayer Bundle IDs */ = {
+		265817E82EC9456F82FBE9E7BE5CEAA0 /* Fix KSPlayer Bundle IDs */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -107,7 +107,7 @@
 				045AD0732F5CCFC5003D29D1 /* Frameworks */,
 				045AD0742F5CCFC5003D29D1 /* Resources */,
 				DD1B2C3D4E5F6A7B8C9D0E1F /* Embed Frameworks */,
-				EE1B2C3D4E5F6A7B8C9D0E1F /* Fix KSPlayer Bundle IDs */,
+				265817E82EC9456F82FBE9E7BE5CEAA0 /* Fix KSPlayer Bundle IDs */,
 			);
 			buildRules = (
 			);
