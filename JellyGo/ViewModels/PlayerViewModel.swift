@@ -4,6 +4,92 @@ import MediaPlayer
 import AVFoundation
 import Darwin.Mach
 
+// MARK: - Now Playing Manager
+
+private final class NowPlayingManager {
+    static let shared = NowPlayingManager()
+    private var commandsRegistered = false
+
+    func setupRemoteCommands(vm: PlayerViewModel) {
+        guard !commandsRegistered else { return }
+        commandsRegistered = true
+
+        let center = MPRemoteCommandCenter.shared()
+
+        center.playCommand.isEnabled = true
+        center.playCommand.addTarget { [weak vm] _ in
+            guard let vm else { return .noActionableNowPlayingItem }
+            Task { @MainActor in vm.togglePlayPause() }
+            return .success
+        }
+
+        center.pauseCommand.isEnabled = true
+        center.pauseCommand.addTarget { [weak vm] _ in
+            guard let vm else { return .noActionableNowPlayingItem }
+            Task { @MainActor in vm.togglePlayPause() }
+            return .success
+        }
+
+        center.togglePlayPauseCommand.isEnabled = true
+        center.togglePlayPauseCommand.addTarget { [weak vm] _ in
+            guard let vm else { return .noActionableNowPlayingItem }
+            Task { @MainActor in vm.togglePlayPause() }
+            return .success
+        }
+
+        center.skipForwardCommand.isEnabled = true
+        center.skipForwardCommand.preferredIntervals = [30]
+        center.skipForwardCommand.addTarget { [weak vm] event in
+            guard let vm, let e = event as? MPSkipIntervalCommandEvent else { return .noActionableNowPlayingItem }
+            Task { @MainActor in vm.skip(seconds: Int(e.interval)) }
+            return .success
+        }
+
+        center.skipBackwardCommand.isEnabled = true
+        center.skipBackwardCommand.preferredIntervals = [10]
+        center.skipBackwardCommand.addTarget { [weak vm] event in
+            guard let vm, let e = event as? MPSkipIntervalCommandEvent else { return .noActionableNowPlayingItem }
+            Task { @MainActor in vm.skip(seconds: -Int(e.interval)) }
+            return .success
+        }
+
+        center.changePlaybackPositionCommand.isEnabled = true
+        center.changePlaybackPositionCommand.addTarget { [weak vm] event in
+            guard let vm, let e = event as? MPChangePlaybackPositionCommandEvent else { return .noActionableNowPlayingItem }
+            Task { @MainActor in
+                let total = vm.totalSeconds
+                guard total > 0 else { return }
+                vm.seek(to: Float(e.positionTime / total))
+            }
+            return .success
+        }
+    }
+
+    func updateNowPlaying(title: String, artist: String?, duration: Double, elapsed: Double, rate: Float, artwork: MPMediaItemArtwork?) {
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: title,
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
+            MPNowPlayingInfoPropertyPlaybackRate: rate
+        ]
+        if let artist { info[MPMediaItemPropertyArtist] = artist }
+        if let artwork { info[MPMediaItemPropertyArtwork] = artwork }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+
+    func clearNowPlaying() {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        commandsRegistered = false
+        let center = MPRemoteCommandCenter.shared()
+        center.playCommand.removeTarget(nil)
+        center.pauseCommand.removeTarget(nil)
+        center.togglePlayPauseCommand.removeTarget(nil)
+        center.skipForwardCommand.removeTarget(nil)
+        center.skipBackwardCommand.removeTarget(nil)
+        center.changePlaybackPositionCommand.removeTarget(nil)
+    }
+}
+
 extension Notification.Name {
     static let playbackStopped = Notification.Name("playbackStopped")
     static let personFilmographySelected = Notification.Name("personFilmographySelected")
@@ -91,6 +177,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     /// For KSPlayer transcode: HLS stream starts from this offset (ms).
     /// KSPlayer reports time relative to stream start, we add this to get real video time.
     private var transcodeOffsetMs: Int32 = 0
+    private var nowPlayingArtwork: MPMediaItemArtwork?
 
     init() {
         // Select engine based on user preference
@@ -111,6 +198,9 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     func engineStateChanged(isPlaying: Bool, isBuffering: Bool, error: String?) {
         self.isPlaying = isPlaying
         if let error { self.error = error }
+
+        // Update Now Playing rate on play/pause
+        updateNowPlayingPlaybackState()
 
         if isPlaying {
             // Seek to resume position on first play
@@ -268,6 +358,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         DispatchQueue.main.async { self.isLoading = false; self.isPlaying = self.engine.isPlaying }
         startPositionTimer()
         startMetricsTimer()
+        setupNowPlaying()
     }
 
     // MARK: - Load Streaming
@@ -357,6 +448,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             }
             startPositionTimer()
         startMetricsTimer()
+            setupNowPlaying()
             return
         }
 
@@ -497,6 +589,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         }
         startPositionTimer()
         startMetricsTimer()
+        setupNowPlaying()
     }
 
     private func waitForPlaying() async {
@@ -585,6 +678,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         positionTimer?.cancel()
         metricsTimer?.cancel()
         engine.stop()
+        NowPlayingManager.shared.clearNowPlaying()
         guard let item, let appState else { return }
 
         let ticks: Int64
@@ -620,6 +714,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 guard ticks > 0 else { continue }
                 let secs = Double(ticks) / 10_000_000
                 if secs > 2 { LocalPlaybackStore.savePosition(secs, for: item.id) }
+                self.updateNowPlayingPlaybackState()
                 if NetworkMonitor.shared.isConnected {
                     await JellyfinAPI.shared.reportPlaybackProgress(
                         serverURL: appState.serverURL, itemId: item.id,
@@ -693,5 +788,75 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         if let year = item?.productionYear { parts.append("\(year)") }
         if let mins = item?.runtimeMinutes, mins > 0 { parts.append("\(mins) min") }
         return parts.joined(separator: " \u{2022} ")
+    }
+
+    // MARK: - Now Playing
+
+    func setupNowPlaying() {
+        guard let item else { return }
+        NowPlayingManager.shared.setupRemoteCommands(vm: self)
+
+        // Build title: "S1:E3 Episode Name" for episodes, plain name for movies
+        let title: String
+        let artist: String?
+        if item.isEpisode {
+            var prefix = ""
+            if let s = item.parentIndexNumber { prefix += "S\(s)" }
+            if let e = item.indexNumber { prefix += (prefix.isEmpty ? "" : ":") + "E\(e)" }
+            title = prefix.isEmpty ? item.name : "\(prefix) \(item.name)"
+            artist = item.seriesName
+        } else {
+            title = item.name
+            artist = item.productionYear.map { "\($0)" }
+        }
+
+        NowPlayingManager.shared.updateNowPlaying(
+            title: title,
+            artist: artist,
+            duration: totalSeconds,
+            elapsed: currentSeconds,
+            rate: isPlaying ? playbackSpeed : 0,
+            artwork: nowPlayingArtwork
+        )
+
+        // Fetch artwork asynchronously
+        if nowPlayingArtwork == nil, let appState {
+            let itemId = item.seriesId ?? item.id
+            let serverURL = appState.serverURL
+            Task.detached(priority: .utility) { [weak self] in
+                guard let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: itemId, maxWidth: 600) else { return }
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard let image = UIImage(data: data) else { return }
+                let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                await MainActor.run { [weak self] in
+                    self?.nowPlayingArtwork = artwork
+                    self?.updateNowPlayingPlaybackState()
+                }
+            }
+        }
+    }
+
+    private func updateNowPlayingPlaybackState() {
+        guard let item, item.runTimeTicks != nil else { return }
+        let title: String
+        let artist: String?
+        if item.isEpisode {
+            var prefix = ""
+            if let s = item.parentIndexNumber { prefix += "S\(s)" }
+            if let e = item.indexNumber { prefix += (prefix.isEmpty ? "" : ":") + "E\(e)" }
+            title = prefix.isEmpty ? item.name : "\(prefix) \(item.name)"
+            artist = item.seriesName
+        } else {
+            title = item.name
+            artist = item.productionYear.map { "\($0)" }
+        }
+        NowPlayingManager.shared.updateNowPlaying(
+            title: title,
+            artist: artist,
+            duration: totalSeconds,
+            elapsed: currentSeconds,
+            rate: isPlaying ? playbackSpeed : 0,
+            artwork: nowPlayingArtwork
+        )
     }
 }
