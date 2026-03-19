@@ -147,6 +147,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A1B2C3D4E5F6A7B800000001 /* XCRemoteSwiftPackageReference "KSPlayer" */,
+				A1B2C3D4E5F6A7B800000003 /* XCRemoteSwiftPackageReference "FFmpegKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 045AD0772F5CCFC5003D29D1 /* Products */;
@@ -396,6 +397,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.0.0;
+			};
+		};
+		A1B2C3D4E5F6A7B800000003 /* XCRemoteSwiftPackageReference "FFmpegKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kingslay/FFmpegKit.git";
+			requirement = {
+				kind = revision;
+				revision = d7048037a2eb94a3b08113fbf43aa92bdcb332d9;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

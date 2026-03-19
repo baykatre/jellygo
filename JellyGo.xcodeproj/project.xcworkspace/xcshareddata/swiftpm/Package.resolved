@@ -1,13 +1,12 @@
 {
-  "originHash" : "9f4d02b36326f7abde21437747b4c93fd717fc0cfdb5a24d6ef00628796ec389",
+  "originHash" : "81e4c9f8bf8b69214dc658a5aaa93c88f49d3d3e2d55718d56e2031a9364b54a",
   "pins" : [
     {
       "identity" : "ffmpegkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kingslay/FFmpegKit.git",
       "state" : {
-        "revision" : "85b77c589de0360c111de16752db86b60496d70b",
-        "version" : "6.1.3"
+        "revision" : "d7048037a2eb94a3b08113fbf43aa92bdcb332d9"
       }
     },
     {
