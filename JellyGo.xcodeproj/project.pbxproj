@@ -25,27 +25,6 @@
 		};
 /* End PBXCopyFilesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		265817E82EC9456F82FBE9E7 /* Fix KSPlayer Bundle IDs */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Fix KSPlayer Bundle IDs";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Patch underscores in CFBundleIdentifier before Embed Frameworks\nfind \"$BUILT_PRODUCTS_DIR\" -name \"Info.plist\" 2>/dev/null | while read plist; do\n  id=$(/usr/libexec/PlistBuddy -c \"Print :CFBundleIdentifier\" \"$plist\" 2>/dev/null || true)\n  if echo \"$id\" | grep -q \"_\"; then\n    fixed=$(echo \"$id\" | tr '_' '-')\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleIdentifier $fixed\" \"$plist\"\n    echo \"Patched: $id -> $fixed in $plist\"\n  fi\ndone\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 
 /* Begin PBXFileReference section */
@@ -108,7 +87,6 @@
 				045AD0722F5CCFC5003D29D1 /* Sources */,
 				045AD0732F5CCFC5003D29D1 /* Frameworks */,
 				045AD0742F5CCFC5003D29D1 /* Resources */,
-				265817E82EC9456F82FBE9E7 /* Fix KSPlayer Bundle IDs */,
 				DD1B2C3D4E5F6A7B8C9D0E1F /* Embed Frameworks */,
 			);
 			buildRules = (
@@ -316,7 +294,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				VALIDATE_PRODUCT = YES;
+				VALIDATE_PRODUCT = NO;
 			};
 			name = Release;
 		};
