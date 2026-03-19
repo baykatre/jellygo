@@ -15,6 +15,13 @@ struct LoginView: View {
     @State private var showLoginForm = false   // revealed only when adding a new user
     @FocusState private var focusedField: Field?
 
+    // QuickConnect
+    @State private var quickConnectEnabled = false
+    @State private var quickConnectCode: String?
+    @State private var quickConnectSecret: String?
+    @State private var quickConnectPolling = false
+    @State private var quickConnectTask: Task<Void, Never>?
+
     enum Field { case username, password }
 
     // Existing accounts on this server, deduplicated by userId
@@ -129,6 +136,11 @@ struct LoginView: View {
                         if !isAddingMode || knownUsers.isEmpty || showLoginForm {
                             loginForm
                         }
+
+                        // QuickConnect
+                        if quickConnectEnabled {
+                            quickConnectSection
+                        }
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 48)
@@ -139,6 +151,10 @@ struct LoginView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if !isAddingMode || knownUsers.isEmpty { focusedField = .username }
+            Task { await checkQuickConnect() }
+        }
+        .onDisappear {
+            quickConnectTask?.cancel()
         }
         .alert(String(localized: "Account Already Added", bundle: AppState.currentBundle), isPresented: $showDuplicateAlert) {
             Button(String(localized: "OK", bundle: AppState.currentBundle)) { appState.closeAddAccountSheet = true }
@@ -205,6 +221,64 @@ struct LoginView: View {
         }
     }
 
+    // MARK: - QuickConnect Section
+
+    private var quickConnectSection: some View {
+        VStack(spacing: 12) {
+            // Divider
+            HStack {
+                VStack { Divider() }
+                Text(String(localized: "or", bundle: AppState.currentBundle))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                VStack { Divider() }
+            }
+
+            if let code = quickConnectCode {
+                // Show the code
+                VStack(spacing: 12) {
+                    Label(String(localized: "Quick Connect", bundle: AppState.currentBundle), systemImage: "bolt.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text(code)
+                        .font(.system(size: 36, weight: .bold, design: .monospaced))
+                        .kerning(6)
+                        .foregroundStyle(.tint)
+
+                    Text(String(localized: "Enter this code in your Jellyfin dashboard to sign in.", bundle: AppState.currentBundle))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    if quickConnectPolling {
+                        HStack(spacing: 6) {
+                            ProgressView().scaleEffect(0.7)
+                            Text(String(localized: "Waiting for approval\u{2026}", bundle: AppState.currentBundle))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(20)
+                .background(.background, in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                // Initiate button
+                Button {
+                    Task { await initiateQuickConnect() }
+                } label: {
+                    Label(String(localized: "Quick Connect", bundle: AppState.currentBundle), systemImage: "bolt.fill")
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(isLoading)
+            }
+        }
+    }
+
     // MARK: - Actions
 
     /// Add a known user to this URL without re-authenticating — reuse the shared token.
@@ -219,6 +293,82 @@ struct LoginView: View {
             serverId: serverInfo.id
         )
         if isDuplicate { showDuplicateAlert = true }
+    }
+
+    // MARK: - QuickConnect Actions
+
+    private func checkQuickConnect() async {
+        quickConnectEnabled = (try? await JellyfinAPI.shared.quickConnectEnabled(serverURL: serverURL)) ?? false
+    }
+
+    private func initiateQuickConnect() async {
+        errorMessage = nil
+        do {
+            let result = try await JellyfinAPI.shared.quickConnectInitiate(serverURL: serverURL)
+            quickConnectCode = result.code
+            quickConnectSecret = result.secret
+            startPolling()
+        } catch let error as JellyfinAPIError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func startPolling() {
+        quickConnectPolling = true
+        quickConnectTask?.cancel()
+        quickConnectTask = Task {
+            guard let secret = quickConnectSecret else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled else { return }
+
+                let authenticated = (try? await JellyfinAPI.shared.quickConnectCheck(serverURL: serverURL, secret: secret)) ?? false
+                if authenticated {
+                    await completeQuickConnect(secret: secret)
+                    return
+                }
+            }
+        }
+    }
+
+    private func completeQuickConnect(secret: String) async {
+        quickConnectPolling = false
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let response = try await JellyfinAPI.shared.quickConnectAuthenticate(serverURL: serverURL, secret: secret)
+
+            if appState.isAddingAccount {
+                let isDuplicate = appState.addAccount(
+                    serverURL: serverURL,
+                    serverName: serverInfo.serverName,
+                    userId: response.user.id,
+                    username: response.user.name,
+                    token: response.accessToken,
+                    serverId: response.serverId
+                )
+                if isDuplicate { showDuplicateAlert = true }
+            } else {
+                appState.login(
+                    serverURL: serverURL,
+                    serverName: serverInfo.serverName,
+                    userId: response.user.id,
+                    username: response.user.name,
+                    token: response.accessToken,
+                    serverId: response.serverId
+                )
+            }
+        } catch let error as JellyfinAPIError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        quickConnectCode = nil
+        quickConnectSecret = nil
     }
 
     private func loginWithPassword() async {

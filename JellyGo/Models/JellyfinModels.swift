@@ -14,6 +14,20 @@ struct JellyfinServerInfo: Codable {
     }
 }
 
+// MARK: - QuickConnect
+
+struct QuickConnectResult: Codable {
+    let secret: String
+    let code: String
+    let authenticated: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case secret = "Secret"
+        case code = "Code"
+        case authenticated = "Authenticated"
+    }
+}
+
 // MARK: - Auth
 
 struct JellyfinAuthResponse: Codable {

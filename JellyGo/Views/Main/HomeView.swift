@@ -516,6 +516,13 @@ struct SettingsView: View {
     @State private var accountToRemove: SavedAccount?
     @State private var editAliasAccount: SavedAccount?
 
+    // QuickConnect authorize
+    @State private var quickConnectAvailable = false
+    @State private var quickConnectCode = ""
+    @State private var quickConnectAuthorizing = false
+    @State private var quickConnectSuccess = false
+    @State private var quickConnectError: String?
+
     private var appVersion: String {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
@@ -574,6 +581,42 @@ struct SettingsView: View {
                 }
             }
 
+            if quickConnectAvailable {
+                Section {
+                    HStack(spacing: 12) {
+                        TextField(String(localized: "Quick Connect Code", bundle: AppState.currentBundle), text: $quickConnectCode)
+                            .keyboardType(.numberPad)
+                            .textFieldStyle(.plain)
+                            .disabled(quickConnectAuthorizing)
+
+                        if quickConnectAuthorizing {
+                            ProgressView().scaleEffect(0.8)
+                        } else if quickConnectSuccess {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Button {
+                                Task { await authorizeQuickConnect() }
+                            } label: {
+                                Text(String(localized: "Authorize", bundle: AppState.currentBundle))
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .disabled(quickConnectCode.isEmpty)
+                        }
+                    }
+
+                    if let error = quickConnectError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Label(String(localized: "Quick Connect", bundle: AppState.currentBundle), systemImage: "bolt.fill")
+                } footer: {
+                    Text(String(localized: "Enter the code shown on the device you want to authorize.", bundle: AppState.currentBundle))
+                }
+            }
+
             Section {
                 Toggle(isOn: $appState.manualOffline) {
                     Label(String(localized: "Offline", bundle: AppState.currentBundle), systemImage: "wifi.slash")
@@ -593,6 +636,7 @@ struct SettingsView: View {
             accountsBubbles
         }
         .navigationTitle(String(localized: "Settings", bundle: AppState.currentBundle))
+        .task { quickConnectAvailable = (try? await JellyfinAPI.shared.quickConnectEnabled(serverURL: appState.serverURL)) ?? false }
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showAddAccountSheet) {
             ServerView()
@@ -631,6 +675,34 @@ struct SettingsView: View {
             Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { accountToRemove = nil }
         } message: {
             Text("Remove \(accountToRemove?.username ?? "") from this device?")
+        }
+    }
+
+    // MARK: - QuickConnect Authorize
+
+    private func authorizeQuickConnect() async {
+        quickConnectError = nil
+        quickConnectSuccess = false
+        quickConnectAuthorizing = true
+        defer { quickConnectAuthorizing = false }
+
+        do {
+            try await JellyfinAPI.shared.quickConnectAuthorize(
+                serverURL: appState.serverURL,
+                code: quickConnectCode,
+                token: appState.token
+            )
+            quickConnectSuccess = true
+            quickConnectCode = ""
+            // Reset success indicator after 3 seconds
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                quickConnectSuccess = false
+            }
+        } catch let error as JellyfinAPIError {
+            quickConnectError = error.errorDescription
+        } catch {
+            quickConnectError = error.localizedDescription
         }
     }
 

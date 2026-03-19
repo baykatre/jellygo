@@ -131,6 +131,57 @@ final class JellyfinAPI {
         }
     }
 
+    // MARK: - QuickConnect
+
+    func quickConnectEnabled(serverURL: String) async throws -> Bool {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = base.appendingPathComponent("QuickConnect/Enabled")
+        let req = baseRequest(url: url)
+        let data = try await perform(req)
+        // Response is a plain JSON boolean: true or false
+        return (try? JSONDecoder().decode(Bool.self, from: data)) ?? false
+    }
+
+    func quickConnectInitiate(serverURL: String) async throws -> QuickConnectResult {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = base.appendingPathComponent("QuickConnect/Initiate")
+        var req = baseRequest(url: url)
+        req.httpMethod = "POST"
+        let data = try await perform(req)
+        return try decode(QuickConnectResult.self, from: data)
+    }
+
+    func quickConnectCheck(serverURL: String, secret: String) async throws -> Bool {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = try buildURL(base, path: "QuickConnect/Connect", queryItems: [
+            URLQueryItem(name: "Secret", value: secret)
+        ])
+        let req = baseRequest(url: url)
+        let data = try await perform(req)
+        let result = try decode(QuickConnectResult.self, from: data)
+        return result.authenticated
+    }
+
+    func quickConnectAuthenticate(serverURL: String, secret: String) async throws -> JellyfinAuthResponse {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = base.appendingPathComponent("Users/AuthenticateWithQuickConnect")
+        var req = baseRequest(url: url)
+        req.httpMethod = "POST"
+        req.httpBody = try? JSONEncoder().encode(["Secret": secret])
+        let data = try await perform(req)
+        return try decode(JellyfinAuthResponse.self, from: data)
+    }
+
+    func quickConnectAuthorize(serverURL: String, code: String, token: String) async throws {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = try buildURL(base, path: "QuickConnect/Authorize", queryItems: [
+            URLQueryItem(name: "Code", value: code)
+        ])
+        var req = baseRequest(url: url, token: token)
+        req.httpMethod = "POST"
+        _ = try await perform(req)
+    }
+
     func login(serverURL: String, username: String, password: String) async throws -> JellyfinAuthResponse {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         let endpoint = base.appendingPathComponent("Users/AuthenticateByName")
