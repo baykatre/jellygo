@@ -26,6 +26,7 @@
 - **Person Detail:** Tap any cast or crew member to see their filmography.
 - **Apple Liquid Glass UI:** Action buttons and player indicators use iOS 26 native `glassEffect`.
 - **Secure Auth:** Token-based login with Keychain storage; session restores automatically on launch.
+- **QuickConnect:** Log in via QuickConnect code or authorize other devices from Settings.
 - **Multi-Account & Quick Switch:** Seamlessly switch between multiple Jellyfin servers and accounts without re-authenticating. Tokens are shared across URL variants of the same server (e.g. local IP vs domain), so you never get logged out when your network changes.
 - **Smart Connectivity:** Automatic server validation with parallel fallback — if the current server is unreachable, JellyGo tries all saved servers before going offline.
 - **Localization:** 18 languages — English, Turkish, Arabic, Azerbaijani, Danish, German, Spanish, Persian, French, Italian, Japanese, Korean, Dutch, Portuguese, Russian, Swedish, Ukrainian, Chinese.
