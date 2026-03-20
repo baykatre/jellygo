@@ -957,7 +957,7 @@ struct AboutSettingsView: View {
             }
             Section {
                 HStack(spacing: 10) {
-                    Image("TMDBLogo")
+                    Image("TMDbLogo")
                         .resizable()
                         .scaledToFit()
                         .frame(height: 16)
