@@ -59,7 +59,6 @@
 "%lld min" = "%lld 分";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Jellyfinサーバーに接続";
 "Server Address" = "サーバーアドレス";
 "Connect" = "接続";
 "Sign in" = "サインイン";
@@ -298,11 +297,54 @@
 "Explore" = "探索";
 "Recently Added" = "最近追加";
 "Top Rated" = "高評価";
+"Recently Added Movies" = "最近追加された映画";
+"Recently Added TV Shows" = "最近追加されたTVシリーズ";
+"Top Rated Movies" = "高評価の映画";
+"Top Rated TV Shows" = "高評価のTVシリーズ";
 
 /* Player Extra */
 "Audio Language" = "音声言語";
 "On" = "オン";
 "Speed" = "速度";
+
+/* Quick Connect */
+"Buffering" = "バッファリング中";
+"Quick Connect" = "クイック接続";
+"Waiting for approval\u{2026}" = "承認待ち\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "または";
+"Authorize" = "認証";
+"Quick Connect Code" = "クイック接続コード";
+"Enter this code in your Jellyfin dashboard to sign in." = "サインインするには、このコードをJellyfinダッシュボードに入力してください。";
+"Enter the code shown on the device you want to authorize." = "認証したいデバイスに表示されているコードを入力してください。";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "\"%@\"のダウンロード済みエピソードをすべて削除しますか？";
+"Sign out of %@?" = "%@からサインアウトしますか？";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "このアプリはTMDBおよびTMDB APIを使用していますが、TMDBによる承認、認定、その他の承認は受けていません。";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "例：自宅、リモート、VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "ホーム画面のバッジとアカウントバブルに表示されるラベル。サーバーアドレスを使用するには空のままにしてください。";
+
+/* Stats HUD */
+"LOCAL FILE" = "ローカルファイル";
+"LOCAL PLAY" = "ローカル再生";
+"TRANSCODE" = "トランスコード";
+"DIRECT PLAY" = "ダイレクト再生";
+"Disk" = "ディスク";
+"Dropped: %lld frames" = "ドロップ: %lldフレーム";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld時間%lld分";
+"%lld h" = "%lld時間";
+"%lld m" = "%lld分";
+
+/* Player Season */
+"Season %lld" = "シーズン%lld";
 
 /* Detail */
 "MORE" = "もっと見る";

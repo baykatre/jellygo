@@ -352,25 +352,11 @@ struct HomeView: View {
         let isPlayed = item.userData?.played ?? false
         let isPartial = !isPlayed && (item.userData?.playbackPositionTicks ?? 0) > 0
 
-        // Navigate to the series detail page (for episodes)
-        if item.isEpisode, let seriesId = item.seriesId {
-            Button {
-                let seriesItem = JellyfinItem(
-                    id: seriesId, name: item.seriesName ?? "", type: "Series",
-                    overview: nil, productionYear: nil,
-                    communityRating: nil, criticRating: nil, runTimeTicks: nil,
-                    seriesName: item.seriesName, seriesId: nil,
-                    seasonName: nil, indexNumber: nil, parentIndexNumber: nil,
-                    userData: nil, imageBlurHashes: nil, primaryImageAspectRatio: nil,
-                    genres: nil, officialRating: nil, taglines: nil, people: nil,
-                    premiereDate: nil, mediaStreams: nil, mediaSources: nil,
-                    childCount: nil, providerIds: nil,
-                    endDate: nil, productionLocations: nil
-                )
-                homePath.append(seriesItem)
-            } label: {
-                Label(String(localized: "Go to Detail", bundle: AppState.currentBundle), systemImage: "arrow.right.circle")
-            }
+        // Navigate to detail page — episode goes to its series with correct season
+        Button {
+            homePath.append(item)
+        } label: {
+            Label(String(localized: "Go to Detail", bundle: AppState.currentBundle), systemImage: "arrow.right.circle")
         }
 
         if !isPlayed {
@@ -516,12 +502,7 @@ struct SettingsView: View {
     @State private var accountToRemove: SavedAccount?
     @State private var editAliasAccount: SavedAccount?
 
-    // QuickConnect authorize
     @State private var quickConnectAvailable = false
-    @State private var quickConnectCode = ""
-    @State private var quickConnectAuthorizing = false
-    @State private var quickConnectSuccess = false
-    @State private var quickConnectError: String?
 
     private var appVersion: String {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -529,6 +510,17 @@ struct SettingsView: View {
 
     var body: some View {
         List {
+            if quickConnectAvailable {
+                Section {
+                    NavigationLink {
+                        QuickConnectView()
+                            .environmentObject(appState)
+                    } label: {
+                        Label(String(localized: "Quick Connect", bundle: AppState.currentBundle), systemImage: "bolt.fill")
+                    }
+                }
+            }
+
             Section {
                 NavigationLink {
                     PlaybackSettingsView()
@@ -581,42 +573,6 @@ struct SettingsView: View {
                 }
             }
 
-            if quickConnectAvailable {
-                Section {
-                    HStack(spacing: 12) {
-                        TextField(String(localized: "Quick Connect Code", bundle: AppState.currentBundle), text: $quickConnectCode)
-                            .keyboardType(.numberPad)
-                            .textFieldStyle(.plain)
-                            .disabled(quickConnectAuthorizing)
-
-                        if quickConnectAuthorizing {
-                            ProgressView().scaleEffect(0.8)
-                        } else if quickConnectSuccess {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            Button {
-                                Task { await authorizeQuickConnect() }
-                            } label: {
-                                Text(String(localized: "Authorize", bundle: AppState.currentBundle))
-                                    .font(.subheadline.weight(.medium))
-                            }
-                            .disabled(quickConnectCode.isEmpty)
-                        }
-                    }
-
-                    if let error = quickConnectError {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                } header: {
-                    Label(String(localized: "Quick Connect", bundle: AppState.currentBundle), systemImage: "bolt.fill")
-                } footer: {
-                    Text(String(localized: "Enter the code shown on the device you want to authorize.", bundle: AppState.currentBundle))
-                }
-            }
-
             Section {
                 Toggle(isOn: $appState.manualOffline) {
                     Label(String(localized: "Offline", bundle: AppState.currentBundle), systemImage: "wifi.slash")
@@ -663,7 +619,7 @@ struct SettingsView: View {
             Button(String(localized: "Sign Out", bundle: AppState.currentBundle), role: .destructive) { appState.logout() }
             Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) {}
         } message: {
-            Text("Sign out of \(appState.username)?")
+            Text(String(format: String(localized: "Sign out of %@?", bundle: AppState.currentBundle), appState.username))
         }
         .alert(String(localized: "Remove Account", bundle: AppState.currentBundle), isPresented: Binding(
             get: { accountToRemove != nil },
@@ -674,35 +630,7 @@ struct SettingsView: View {
             }
             Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { accountToRemove = nil }
         } message: {
-            Text("Remove \(accountToRemove?.username ?? "") from this device?")
-        }
-    }
-
-    // MARK: - QuickConnect Authorize
-
-    private func authorizeQuickConnect() async {
-        quickConnectError = nil
-        quickConnectSuccess = false
-        quickConnectAuthorizing = true
-        defer { quickConnectAuthorizing = false }
-
-        do {
-            try await JellyfinAPI.shared.quickConnectAuthorize(
-                serverURL: appState.serverURL,
-                code: quickConnectCode,
-                token: appState.token
-            )
-            quickConnectSuccess = true
-            quickConnectCode = ""
-            // Reset success indicator after 3 seconds
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-                quickConnectSuccess = false
-            }
-        } catch let error as JellyfinAPIError {
-            quickConnectError = error.errorDescription
-        } catch {
-            quickConnectError = error.localizedDescription
+            Text(String(format: String(localized: "Remove %@ from this device?", bundle: AppState.currentBundle), accountToRemove?.username ?? ""))
         }
     }
 
@@ -846,6 +774,79 @@ struct SettingsView: View {
 
 }
 
+// MARK: - Quick Connect View
+
+struct QuickConnectView: View {
+    @EnvironmentObject private var appState: AppState
+    @State private var quickConnectCode = ""
+    @State private var quickConnectAuthorizing = false
+    @State private var quickConnectSuccess = false
+    @State private var quickConnectError: String?
+
+    var body: some View {
+        List {
+            Section {
+                HStack(spacing: 12) {
+                    TextField(String(localized: "Quick Connect Code", bundle: AppState.currentBundle), text: $quickConnectCode)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(.plain)
+                        .disabled(quickConnectAuthorizing)
+
+                    if quickConnectAuthorizing {
+                        ProgressView().scaleEffect(0.8)
+                    } else if quickConnectSuccess {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Button {
+                            Task { await authorizeQuickConnect() }
+                        } label: {
+                            Text(String(localized: "Authorize", bundle: AppState.currentBundle))
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .disabled(quickConnectCode.isEmpty)
+                    }
+                }
+
+                if let error = quickConnectError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } footer: {
+                Text(String(localized: "Enter the code shown on the device you want to authorize.", bundle: AppState.currentBundle))
+            }
+        }
+        .navigationTitle(String(localized: "Quick Connect", bundle: AppState.currentBundle))
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private func authorizeQuickConnect() async {
+        quickConnectError = nil
+        quickConnectSuccess = false
+        quickConnectAuthorizing = true
+        defer { quickConnectAuthorizing = false }
+
+        do {
+            try await JellyfinAPI.shared.quickConnectAuthorize(
+                serverURL: appState.serverURL,
+                code: quickConnectCode,
+                token: appState.token
+            )
+            quickConnectSuccess = true
+            quickConnectCode = ""
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                quickConnectSuccess = false
+            }
+        } catch let error as JellyfinAPIError {
+            quickConnectError = error.errorDescription
+        } catch {
+            quickConnectError = error.localizedDescription
+        }
+    }
+}
+
 // MARK: - Playback Settings
 
 struct PlaybackSettingsView: View {
@@ -953,6 +954,18 @@ struct AboutSettingsView: View {
                 Link(destination: URL(string: "https://jellyfin.org")!) {
                     Label(String(localized: "Jellyfin Project", bundle: AppState.currentBundle), systemImage: "link")
                 }
+            }
+            Section {
+                HStack(spacing: 10) {
+                    Image("TMDBLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 16)
+                    Text(String(localized: "This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.", bundle: AppState.currentBundle))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
             }
         }
         .navigationTitle(String(localized: "About", bundle: AppState.currentBundle))
@@ -1235,12 +1248,12 @@ struct AliasEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("e.g. Home, Remote, VPN…", text: $alias)
+                    TextField(String(localized: "e.g. Home, Remote, VPN…", bundle: AppState.currentBundle), text: $alias)
                         .autocorrectionDisabled()
                 } header: {
                     Text(host)
                 } footer: {
-                    Text("Label shown in the home screen badge and account bubbles. Leave empty to use the server address.")
+                    Text(String(localized: "Label shown in the home screen badge and account bubbles. Leave empty to use the server address.", bundle: AppState.currentBundle))
                 }
             }
             .navigationTitle(String(localized: "Edit Label", bundle: AppState.currentBundle))

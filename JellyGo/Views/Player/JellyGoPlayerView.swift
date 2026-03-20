@@ -813,7 +813,7 @@ struct JellyGoPlayerView: View {
                 .foregroundStyle(.cyan)
 
             // ── Source ──
-            Text(isLocal ? "LOCAL FILE" : appState.serverURL)
+            Text(isLocal ? String(localized: "LOCAL FILE", bundle: Self.bundle) : appState.serverURL)
                 .foregroundStyle(.gray)
 
             // ── Media info ──
@@ -824,11 +824,11 @@ struct JellyGoPlayerView: View {
             // ── Playback ──
             HStack(spacing: 4) {
                 if isLocal {
-                    Text("LOCAL PLAY").foregroundStyle(.cyan).bold()
+                    Text(String(localized: "LOCAL PLAY", bundle: Self.bundle)).foregroundStyle(.cyan).bold()
                 } else if vm.statsIsTranscoding {
-                    Text("TRANSCODE").foregroundStyle(.orange).bold()
+                    Text(String(localized: "TRANSCODE", bundle: Self.bundle)).foregroundStyle(.orange).bold()
                 } else {
-                    Text("DIRECT PLAY").foregroundStyle(.green).bold()
+                    Text(String(localized: "DIRECT PLAY", bundle: Self.bundle)).foregroundStyle(.green).bold()
                 }
                 if !vm.statsContainer.isEmpty && vm.statsContainer != "—" {
                     Text("· \(vm.statsContainer)").foregroundStyle(.white.opacity(0.5))
@@ -848,7 +848,7 @@ struct JellyGoPlayerView: View {
             HStack(spacing: 6) {
                 if isLocal {
                     Circle().fill(.cyan).frame(width: 6, height: 6)
-                    Text("Disk").foregroundStyle(.cyan)
+                    Text(String(localized: "Disk", bundle: Self.bundle)).foregroundStyle(.cyan)
                 } else {
                     let quality = Self.networkQuality(
                         inputBitrate: vm.statsBitrateMbps,
@@ -875,7 +875,7 @@ struct JellyGoPlayerView: View {
                     if rate > 0.005 { return .orange }
                     return .yellow
                 }()
-                Text("Dropped: \(vm.statsDroppedFrames) frames")
+                Text(String(format: String(localized: "Dropped: %lld frames", bundle: Self.bundle), Int64(vm.statsDroppedFrames)))
                     .foregroundStyle(dropColor.opacity(0.8))
             }
 
@@ -1011,7 +1011,7 @@ struct JellyGoPlayerView: View {
             // Header
             HStack {
                 if let se = item.parentIndexNumber {
-                    Text("Season \(se)")
+                    Text(String(format: String(localized: "Season %lld", bundle: Self.bundle), Int64(se)))
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
                 }
@@ -1146,7 +1146,7 @@ struct JellyGoPlayerView: View {
                     }
                     if let ticks = episode.runTimeTicks {
                         let mins = Int(ticks / 600_000_000)
-                        Text("\u{00B7} \(mins) min")
+                        Text("\u{00B7} " + String(format: String(localized: "%lld min", bundle: Self.bundle), Int64(mins)))
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.white.opacity(0.35))
                     }

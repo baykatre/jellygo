@@ -36,8 +36,9 @@ struct FallbackAsyncImage<Placeholder: View>: View {
             placeholder
         }
     }
-
 }
+
+
 
 // MARK: - Hero Banner
 
@@ -56,6 +57,7 @@ struct HeroBannerView: View {
     let serverURL: String
     var pullDown: CGFloat = 0
     var onPlay: (JellyfinItem) -> Void = { _ in }
+    var onTap: ((JellyfinItem) -> Void)? = nil
 
     // Two stable layers: A and B. One is "current", the other is "next".
     // On commit we toggle which is current — NO AsyncImage URL changes at snap time.
@@ -88,9 +90,6 @@ struct HeroBannerView: View {
         let nxtParallax = -progress * 20
 
         ZStack(alignment: .bottom) {
-            // Dominant color background
-            dominantColor.animation(.easeInOut(duration: 0.5), value: dominantColor)
-
             // Layer A — stable identity, never changes URL at snap time
             backdropLayer(item: items[indexA], size: size,
                           parallaxOffset: aIsCurrent ? curParallax : nxtParallax)
@@ -127,7 +126,8 @@ struct HeroBannerView: View {
         .padding(.bottom, -pullDown)
         .contentShape(Rectangle())
         .onTapGesture {
-            onPlay(items[currentItemIndex])
+            let item = items[currentItemIndex]
+            if let onTap { onTap(item) } else { onPlay(item) }
         }
         .gesture(items.count > 1 ? dragGesture(size: size) : nil)
         .onReceive(autoTimer) { now in
@@ -219,39 +219,60 @@ struct HeroBannerView: View {
 
     @ViewBuilder
     private func backdropLayer(item: JellyfinItem, size: CGSize, parallaxOffset: CGFloat = 0) -> some View {
-        VStack(spacing: 0) {
-            AsyncImage(url: bannerBackdropURL(item: item)) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                        .offset(x: parallaxOffset)
-                default:
-                    Color(white: 0.12)
-                }
+        let url = bannerBackdropURL(item: item)
+        let imgView = AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let image):
+                image.resizable().aspectRatio(contentMode: .fill)
+                    .offset(x: parallaxOffset)
+            default:
+                Color(white: 0.12)
             }
-            .frame(width: size.width, height: bannerImageHeight + pullDown)
-            .clipped()
+        }
 
-            Spacer(minLength: 0)
+        GeometryReader { geo in
+            // Reflection
+            imgView
+                .frame(width: geo.size.width, height: bannerImageHeight)
+                .clipped()
+                .scaleEffect(y: -1)
+                .offset(y: bannerImageHeight + pullDown)
+
+            // Original
+            imgView
+                .frame(width: geo.size.width, height: bannerImageHeight + pullDown)
+                .clipped()
         }
         .frame(width: size.width, height: size.height + pullDown)
+        .clipped()
     }
 
     @ViewBuilder
     private func gradientOverlay(size: CGSize) -> some View {
         ZStack(alignment: .bottom) {
-            // Progressive blur
-            VariableBlurView(startPoint: 0.45, endPoint: 0.7)
+            // Camsı blur
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.35),
+                            .init(color: .white, location: 0.75),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
 
-            // Subtle dark gradient for readability
+            // Hafif siyah fade (alttan)
             LinearGradient(
                 stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .clear, location: 0.4),
-                    .init(color: .black.opacity(0.3), location: 0.7),
-                    .init(color: .black.opacity(0.5), location: 1)
+                    .init(color: .clear, location: 0.6),
+                    .init(color: .black.opacity(0.4), location: 0.85),
+                    .init(color: .black.opacity(0.6), location: 1.0),
                 ],
-                startPoint: .top, endPoint: .bottom
+                startPoint: .top,
+                endPoint: .bottom
             )
         }
         .frame(width: size.width, height: size.height + pullDown)
@@ -669,18 +690,17 @@ extension BackdropCardView {
             return local
         }
         if item.isEpisode {
-            // Always try episode's own thumbnail first
-            return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: Int(width * 2))
+            // Episode thumbnail = "Thumb" image type in Jellyfin
+            return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Thumb", maxWidth: Int(width * 2))
         }
         return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: Int(width * 2))
             ?? JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, maxWidth: Int(width * 2))
     }
 
     private var backdropFallbackURL: URL? {
-        if item.isEpisode, let seriesId = item.seriesId {
-            // Fallback to series backdrop
-            return DownloadManager.localBackdropURL(itemId: seriesId)
-                ?? JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: seriesId, maxWidth: Int(width * 2))
+        if item.isEpisode {
+            // Fallback: try Primary, then series backdrop
+            return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: Int(width * 2))
         }
         return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, maxWidth: Int(width * 2))
     }

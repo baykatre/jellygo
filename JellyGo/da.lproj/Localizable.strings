@@ -59,7 +59,6 @@
 "%lld min" = "%lld min";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Opret forbindelse til din Jellyfin-server";
 "Server Address" = "Serveradresse";
 "Connect" = "Opret forbindelse";
 "Sign in" = "Log ind";
@@ -298,11 +297,54 @@
 "Explore" = "Udforsk";
 "Recently Added" = "Nyligt tilføjet";
 "Top Rated" = "Bedst bedømt";
+"Recently Added Movies" = "Nyligt tilføjede film";
+"Recently Added TV Shows" = "Nyligt tilføjede serier";
+"Top Rated Movies" = "Bedst bedømte film";
+"Top Rated TV Shows" = "Bedst bedømte serier";
 
 /* Player Extra */
 "Audio Language" = "Lydsprog";
 "On" = "Til";
 "Speed" = "Hastighed";
+
+/* Quick Connect */
+"Buffering" = "Indlæser";
+"Quick Connect" = "Quick Connect";
+"Waiting for approval\u{2026}" = "Venter på godkendelse\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "eller";
+"Authorize" = "Godkend";
+"Quick Connect Code" = "Quick Connect-kode";
+"Enter this code in your Jellyfin dashboard to sign in." = "Indtast denne kode i dit Jellyfin-dashboard for at logge ind.";
+"Enter the code shown on the device you want to authorize." = "Indtast koden vist på den enhed, du vil godkende.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Fjern alle downloadede episoder af \"%@\"?";
+"Sign out of %@?" = "Log ud af %@?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Denne applikation bruger TMDB og TMDB API'erne, men er ikke godkendt, certificeret eller på anden måde godkendt af TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "f.eks. Hjem, Fjern, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Etiket vist på startskærmens badge og kontobobler. Lad stå tom for at bruge serveradressen.";
+
+/* Stats HUD */
+"LOCAL FILE" = "LOKAL FIL";
+"LOCAL PLAY" = "LOKAL AFSPILNING";
+"TRANSCODE" = "TRANSKODNING";
+"DIRECT PLAY" = "DIREKTE AFSPILNING";
+"Disk" = "Disk";
+"Dropped: %lld frames" = "Tabte: %lld billeder";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld t %lld m";
+"%lld h" = "%lld t";
+"%lld m" = "%lld m";
+
+/* Player Season */
+"Season %lld" = "Sæson %lld";
 
 /* Detail */
 "MORE" = "MERE";

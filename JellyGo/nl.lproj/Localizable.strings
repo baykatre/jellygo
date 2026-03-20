@@ -59,7 +59,6 @@
 "%lld min" = "%lld min";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Verbinden met je Jellyfin-server";
 "Server Address" = "Serveradres";
 "Connect" = "Verbinden";
 "Sign in" = "Inloggen";
@@ -298,11 +297,54 @@
 "Explore" = "Ontdekken";
 "Recently Added" = "Onlangs toegevoegd";
 "Top Rated" = "Best beoordeeld";
+"Recently Added Movies" = "Onlangs toegevoegde films";
+"Recently Added TV Shows" = "Onlangs toegevoegde series";
+"Top Rated Movies" = "Best beoordeelde films";
+"Top Rated TV Shows" = "Best beoordeelde series";
 
 /* Player Extra */
 "Audio Language" = "Audiotaal";
 "On" = "Aan";
 "Speed" = "Snelheid";
+
+/* Quick Connect */
+"Buffering" = "Bufferen";
+"Quick Connect" = "Snel verbinden";
+"Waiting for approval\u{2026}" = "Wachten op goedkeuring\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "of";
+"Authorize" = "Autoriseren";
+"Quick Connect Code" = "Snelverbindingscode";
+"Enter this code in your Jellyfin dashboard to sign in." = "Voer deze code in op je Jellyfin-dashboard om in te loggen.";
+"Enter the code shown on the device you want to authorize." = "Voer de code in die wordt weergegeven op het apparaat dat je wilt autoriseren.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Alle gedownloade afleveringen van \"%@\" verwijderen?";
+"Sign out of %@?" = "Uitloggen bij %@?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Deze applicatie maakt gebruik van TMDB en de TMDB API's maar is niet goedgekeurd, gecertificeerd of anderszins geautoriseerd door TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "bijv. Thuis, Extern, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Label weergegeven op de startschermbadge en accountbubbels. Laat leeg om het serveradres te gebruiken.";
+
+/* Stats HUD */
+"LOCAL FILE" = "LOKAAL BESTAND";
+"LOCAL PLAY" = "LOKAAL AFSPELEN";
+"TRANSCODE" = "TRANSCODERING";
+"DIRECT PLAY" = "DIRECT AFSPELEN";
+"Disk" = "Schijf";
+"Dropped: %lld frames" = "Verloren: %lld frames";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld u %lld min";
+"%lld h" = "%lld u";
+"%lld m" = "%lld min";
+
+/* Player Season */
+"Season %lld" = "Seizoen %lld";
 
 /* Detail */
 "MORE" = "MEER";

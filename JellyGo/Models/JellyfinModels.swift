@@ -118,6 +118,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
     let providerIds: [String: String]?
     let endDate: String?
     let productionLocations: [String]?
+    let imageTags: [String: String]?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -147,6 +148,7 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
         case providerIds = "ProviderIds"
         case endDate = "EndDate"
         case productionLocations = "ProductionLocations"
+        case imageTags = "ImageTags"
     }
 
     var runtimeMinutes: Int? {
@@ -422,5 +424,6 @@ extension JellyfinItem {
         self.providerIds = nil
         self.endDate = nil
         self.productionLocations = nil
+        self.imageTags = nil
     }
 }

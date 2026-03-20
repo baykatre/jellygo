@@ -59,7 +59,6 @@
 "%lld min" = "%lld دقيقة";
 
 /* Auth */
-"Connect to your Jellyfin server" = "الاتصال بخادم Jellyfin الخاص بك";
 "Server Address" = "عنوان الخادم";
 "Connect" = "اتصال";
 "Sign in" = "تسجيل الدخول";
@@ -298,11 +297,54 @@
 "Explore" = "استكشاف";
 "Recently Added" = "أُضيف مؤخراً";
 "Top Rated" = "الأعلى تقييماً";
+"Recently Added Movies" = "أحدث الأفلام المضافة";
+"Recently Added TV Shows" = "أحدث المسلسلات المضافة";
+"Top Rated Movies" = "أفضل الأفلام تقييماً";
+"Top Rated TV Shows" = "أفضل المسلسلات تقييماً";
 
 /* Player Extra */
 "Audio Language" = "لغة الصوت";
 "On" = "تشغيل";
 "Speed" = "السرعة";
+
+/* Quick Connect */
+"Buffering" = "جارٍ التخزين المؤقت";
+"Quick Connect" = "اتصال سريع";
+"Waiting for approval\u{2026}" = "في انتظار الموافقة\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "أو";
+"Authorize" = "تفويض";
+"Quick Connect Code" = "رمز الاتصال السريع";
+"Enter this code in your Jellyfin dashboard to sign in." = "أدخل هذا الرمز في لوحة تحكم Jellyfin لتسجيل الدخول.";
+"Enter the code shown on the device you want to authorize." = "أدخل الرمز المعروض على الجهاز الذي تريد تفويضه.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "إزالة جميع الحلقات المحملة من \"%@\"؟";
+"Sign out of %@?" = "تسجيل الخروج من %@؟";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "يستخدم هذا التطبيق TMDB وواجهات TMDB البرمجية ولكنه غير معتمد أو موثق أو مصادق عليه من TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "مثال: المنزل، بعيد، VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "التسمية المعروضة في شارة الشاشة الرئيسية وفقاعات الحساب. اتركه فارغاً لاستخدام عنوان الخادم.";
+
+/* Stats HUD */
+"LOCAL FILE" = "ملف محلي";
+"LOCAL PLAY" = "تشغيل محلي";
+"TRANSCODE" = "تحويل";
+"DIRECT PLAY" = "تشغيل مباشر";
+"Disk" = "القرص";
+"Dropped: %lld frames" = "إطارات مفقودة: %lld";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld س %lld د";
+"%lld h" = "%lld س";
+"%lld m" = "%lld د";
+
+/* Player Season */
+"Season %lld" = "الموسم %lld";
 
 /* Detail */
 "MORE" = "المزيد";

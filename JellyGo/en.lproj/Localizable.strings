@@ -59,7 +59,6 @@
 "%lld min" = "%lld min";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Connect to your Jellyfin server";
 "Server Address" = "Server Address";
 "Connect" = "Connect";
 "Sign in" = "Sign in";
@@ -305,6 +304,45 @@
 "Audio Language" = "Audio Language";
 "On" = "On";
 "Speed" = "Speed";
+
+/* Quick Connect */
+"Buffering" = "Buffering";
+"Quick Connect" = "Quick Connect";
+"Waiting for approval\u{2026}" = "Waiting for approval\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "or";
+"Authorize" = "Authorize";
+"Quick Connect Code" = "Quick Connect Code";
+"Enter this code in your Jellyfin dashboard to sign in." = "Enter this code in your Jellyfin dashboard to sign in.";
+"Enter the code shown on the device you want to authorize." = "Enter the code shown on the device you want to authorize.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Remove all downloaded episodes of \"%@\"?";
+"Sign out of %@?" = "Sign out of %@?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "e.g. Home, Remote, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Label shown in the home screen badge and account bubbles. Leave empty to use the server address.";
+
+/* Stats HUD */
+"LOCAL FILE" = "LOCAL FILE";
+"LOCAL PLAY" = "LOCAL PLAY";
+"TRANSCODE" = "TRANSCODE";
+"DIRECT PLAY" = "DIRECT PLAY";
+"Disk" = "Disk";
+"Dropped: %lld frames" = "Dropped: %lld frames";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld h %lld m";
+"%lld h" = "%lld h";
+"%lld m" = "%lld m";
+
+/* Player Season */
+"Season %lld" = "Season %lld";
 
 /* Detail */
 "MORE" = "MORE";

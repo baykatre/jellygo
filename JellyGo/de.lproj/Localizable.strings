@@ -59,7 +59,6 @@
 "%lld min" = "%lld Min";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Mit Ihrem Jellyfin-Server verbinden";
 "Server Address" = "Serveradresse";
 "Connect" = "Verbinden";
 "Sign in" = "Anmelden";
@@ -298,11 +297,54 @@
 "Explore" = "Entdecken";
 "Recently Added" = "Kürzlich hinzugefügt";
 "Top Rated" = "Am besten bewertet";
+"Recently Added Movies" = "Kürzlich hinzugefügte Filme";
+"Recently Added TV Shows" = "Kürzlich hinzugefügte Serien";
+"Top Rated Movies" = "Bestbewertete Filme";
+"Top Rated TV Shows" = "Bestbewertete Serien";
 
 /* Player Extra */
 "Audio Language" = "Audiosprache";
 "On" = "Ein";
 "Speed" = "Geschwindigkeit";
+
+/* Quick Connect */
+"Buffering" = "Puffern";
+"Quick Connect" = "Schnellverbindung";
+"Waiting for approval\u{2026}" = "Warte auf Genehmigung\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "oder";
+"Authorize" = "Autorisieren";
+"Quick Connect Code" = "Schnellverbindungscode";
+"Enter this code in your Jellyfin dashboard to sign in." = "Geben Sie diesen Code in Ihrem Jellyfin-Dashboard ein, um sich anzumelden.";
+"Enter the code shown on the device you want to authorize." = "Geben Sie den Code ein, der auf dem zu autorisierenden Gerät angezeigt wird.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Alle heruntergeladenen Episoden von \"%@\" entfernen?";
+"Sign out of %@?" = "Von %@ abmelden?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Diese App verwendet TMDB und die TMDB-APIs, ist jedoch nicht von TMDB unterstützt, zertifiziert oder anderweitig genehmigt.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "z.B. Zuhause, Fernzugriff, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Beschriftung auf dem Startbildschirm-Badge und den Kontoblasen. Leer lassen, um die Serveradresse zu verwenden.";
+
+/* Stats HUD */
+"LOCAL FILE" = "LOKALE DATEI";
+"LOCAL PLAY" = "LOKALE WIEDERGABE";
+"TRANSCODE" = "TRANSKODIERUNG";
+"DIRECT PLAY" = "DIREKTWIEDERGABE";
+"Disk" = "Festplatte";
+"Dropped: %lld frames" = "Verworfen: %lld Bilder";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld Std %lld Min";
+"%lld h" = "%lld Std";
+"%lld m" = "%lld Min";
+
+/* Player Season */
+"Season %lld" = "Staffel %lld";
 
 /* Detail */
 "MORE" = "MEHR";

@@ -723,9 +723,9 @@ struct DownloadedSeriesDetailView: View {
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
         if hours > 0 {
-            return String(format: "%dh %dm", hours, minutes)
+            return String(format: String(localized: "%lld h %lld m", bundle: AppState.currentBundle), Int64(hours), Int64(minutes))
         }
-        return String(format: "%dm", minutes)
+        return String(format: String(localized: "%lld m", bundle: AppState.currentBundle), Int64(minutes))
     }
 
     private func formatBytes(_ bytes: Int64) -> String {

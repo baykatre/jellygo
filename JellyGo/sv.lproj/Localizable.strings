@@ -59,7 +59,6 @@
 "%lld min" = "%lld min";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Anslut till din Jellyfin-server";
 "Server Address" = "Serveradress";
 "Connect" = "Anslut";
 "Sign in" = "Logga in";
@@ -298,11 +297,54 @@
 "Explore" = "Utforska";
 "Recently Added" = "Nyligen tillagt";
 "Top Rated" = "Högst betyg";
+"Recently Added Movies" = "Nyligen tillagda filmer";
+"Recently Added TV Shows" = "Nyligen tillagda TV-serier";
+"Top Rated Movies" = "Filmer med högst betyg";
+"Top Rated TV Shows" = "TV-serier med högst betyg";
 
 /* Player Extra */
 "Audio Language" = "Ljudspråk";
 "On" = "På";
 "Speed" = "Hastighet";
+
+/* Quick Connect */
+"Buffering" = "Buffrar";
+"Quick Connect" = "Snabbanslutning";
+"Waiting for approval\u{2026}" = "Väntar på godkännande\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "eller";
+"Authorize" = "Auktorisera";
+"Quick Connect Code" = "Snabbanslutningskod";
+"Enter this code in your Jellyfin dashboard to sign in." = "Ange denna kod i din Jellyfin-panel för att logga in.";
+"Enter the code shown on the device you want to authorize." = "Ange koden som visas på enheten du vill auktorisera.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Ta bort alla nedladdade avsnitt av \"%@\"?";
+"Sign out of %@?" = "Logga ut från %@?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Denna applikation använder TMDB och TMDB API:er men är inte godkänd, certifierad eller på annat sätt godkänd av TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "t.ex. Hem, Fjärr, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Etikett som visas på hemskärmens märke och kontobubblor. Lämna tomt för att använda serveradressen.";
+
+/* Stats HUD */
+"LOCAL FILE" = "LOKAL FIL";
+"LOCAL PLAY" = "LOKAL UPPSPELNING";
+"TRANSCODE" = "TRANSKODNING";
+"DIRECT PLAY" = "DIREKTUPPSPELNING";
+"Disk" = "Disk";
+"Dropped: %lld frames" = "Tappade: %lld bildrutor";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld t %lld min";
+"%lld h" = "%lld t";
+"%lld m" = "%lld min";
+
+/* Player Season */
+"Season %lld" = "Säsong %lld";
 
 /* Detail */
 "MORE" = "MER";

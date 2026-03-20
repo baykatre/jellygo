@@ -59,7 +59,6 @@
 "%lld min" = "%lld min";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Conecte-se ao seu servidor Jellyfin";
 "Server Address" = "Endereço do servidor";
 "Connect" = "Conectar";
 "Sign in" = "Entrar";
@@ -298,11 +297,54 @@
 "Explore" = "Explorar";
 "Recently Added" = "Adicionados recentemente";
 "Top Rated" = "Mais bem avaliados";
+"Recently Added Movies" = "Filmes adicionados recentemente";
+"Recently Added TV Shows" = "Séries adicionadas recentemente";
+"Top Rated Movies" = "Filmes mais bem avaliados";
+"Top Rated TV Shows" = "Séries mais bem avaliadas";
 
 /* Player Extra */
 "Audio Language" = "Idioma do áudio";
 "On" = "Ligado";
 "Speed" = "Velocidade";
+
+/* Quick Connect */
+"Buffering" = "Carregando";
+"Quick Connect" = "Conexão rápida";
+"Waiting for approval\u{2026}" = "Aguardando aprovação\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "ou";
+"Authorize" = "Autorizar";
+"Quick Connect Code" = "Código de conexão rápida";
+"Enter this code in your Jellyfin dashboard to sign in." = "Digite este código no painel do Jellyfin para fazer login.";
+"Enter the code shown on the device you want to authorize." = "Digite o código mostrado no dispositivo que deseja autorizar.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Remover todos os episódios baixados de \"%@\"?";
+"Sign out of %@?" = "Sair de %@?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Este aplicativo usa o TMDB e as APIs do TMDB, mas não é endossado, certificado ou aprovado pelo TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "ex. Casa, Remoto, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Rótulo mostrado no emblema da tela inicial e bolhas de conta. Deixe vazio para usar o endereço do servidor.";
+
+/* Stats HUD */
+"LOCAL FILE" = "ARQUIVO LOCAL";
+"LOCAL PLAY" = "REPRODUÇÃO LOCAL";
+"TRANSCODE" = "TRANSCODIFICAÇÃO";
+"DIRECT PLAY" = "REPRODUÇÃO DIRETA";
+"Disk" = "Disco";
+"Dropped: %lld frames" = "Perdidos: %lld quadros";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld h %lld min";
+"%lld h" = "%lld h";
+"%lld m" = "%lld min";
+
+/* Player Season */
+"Season %lld" = "Temporada %lld";
 
 /* Detail */
 "MORE" = "MAIS";

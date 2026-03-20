@@ -4,6 +4,7 @@ struct ExploreView: View {
     @EnvironmentObject private var appState: AppState
     @ObservedObject var vm: ExploreViewModel
     @State private var heroPlayItem: JellyfinItem?
+    @State private var heroDetailItem: JellyfinItem?
     @State private var heroPullDown: CGFloat = 0
     @State private var titleOpacity: Double = 1
     @State private var isRefreshing = false
@@ -32,6 +33,9 @@ struct ExploreView: View {
                                     }
                                 }
                             },
+                            onTap: { item in
+                                heroDetailItem = item
+                            }
                         )
                     }
 
@@ -160,6 +164,9 @@ struct ExploreView: View {
             }
             .background(Color(.systemBackground).ignoresSafeArea())
             .navigationDestination(for: JellyfinItem.self) { item in
+                ExploreDetailWrapper(item: item)
+            }
+            .navigationDestination(item: $heroDetailItem) { item in
                 ExploreDetailWrapper(item: item)
             }
             .navigationDestination(for: ExploreBrowseDestination.self) { dest in

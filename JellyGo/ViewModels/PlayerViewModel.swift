@@ -339,7 +339,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                     premiereDate: item.premiereDate, mediaStreams: item.mediaStreams,
                     mediaSources: item.mediaSources, childCount: item.childCount,
                     providerIds: item.providerIds,
-                    endDate: item.endDate, productionLocations: item.productionLocations
+                    endDate: item.endDate, productionLocations: item.productionLocations, imageTags: item.imageTags
                 )
                 self.item = patched
             }

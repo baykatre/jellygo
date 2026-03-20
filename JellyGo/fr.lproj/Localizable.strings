@@ -59,7 +59,6 @@
 "%lld min" = "%lld min";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Connectez-vous à votre serveur Jellyfin";
 "Server Address" = "Adresse du serveur";
 "Connect" = "Connecter";
 "Sign in" = "Se connecter";
@@ -298,11 +297,54 @@
 "Explore" = "Explorer";
 "Recently Added" = "Ajoutés récemment";
 "Top Rated" = "Les mieux notés";
+"Recently Added Movies" = "Films ajoutés récemment";
+"Recently Added TV Shows" = "Séries ajoutées récemment";
+"Top Rated Movies" = "Films les mieux notés";
+"Top Rated TV Shows" = "Séries les mieux notées";
 
 /* Player Extra */
 "Audio Language" = "Langue audio";
 "On" = "Activé";
 "Speed" = "Vitesse";
+
+/* Quick Connect */
+"Buffering" = "Mise en mémoire tampon";
+"Quick Connect" = "Connexion rapide";
+"Waiting for approval\u{2026}" = "En attente d'approbation\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "ou";
+"Authorize" = "Autoriser";
+"Quick Connect Code" = "Code de connexion rapide";
+"Enter this code in your Jellyfin dashboard to sign in." = "Entrez ce code dans votre tableau de bord Jellyfin pour vous connecter.";
+"Enter the code shown on the device you want to authorize." = "Entrez le code affiché sur l'appareil que vous souhaitez autoriser.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Supprimer tous les épisodes téléchargés de \"%@\" ?";
+"Sign out of %@?" = "Se déconnecter de %@ ?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Cette application utilise TMDB et les API TMDB mais n'est pas approuvée, certifiée ou autrement validée par TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "ex. Maison, Distant, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Libellé affiché sur le badge de l'écran d'accueil et les bulles de compte. Laissez vide pour utiliser l'adresse du serveur.";
+
+/* Stats HUD */
+"LOCAL FILE" = "FICHIER LOCAL";
+"LOCAL PLAY" = "LECTURE LOCALE";
+"TRANSCODE" = "TRANSCODAGE";
+"DIRECT PLAY" = "LECTURE DIRECTE";
+"Disk" = "Disque";
+"Dropped: %lld frames" = "Perdues : %lld images";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld h %lld min";
+"%lld h" = "%lld h";
+"%lld m" = "%lld min";
+
+/* Player Season */
+"Season %lld" = "Saison %lld";
 
 /* Detail */
 "MORE" = "PLUS";

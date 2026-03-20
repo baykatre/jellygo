@@ -29,7 +29,7 @@ struct DownloadsView: View {
                             Image(systemName: "arrow.down.circle")
                                 .font(.system(size: 48))
                                 .foregroundStyle(.tertiary)
-                            Text("No Downloads")
+                            Text(String(localized: "No Downloads", bundle: AppState.currentBundle))
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                         }
@@ -87,7 +87,7 @@ struct DownloadsView: View {
                 Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { showDeleteSeriesConfirm = nil }
             } message: {
                 let name = dm.downloads.first { $0.seriesId == showDeleteSeriesConfirm }?.seriesName ?? ""
-                Text("Remove all downloaded episodes of \"\(name)\"?")
+                Text(String(format: String(localized: "Remove all downloaded episodes of \"%@\"?", bundle: AppState.currentBundle), name))
             }
             .alert(String(localized: "Delete Download?", bundle: AppState.currentBundle), isPresented: Binding(
                 get: { showDeleteMovieConfirm != nil },
@@ -100,7 +100,7 @@ struct DownloadsView: View {
                 Button(String(localized: "Cancel", bundle: AppState.currentBundle), role: .cancel) { showDeleteMovieConfirm = nil }
             } message: {
                 let name = dm.downloads.first { $0.id == showDeleteMovieConfirm }?.name ?? ""
-                Text("Remove \"\(name)\" from your downloads?")
+                Text(String(format: String(localized: "Remove \"%@\" from your downloads?", bundle: AppState.currentBundle), name))
             }
             .background(Color(.systemBackground).ignoresSafeArea())
         }
@@ -191,7 +191,7 @@ struct DownloadsView: View {
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
             childCount: nil, providerIds: nil,
-            endDate: nil, productionLocations: nil
+            endDate: nil, productionLocations: nil, imageTags: nil
         )
     }
 
@@ -207,7 +207,7 @@ struct DownloadsView: View {
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
             childCount: nil, providerIds: nil,
-            endDate: nil, productionLocations: nil
+            endDate: nil, productionLocations: nil, imageTags: nil
         )
     }
 
@@ -305,7 +305,7 @@ struct DownloadsView: View {
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
             childCount: nil, providerIds: nil,
-            endDate: nil, productionLocations: nil
+            endDate: nil, productionLocations: nil, imageTags: nil
         )
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {

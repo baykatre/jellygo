@@ -56,7 +56,7 @@ struct OfflineView: View {
                         genres: dl.genres, officialRating: dl.officialRating, taglines: nil, people: nil,
                         premiereDate: nil, mediaStreams: nil, mediaSources: nil,
                         childCount: nil, providerIds: nil,
-                        endDate: nil, productionLocations: nil
+                        endDate: nil, productionLocations: nil, imageTags: nil
                     ))
                 }
             }
@@ -137,7 +137,7 @@ struct OfflineView: View {
                         genres: dl.genres, officialRating: dl.officialRating, taglines: nil, people: nil,
                         premiereDate: nil, mediaStreams: nil, mediaSources: nil,
                         childCount: nil, providerIds: nil,
-                        endDate: nil, productionLocations: nil
+                        endDate: nil, productionLocations: nil, imageTags: nil
                     )
                 }
                 itemsByType["Series", default: []].append(item)

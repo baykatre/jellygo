@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		045DAB632F6C4B6500F6A50B /* KSPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F6A7B800000002 /* KSPlayer */; };
 		BB1B2C3D4E5F6A7B8C9D0E1F /* MobileVLCKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA1B2C3D4E5F6A7B8C9D0E1F /* MobileVLCKit.xcframework */; };
 		CC1B2C3D4E5F6A7B8C9D0E1F /* MobileVLCKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AA1B2C3D4E5F6A7B8C9D0E1F /* MobileVLCKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -24,8 +25,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
-
-
 
 /* Begin PBXFileReference section */
 		045AD0762F5CCFC5003D29D1 /* JellyGo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JellyGo.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -45,6 +44,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				045DAB632F6C4B6500F6A50B /* KSPlayer in Frameworks */,
 				BB1B2C3D4E5F6A7B8C9D0E1F /* MobileVLCKit.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

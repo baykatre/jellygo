@@ -171,8 +171,8 @@ final class ItemDetailViewModel: ObservableObject {
         await load(item: item, appState: appState)
     }
 
-    func loadEpisodes(seasonId: String, appState: AppState) async {
-        guard episodes[seasonId] == nil else { return }
+    func loadEpisodes(seasonId: String, appState: AppState, forceRefresh: Bool = false) async {
+        guard forceRefresh || episodes[seasonId] == nil else { return }
         // Offline: episodes already populated by loadOfflineData
         guard NetworkMonitor.shared.isConnected else { return }
         do {
@@ -302,7 +302,7 @@ final class ItemDetailViewModel: ObservableObject {
                 genres: nil, officialRating: nil, taglines: nil, people: nil,
                 premiereDate: nil, mediaStreams: nil, mediaSources: nil,
                 childCount: grouped[num]?.count, providerIds: nil,
-                endDate: nil, productionLocations: nil
+                endDate: nil, productionLocations: nil, imageTags: nil
             )
         }
 
@@ -362,7 +362,7 @@ final class ItemDetailViewModel: ObservableObject {
                     genres: nil, officialRating: nil, taglines: nil, people: nil,
                     premiereDate: nil, mediaStreams: nil, mediaSources: nil,
                     childCount: grouped[num]?.count, providerIds: nil,
-                    endDate: nil, productionLocations: nil
+                    endDate: nil, productionLocations: nil, imageTags: nil
                 )
             }
 

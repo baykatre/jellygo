@@ -59,7 +59,6 @@
 "%lld min" = "%lld dk";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Jellyfin sunucunuza bağlanın";
 "Server Address" = "Sunucu Adresi";
 "Connect" = "Bağlan";
 "Sign in" = "Giriş yapın";
@@ -305,6 +304,45 @@
 "Audio Language" = "Ses Dili";
 "On" = "Açık";
 "Speed" = "Hız";
+
+/* Quick Connect */
+"Buffering" = "Arabelleğe alınıyor";
+"Quick Connect" = "Hızlı Bağlantı";
+"Waiting for approval\u{2026}" = "Onay bekleniyor\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "veya";
+"Authorize" = "Yetkilendir";
+"Quick Connect Code" = "Quick Connect Kodu";
+"Enter this code in your Jellyfin dashboard to sign in." = "Bu kodu oturum açmak için Jellyfin kontrol paneline girin.";
+"Enter the code shown on the device you want to authorize." = "Yetkilendirmek istediğiniz cihazda gösterilen kodu girin.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "\"%@\" dizisinin tüm indirilen bölümleri kaldırılsın mı?";
+"Sign out of %@?" = "%@ oturumu kapatılsın mı?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Bu uygulama TMDB ve TMDB API'lerini kullanır ancak TMDB tarafından onaylanmamış, sertifikalandırılmamış veya desteklenmemiştir.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "ör. Ev, Uzak, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Ana ekran rozetinde ve hesap balonlarında gösterilen etiket. Sunucu adresini kullanmak için boş bırakın.";
+
+/* Stats HUD */
+"LOCAL FILE" = "YEREL DOSYA";
+"LOCAL PLAY" = "YEREL OYNATMA";
+"TRANSCODE" = "DÖNÜŞTÜRME";
+"DIRECT PLAY" = "DOĞRUDAN OYNATMA";
+"Disk" = "Disk";
+"Dropped: %lld frames" = "Atlanan: %lld kare";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld sa %lld dk";
+"%lld h" = "%lld sa";
+"%lld m" = "%lld dk";
+
+/* Player Season */
+"Season %lld" = "Sezon %lld";
 
 /* Detail */
 "MORE" = "DAHA FAZLA";

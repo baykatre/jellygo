@@ -59,7 +59,6 @@
 "%lld min" = "%lld dəq";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Jellyfin serverinizə qoşulun";
 "Server Address" = "Server ünvanı";
 "Connect" = "Qoşul";
 "Sign in" = "Daxil ol";
@@ -298,11 +297,54 @@
 "Explore" = "Kəşf et";
 "Recently Added" = "Son əlavə edilənlər";
 "Top Rated" = "Ən yüksək reytinqli";
+"Recently Added Movies" = "Son əlavə edilən filmlər";
+"Recently Added TV Shows" = "Son əlavə edilən seriallar";
+"Top Rated Movies" = "Ən yüksək reytinqli filmlər";
+"Top Rated TV Shows" = "Ən yüksək reytinqli seriallar";
 
 /* Player Extra */
 "Audio Language" = "Səs dili";
 "On" = "Açıq";
 "Speed" = "Sürət";
+
+/* Quick Connect */
+"Buffering" = "Yüklənir";
+"Quick Connect" = "Sürətli Qoşulma";
+"Waiting for approval\u{2026}" = "Təsdiq gözlənilir\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "və ya";
+"Authorize" = "İcazə ver";
+"Quick Connect Code" = "Sürətli Qoşulma Kodu";
+"Enter this code in your Jellyfin dashboard to sign in." = "Daxil olmaq üçün bu kodu Jellyfin idarə panelinə daxil edin.";
+"Enter the code shown on the device you want to authorize." = "İcazə vermək istədiyiniz cihazda göstərilən kodu daxil edin.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "\"%@\" serialının bütün yüklənmiş epizodları silinsin?";
+"Sign out of %@?" = "%@ hesabından çıxılsın?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Bu tətbiq TMDB və TMDB API-lərindən istifadə edir, lakin TMDB tərəfindən təsdiqlənməyib.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "məs. Ev, Uzaq, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Ana ekran nişanında və hesab baloncuqlarında göstərilən etiket. Server ünvanını istifadə etmək üçün boş buraxın.";
+
+/* Stats HUD */
+"LOCAL FILE" = "LOKAL FAYL";
+"LOCAL PLAY" = "LOKAL OXUTMA";
+"TRANSCODE" = "TRANSKOD";
+"DIRECT PLAY" = "BİRBAŞA OXUTMA";
+"Disk" = "Disk";
+"Dropped: %lld frames" = "Atılan: %lld kadr";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld s %lld d";
+"%lld h" = "%lld s";
+"%lld m" = "%lld d";
+
+/* Player Season */
+"Season %lld" = "Sezon %lld";
 
 /* Detail */
 "MORE" = "DAVAMI";

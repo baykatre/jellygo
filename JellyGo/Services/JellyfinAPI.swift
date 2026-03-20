@@ -197,10 +197,10 @@ final class JellyfinAPI {
     func getItemDetails(serverURL: String, itemId: String, userId: String, token: String) async throws -> JellyfinItem {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         let url = try buildURL(base, path: "Users/\(userId)/Items/\(itemId)", queryItems: [
-            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CommunityRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,EndDate,ProductionLocations,MediaStreams,MediaSources,ChildCount,ProviderIds")
+            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CommunityRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,EndDate,ProductionLocations,MediaStreams,MediaSources,ChildCount,ProviderIds,ImageTags")
         ])
         let req = baseRequest(url: url, token: token)
-        let data = try await perform(req, cacheTTL: 6 * 3600)   // 6 saat
+        let data = try await perform(req)
         return try decode(JellyfinItem.self, from: data)
     }
 
@@ -219,7 +219,39 @@ final class JellyfinAPI {
         var req = baseRequest(url: url, token: token)
         req.httpMethod = played ? "POST" : "DELETE"
         _ = try await perform(req)
+
+        // When marking as unwatched, also reset playback position
+        if !played {
+            try? await resetPlaybackPosition(serverURL: serverURL, itemId: itemId, userId: userId, token: token)
+        }
+
         APICache.shared.invalidate(itemId: itemId)
+    }
+
+    func resetPlaybackPosition(serverURL: String, itemId: String, userId: String, token: String) async throws {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+
+        // 1. Report playback start
+        let startURL = base.appendingPathComponent("Sessions/Playing")
+        var startReq = baseRequest(url: startURL, token: token)
+        startReq.httpMethod = "POST"
+        startReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        startReq.httpBody = try JSONSerialization.data(withJSONObject: [
+            "ItemId": itemId,
+            "PositionTicks": 0
+        ])
+        _ = try? await perform(startReq)
+
+        // 2. Report playback stopped at 0
+        let stopURL = base.appendingPathComponent("Sessions/Playing/Stopped")
+        var stopReq = baseRequest(url: stopURL, token: token)
+        stopReq.httpMethod = "POST"
+        stopReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        stopReq.httpBody = try JSONSerialization.data(withJSONObject: [
+            "ItemId": itemId,
+            "PositionTicks": 0
+        ])
+        _ = try? await perform(stopReq)
     }
 
     func personImageURL(serverURL: String, person: JellyfinPerson, maxWidth: Int = 200) -> URL? {
@@ -265,7 +297,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "StartIndex", value: "\(startIndex)"),
             URLQueryItem(name: "Limit", value: "\(limit)"),
             URLQueryItem(name: "Recursive", value: recursive ? "true" : "false"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags")
         ]
         if let parentId { queryItems.append(URLQueryItem(name: "ParentId", value: parentId)) }
         if let types = itemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
@@ -273,11 +305,7 @@ final class JellyfinAPI {
         if let genres, !genres.isEmpty { queryItems.append(URLQueryItem(name: "Genres", value: genres.joined(separator: ","))) }
         let url = try buildURL(base, path: "Users/\(userId)/Items", queryItems: queryItems)
         let req = baseRequest(url: url, token: token)
-        // IsFavorite listesi dinamik; diğerleri cache'lenebilir
-        let ttl: TimeInterval? = filters == "IsFavorite" ? nil
-                               : sortBy == "Random"      ? 30 * 60   // 30 dakika
-                               :                           3600       // 1 saat
-        let data = try await perform(req, cacheTTL: ttl)
+        let data = try await perform(req)
         return try decode(JellyfinItemsResponse.self, from: data)
     }
 
@@ -285,7 +313,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         let url = try buildURL(base, path: "Users/\(userId)/Items/Resume", queryItems: [
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating"),
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags"),
             URLQueryItem(name: "MediaTypes", value: "Video")
         ])
         let req = baseRequest(url: url, token: token)
@@ -298,7 +326,7 @@ final class JellyfinAPI {
         let url = try buildURL(base, path: "Shows/NextUp", queryItems: [
             URLQueryItem(name: "UserId", value: userId),
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags")
         ])
         let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
@@ -309,7 +337,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "Limit", value: "16"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags")
         ]
         if let libraryId { queryItems.append(URLQueryItem(name: "ParentId", value: libraryId)) }
         if let types = includeItemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }

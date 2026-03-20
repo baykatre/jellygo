@@ -59,7 +59,6 @@
 "%lld min" = "%lld 分钟";
 
 /* Auth */
-"Connect to your Jellyfin server" = "连接到您的 Jellyfin 服务器";
 "Server Address" = "服务器地址";
 "Connect" = "连接";
 "Sign in" = "登录";
@@ -298,11 +297,54 @@
 "Explore" = "探索";
 "Recently Added" = "最近添加";
 "Top Rated" = "最高评分";
+"Recently Added Movies" = "最近添加的电影";
+"Recently Added TV Shows" = "最近添加的剧集";
+"Top Rated Movies" = "最高评分电影";
+"Top Rated TV Shows" = "最高评分剧集";
 
 /* Player Extra */
 "Audio Language" = "音频语言";
 "On" = "开启";
 "Speed" = "速度";
+
+/* Quick Connect */
+"Buffering" = "缓冲中";
+"Quick Connect" = "快速连接";
+"Waiting for approval\u{2026}" = "等待审批\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "或";
+"Authorize" = "授权";
+"Quick Connect Code" = "快速连接代码";
+"Enter this code in your Jellyfin dashboard to sign in." = "在 Jellyfin 控制面板中输入此代码以登录。";
+"Enter the code shown on the device you want to authorize." = "输入要授权的设备上显示的代码。";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "删除\"%@\"的所有已下载剧集？";
+"Sign out of %@?" = "退出 %@？";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "本应用使用 TMDB 和 TMDB API，但未经 TMDB 认可、认证或以其他方式批准。";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "例如：家庭、远程、VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "显示在主屏幕徽章和账户气泡中的标签。留空以使用服务器地址。";
+
+/* Stats HUD */
+"LOCAL FILE" = "本地文件";
+"LOCAL PLAY" = "本地播放";
+"TRANSCODE" = "转码";
+"DIRECT PLAY" = "直接播放";
+"Disk" = "磁盘";
+"Dropped: %lld frames" = "丢帧：%lld 帧";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld小时%lld分钟";
+"%lld h" = "%lld小时";
+"%lld m" = "%lld分钟";
+
+/* Player Season */
+"Season %lld" = "第%lld季";
 
 /* Detail */
 "MORE" = "更多";

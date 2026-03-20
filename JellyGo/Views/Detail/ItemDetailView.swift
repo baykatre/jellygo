@@ -200,14 +200,31 @@ struct ItemDetailView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .playbackStopped)) { _ in
             Task {
-                if NetworkMonitor.shared.isConnected,
-                   let updated = try? await JellyfinAPI.shared.getItemDetails(
+                guard NetworkMonitor.shared.isConnected else { return }
+
+                // Invalidate cache so we get fresh data
+                APICache.shared.invalidate(itemId: activeItem.id)
+                if item.isSeries { APICache.shared.invalidate(itemId: item.id) }
+
+                // Refresh current item details
+                if let updated = try? await JellyfinAPI.shared.getItemDetails(
                     serverURL: appState.serverURL,
                     itemId: activeItem.id,
                     userId: appState.userId,
                     token: appState.token
                 ) {
                     activeItem = updated
+                    vm.fullItem = nil // force displayItem to use updated activeItem
+                }
+
+                // Refresh episodes list (progress bars)
+                if let sid = selectedSeason?.id {
+                    await vm.loadEpisodes(seasonId: sid, appState: appState, forceRefresh: true)
+                }
+
+                // Refresh series-level data (play button state)
+                if item.isSeries {
+                    await vm.load(item: item, appState: appState)
                 }
             }
         }
@@ -294,10 +311,18 @@ struct ItemDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: 0).id("detailTop")
             ZStack(alignment: .bottom) {
-                // Dominant color fills entire backdrop area
-                backdropDominantColor
+                // Reflection (behind original, bottom area)
+                GeometryReader { geo in
+                    backdropImage
+                        .frame(width: geo.size.width, height: imageHeight)
+                        .clipped()
+                        .scaleEffect(y: -1)
+                        .offset(y: imageHeight)
+                }
+                .frame(height: backdropHeight)
+                .clipped()
 
-                // Backdrop image with parallax — only imageHeight tall
+                // Original with parallax — top aligned
                 GeometryReader { geo in
                     let minY = geo.frame(in: .named("detailScroll")).minY
                     let stretch = max(0, minY)
@@ -309,7 +334,7 @@ struct ItemDetailView: View {
                 .frame(height: imageHeight)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                // Gradient overlay + title + buttons
+                // Title + buttons overlay
                 backdropOverlayContent
             }
             .frame(height: backdropHeight)
@@ -363,16 +388,26 @@ struct ItemDetailView: View {
 
     private var backdropOverlayContent: some View {
         ZStack(alignment: .bottom) {
-            // Progressive blur
-            VariableBlurView(startPoint: 0.35, endPoint: 0.6)
+            // Camsı blur
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.35),
+                            .init(color: .white, location: 0.75),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
 
-            // Subtle dark gradient for readability
+            // Hafif siyah fade (alttan)
             LinearGradient(
                 stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .clear, location: 0.4),
-                    .init(color: .black.opacity(0.3), location: 0.7),
-                    .init(color: .black.opacity(0.5), location: 1)
+                    .init(color: .clear, location: 0.6),
+                    .init(color: .black.opacity(0.4), location: 0.85),
+                    .init(color: .black.opacity(0.6), location: 1.0),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -521,11 +556,11 @@ struct ItemDetailView: View {
             let h = mins / 60
             let m = mins % 60
             if h > 0 && m > 0 {
-                parts.append("\(h)h \(m)m")
+                parts.append(String(format: String(localized: "%lld h %lld m", bundle: AppState.currentBundle), Int64(h), Int64(m)))
             } else if h > 0 {
-                parts.append("\(h)h")
+                parts.append(String(format: String(localized: "%lld h", bundle: AppState.currentBundle), Int64(h)))
             } else {
-                parts.append("\(m)m")
+                parts.append(String(format: String(localized: "%lld m", bundle: AppState.currentBundle), Int64(m)))
             }
         }
 
@@ -636,7 +671,7 @@ struct ItemDetailView: View {
                                     .font(.system(size: 15))
                                     .foregroundStyle(isDirect ? .green : .secondary)
                                     .frame(width: 24)
-                                Text(isDirect ? "Direct Stream" : q.rawValue)
+                                Text(isDirect ? String(localized: "Direct Stream", bundle: AppState.currentBundle) : q.rawValue)
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(isDirect ? .green : .primary)
                                 Spacer()

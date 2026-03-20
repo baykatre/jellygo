@@ -59,7 +59,6 @@
 "%lld min" = "%lld мин";
 
 /* Auth */
-"Connect to your Jellyfin server" = "Подключиться к серверу Jellyfin";
 "Server Address" = "Адрес сервера";
 "Connect" = "Подключиться";
 "Sign in" = "Войти";
@@ -298,11 +297,54 @@
 "Explore" = "Обзор";
 "Recently Added" = "Недавно добавленные";
 "Top Rated" = "С лучшими оценками";
+"Recently Added Movies" = "Недавно добавленные фильмы";
+"Recently Added TV Shows" = "Недавно добавленные сериалы";
+"Top Rated Movies" = "Лучшие фильмы по оценкам";
+"Top Rated TV Shows" = "Лучшие сериалы по оценкам";
 
 /* Player Extra */
 "Audio Language" = "Язык аудио";
 "On" = "Вкл";
 "Speed" = "Скорость";
+
+/* Quick Connect */
+"Buffering" = "Буферизация";
+"Quick Connect" = "Быстрое подключение";
+"Waiting for approval\u{2026}" = "Ожидание одобрения\u{2026}";
+
+/* Quick Connect Extended */
+"or" = "или";
+"Authorize" = "Авторизовать";
+"Quick Connect Code" = "Код быстрого подключения";
+"Enter this code in your Jellyfin dashboard to sign in." = "Введите этот код в панели управления Jellyfin для входа.";
+"Enter the code shown on the device you want to authorize." = "Введите код, отображаемый на устройстве, которое хотите авторизовать.";
+
+/* Alert Messages */
+"Remove all downloaded episodes of \"%@\"?" = "Удалить все загруженные эпизоды \"%@\"?";
+"Sign out of %@?" = "Выйти из %@?";
+
+/* TMDB */
+"This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." = "Это приложение использует TMDB и API TMDB, но не одобрено, сертифицировано или иным образом утверждено TMDB.";
+
+/* Alias */
+"e.g. Home, Remote, VPN\u{2026}" = "напр. Дом, Удалённый, VPN\u{2026}";
+"Label shown in the home screen badge and account bubbles. Leave empty to use the server address." = "Метка на значке главного экрана и в пузырях аккаунтов. Оставьте пустым, чтобы использовать адрес сервера.";
+
+/* Stats HUD */
+"LOCAL FILE" = "ЛОКАЛЬНЫЙ ФАЙЛ";
+"LOCAL PLAY" = "ЛОКАЛЬНОЕ ВОСПРОИЗВЕДЕНИЕ";
+"TRANSCODE" = "ТРАНСКОДИРОВАНИЕ";
+"DIRECT PLAY" = "ПРЯМОЕ ВОСПРОИЗВЕДЕНИЕ";
+"Disk" = "Диск";
+"Dropped: %lld frames" = "Потеряно: %lld кадров";
+
+/* Time Formats */
+"%lld h %lld m" = "%lld ч %lld мин";
+"%lld h" = "%lld ч";
+"%lld m" = "%lld мин";
+
+/* Player Season */
+"Season %lld" = "Сезон %lld";
 
 /* Detail */
 "MORE" = "ЕЩЁ";
