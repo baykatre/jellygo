@@ -382,7 +382,7 @@ struct JellyGoPlayerView: View {
             // Ensure subtitle fetch completes before we consider player ready
             _ = await (subtitleTask, episodeTask)
         }
-        .onDisappear { vm.stop() }
+        .onDisappear { vm.stop() }  // vm.stop() is a no-op when PiP is active
         .onAppear {
             // Orientation already set before fullScreenCover presentation
             scheduleHide()
@@ -464,6 +464,12 @@ struct JellyGoPlayerView: View {
                         showEpisodeList.toggle()
                     }
                     if showEpisodeList { stopTimer() } else { pokeTimer() }
+                }
+            }
+
+            if vm.isPipSupported {
+                sfGlassButton(vm.isPipActive ? "pip.exit" : "pip.enter") {
+                    vm.togglePip()
                 }
             }
         }

@@ -61,6 +61,24 @@ protocol PlayerEngineBackend: AnyObject {
     /// True if the engine's primary player can't handle MKV/WebM containers natively
     /// and needs server-side remux to MP4.
     var needsContainerRemux: Bool { get }
+
+    // MARK: - Picture-in-Picture
+
+    /// True if this engine supports PiP on the current platform.
+    var isPipSupported: Bool { get }
+
+    /// True if PiP is currently active.
+    var isPipActive: Bool { get }
+
+    /// Start Picture-in-Picture playback.
+    func startPip()
+
+    /// Stop Picture-in-Picture playback.
+    func stopPip()
+
+    /// Called when PiP ends externally (user dismissed PiP window).
+    /// Engine should notify delegate so ViewModel can clean up.
+    var onPipStopped: (() -> Void)? { get set }
 }
 
 // MARK: - Player Engine Delegate

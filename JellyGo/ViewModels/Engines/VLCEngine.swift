@@ -22,6 +22,7 @@ private final class VLCDelegateBridge: NSObject, VLCMediaPlayerDelegate {
 final class VLCEngine: PlayerEngineBackend {
     let player = VLCMediaPlayer()
     weak var delegate: PlayerEngineDelegate?
+    var onPipStopped: (() -> Void)?
 
     private let bridge = VLCDelegateBridge()
     private let logSniffer = VLCDecoderLogSniffer()
@@ -296,6 +297,13 @@ final class VLCEngine: PlayerEngineBackend {
     @MainActor func makeVideoSurface() -> AnyView {
         AnyView(VLCVideoSurface(player: player))
     }
+
+    // MARK: - Picture-in-Picture
+
+    var isPipSupported: Bool { false }
+    var isPipActive: Bool { false }
+    func startPip() {}
+    func stopPip() {}
 
     // MARK: - Capabilities
 

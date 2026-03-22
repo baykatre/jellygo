@@ -2,11 +2,13 @@
 import SwiftUI
 import KSPlayer
 import AVFoundation
+import AVKit
 
 // MARK: - KS Engine
 
 final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     weak var delegate: PlayerEngineDelegate?
+    var onPipStopped: (() -> Void)?
 
     private var playerLayer: KSPlayerLayer?
     private var shouldDisableSubs = false
@@ -17,6 +19,10 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     private var _videoSize: CGSize = .zero
     /// Persistent container view — player.view is added/removed dynamically
     private let containerView = KSPassthroughView()
+    /// Shared KS options instance — kept alive for PiP display-layer toggling.
+    private var currentOptions: JellyGoKSOptions?
+    /// KVO observation on AVPictureInPictureController.isPictureInPictureActive.
+    private var pipObservation: NSKeyValueObservation?
 
     override init() {
         super.init()
@@ -39,9 +45,22 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
         }
 
         shouldDisableSubs = options["disableSubs"] as? Bool ?? false
+        currentOptions = ksOptions
 
         let layer = KSPlayerLayer(url: url, options: ksOptions, delegate: self)
         self.playerLayer = layer
+
+        // Observe AVPictureInPictureController.isPictureInPictureActive via KVO
+        // to detect when PiP ends externally (user dismisses PiP window).
+        if let pip = layer.player.pipController {
+            pipObservation = pip.observe(\.isPictureInPictureActive, options: [.new]) { [weak self] _, change in
+                guard let self, let active = change.newValue, !active else { return }
+                DispatchQueue.main.async {
+                    self.currentOptions?.pipActive = false
+                    self.onPipStopped?()
+                }
+            }
+        }
 
         // Attach player's rendering view to the persistent container synchronously
         containerView.subviews.forEach { $0.removeFromSuperview() }
@@ -60,8 +79,11 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     }
 
     func stop() {
+        currentOptions?.pipActive = false
+        pipObservation = nil
         playerLayer?.stop()
         playerLayer = nil
+        currentOptions = nil
         containerView.subviews.forEach { $0.removeFromSuperview() }
         _isPlaying = false
         _position = 0
@@ -201,6 +223,35 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
         AnyView(KSVideoSurface(containerView: containerView))
     }
 
+    // MARK: - Picture-in-Picture
+
+    var isPipSupported: Bool {
+        guard let playerLayer else { return false }
+        return playerLayer.player.pipController != nil
+    }
+
+    var isPipActive: Bool {
+        playerLayer?.player.pipController?.isPictureInPictureActive ?? false
+    }
+
+    func startPip() {
+        guard let playerLayer, let pip = playerLayer.player.pipController else { return }
+        // For KSMEPlayer with Metal rendering: switch to display-layer mode so frames
+        // flow through AVSampleBufferDisplayLayer which PiP reads from.
+        currentOptions?.pipActive = true
+        // Directly call AVPictureInPictureController.startPictureInPicture()
+        // instead of going through KSPlayerLayer.isPipActive which sends app to background.
+        pip.delegate = playerLayer
+        pip.startPictureInPicture()
+    }
+
+    func stopPip() {
+        currentOptions?.pipActive = false
+        if let pip = playerLayer?.player.pipController {
+            pip.stopPictureInPicture()
+        }
+    }
+
     // MARK: - Capabilities
 
     var needsDoviTranscode: Bool { true }  // DOVI RPU tone mapping not implemented
@@ -320,15 +371,19 @@ final class KSPassthroughView: UIView {
 // MARK: - Custom KSOptions (force HW decode, skip rotation SW fallback)
 
 final class JellyGoKSOptions: KSOptions {
+    /// When true, routes frames through AVSampleBufferDisplayLayer for PiP support.
+    nonisolated(unsafe) var pipActive = false
+
     nonisolated override init() {
         super.init()
         autoRotate = false
         autoSelectEmbedSubtitle = false
     }
 
-    /// Use Metal renderer — fixes VideoToolbox frame timing jank on 4K.
+    /// Use Metal renderer normally — but switch to display layer when PiP is active
+    /// so AVSampleBufferDisplayLayer receives frames for the PiP window.
     nonisolated override func isUseDisplayLayer() -> Bool {
-        false
+        pipActive
     }
 
     /// Force HW decode — Metal renderer handles rotation, no need for SW FFmpeg filters.
@@ -347,6 +402,7 @@ import SwiftUI
 /// Stub KSEngine when KSPlayer SPM package is not available.
 final class KSEngine: NSObject, PlayerEngineBackend {
     weak var delegate: PlayerEngineDelegate?
+    var onPipStopped: (() -> Void)?
 
     func play(url: URL, startTimeMs: Int32, options: [String: Any]) {
         DispatchQueue.main.async {
@@ -384,6 +440,11 @@ final class KSEngine: NSObject, PlayerEngineBackend {
     @MainActor func makeVideoSurface() -> AnyView {
         AnyView(Color.black)
     }
+
+    var isPipSupported: Bool { false }
+    var isPipActive: Bool { false }
+    func startPip() {}
+    func stopPip() {}
 
     var needsDoviTranscode: Bool { true }  // DOVI RPU tone mapping not implemented
     var needsManualResumeSeek: Bool { true }

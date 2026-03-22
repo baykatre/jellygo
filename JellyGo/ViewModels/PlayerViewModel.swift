@@ -132,6 +132,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         engine.setBrightnessBoost(clamped)
     }
 
+    @Published var isPipActive = false
     @Published var isLocal = false
     /// When true, engine subtitle rendering is disabled at media load (JellyGo player manages its own).
     var disableEngineSubtitlesFlag = false
@@ -191,6 +192,11 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             statsEngineLabel = "KSPlayer \u{00B7} init"
         }
         engine.delegate = self
+        engine.onPipStopped = { [weak self] in
+            DispatchQueue.main.async {
+                self?.handlePipStopped()
+            }
+        }
     }
 
     // MARK: - PlayerEngineDelegate
@@ -277,6 +283,48 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
     @MainActor func makeVideoSurface() -> AnyView {
         engine.makeVideoSurface()
+    }
+
+    // MARK: - Picture-in-Picture
+
+    var isPipSupported: Bool { engine.isPipSupported }
+
+    func togglePip() {
+        if engine.isPipActive {
+            engine.stopPip()
+            isPipActive = false
+        } else {
+            engine.startPip()
+            isPipActive = true
+        }
+    }
+
+    /// Called when PiP ends externally (user dismissed the PiP window).
+    private func handlePipStopped() {
+        guard isPipActive else { return }
+        isPipActive = false
+        // PiP ended — perform the deferred stop (cleanup, report to server)
+        positionTimer?.cancel()
+        metricsTimer?.cancel()
+        engine.stop()
+        NowPlayingManager.shared.clearNowPlaying()
+        guard let item, let appState else { return }
+
+        let ticks = Int64(Double(position) * Double(item.runTimeTicks ?? 0))
+        if currentSeconds > 2 {
+            LocalPlaybackStore.savePosition(currentSeconds, for: item.id)
+        }
+
+        Task {
+            if NetworkMonitor.shared.isConnected {
+                await JellyfinAPI.shared.reportPlaybackStopped(
+                    serverURL: appState.serverURL, itemId: item.id,
+                    positionTicks: ticks, token: appState.token)
+            }
+            await MainActor.run {
+                NotificationCenter.default.post(name: .playbackStopped, object: nil)
+            }
+        }
     }
 
     // MARK: - Disable Engine Subtitles
@@ -675,6 +723,8 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     }
 
     func stop() {
+        // If PiP is active, don't tear down — playback continues in PiP window
+        if engine.isPipActive { return }
         positionTimer?.cancel()
         metricsTimer?.cancel()
         engine.stop()
