@@ -164,8 +164,11 @@ struct JellyGoPlayerView: View {
                     }
 
                     // Custom subtitle overlay (independent of video scale)
-                    SubtitleOverlayView(manager: subtitleManager)
-                        .ignoresSafeArea()
+                    // Hidden during PiP — engine renders subtitles in PiP window instead
+                    if !vm.isPipActive {
+                        SubtitleOverlayView(manager: subtitleManager)
+                            .ignoresSafeArea()
+                    }
 
                     if vm.isLoading {
                         // Show backdrop image while loading (local cache first, then server)
@@ -351,6 +354,24 @@ struct JellyGoPlayerView: View {
             // Sync custom subtitles with playback
             .onChange(of: vm.position) { _, _ in
                 subtitleManager.update(currentSeconds: vm.currentSeconds)
+                // Update PiP subtitle layer if PiP is active
+                if vm.isPipActive {
+                    vm.updatePipSubtitleText(subtitleManager.currentText)
+                }
+            }
+            // PiP subtitle overlay: add/remove CATextLayer on the video display layer
+            .onChange(of: vm.isPipActive) { _, pipActive in
+                if pipActive {
+                    // Small delay to let PiP's display layer activate
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(300))
+                        vm.addPipSubtitleLayer()
+                        // Push current subtitle text immediately
+                        vm.updatePipSubtitleText(subtitleManager.currentText)
+                    }
+                } else {
+                    vm.removePipSubtitleLayer()
+                }
             }
         .ignoresSafeArea()
         }
@@ -445,7 +466,7 @@ struct JellyGoPlayerView: View {
 
     private var sfNavigationBar: some View {
         HStack(alignment: .center) {
-            sfNavButton("xmark") { vm.stop(); dismiss() }
+            sfNavButton("xmark") { vm.forceStop(); dismiss() }
 
             mediaInfoCard
                 .contentShape(RoundedRectangle(cornerRadius: 14))

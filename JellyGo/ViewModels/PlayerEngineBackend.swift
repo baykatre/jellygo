@@ -79,6 +79,20 @@ protocol PlayerEngineBackend: AnyObject {
     /// Called when PiP ends externally (user dismissed PiP window).
     /// Engine should notify delegate so ViewModel can clean up.
     var onPipStopped: (() -> Void)? { get set }
+
+    /// Called when PiP starts externally (auto-PiP when app goes to background).
+    var onPipStarted: (() -> Void)? { get set }
+
+    // MARK: - PiP Subtitle Overlay
+
+    /// Add a CATextLayer to the video display layer for PiP subtitle rendering.
+    func addPipSubtitleLayer()
+
+    /// Remove the PiP subtitle CATextLayer.
+    func removePipSubtitleLayer()
+
+    /// Update the PiP subtitle text. Empty string hides the layer.
+    func updatePipSubtitleText(_ text: String)
 }
 
 // MARK: - Player Engine Delegate

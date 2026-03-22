@@ -23,6 +23,7 @@ final class VLCEngine: PlayerEngineBackend {
     let player = VLCMediaPlayer()
     weak var delegate: PlayerEngineDelegate?
     var onPipStopped: (() -> Void)?
+    var onPipStarted: (() -> Void)?
 
     private let bridge = VLCDelegateBridge()
     private let logSniffer = VLCDecoderLogSniffer()
@@ -304,6 +305,9 @@ final class VLCEngine: PlayerEngineBackend {
     var isPipActive: Bool { false }
     func startPip() {}
     func stopPip() {}
+    func addPipSubtitleLayer() {}
+    func removePipSubtitleLayer() {}
+    func updatePipSubtitleText(_ text: String) {}
 
     // MARK: - Capabilities
 

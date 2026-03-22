@@ -197,6 +197,12 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 self?.handlePipStopped()
             }
         }
+        engine.onPipStarted = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, !self.isPipActive else { return }
+                self.isPipActive = true
+            }
+        }
     }
 
     // MARK: - PlayerEngineDelegate
@@ -243,7 +249,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     func engineTracksUpdated(subtitles: [(Int32, String)], audio: [(Int32, String)]) {
         subtitleTracks = subtitles
         audioTracks = audio
-        if disableEngineSubtitlesFlag {
+        if disableEngineSubtitlesFlag && !isPipActive {
             engine.setSubtitleTrack(-1)
         } else {
             currentSubtitleIndex = engine.currentSubtitleTrackIndex
@@ -291,40 +297,20 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
     func togglePip() {
         if engine.isPipActive {
-            engine.stopPip()
             isPipActive = false
+            engine.stopPip()
         } else {
-            engine.startPip()
             isPipActive = true
+            engine.startPip()
         }
     }
 
-    /// Called when PiP ends externally (user dismissed the PiP window).
+    /// Called when PiP ends externally (user dismissed PiP or restored to full player).
+    /// Don't stop playback here — if user restored, video continues in full player.
+    /// If user dismissed, the player view's onDisappear will call stop().
     private func handlePipStopped() {
         guard isPipActive else { return }
         isPipActive = false
-        // PiP ended — perform the deferred stop (cleanup, report to server)
-        positionTimer?.cancel()
-        metricsTimer?.cancel()
-        engine.stop()
-        NowPlayingManager.shared.clearNowPlaying()
-        guard let item, let appState else { return }
-
-        let ticks = Int64(Double(position) * Double(item.runTimeTicks ?? 0))
-        if currentSeconds > 2 {
-            LocalPlaybackStore.savePosition(currentSeconds, for: item.id)
-        }
-
-        Task {
-            if NetworkMonitor.shared.isConnected {
-                await JellyfinAPI.shared.reportPlaybackStopped(
-                    serverURL: appState.serverURL, itemId: item.id,
-                    positionTicks: ticks, token: appState.token)
-            }
-            await MainActor.run {
-                NotificationCenter.default.post(name: .playbackStopped, object: nil)
-            }
-        }
     }
 
     // MARK: - Disable Engine Subtitles
@@ -333,6 +319,22 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         disableEngineSubtitlesFlag = true
         engine.disableEngineSubtitles()
     }
+
+    /// Add CATextLayer subtitle overlay to the video layer for PiP rendering.
+    func addPipSubtitleLayer() {
+        engine.addPipSubtitleLayer()
+    }
+
+    /// Remove CATextLayer subtitle overlay from the video layer after PiP ends.
+    func removePipSubtitleLayer() {
+        engine.removePipSubtitleLayer()
+    }
+
+    /// Update the PiP subtitle text on the CATextLayer.
+    func updatePipSubtitleText(_ text: String) {
+        engine.updatePipSubtitleText(text)
+    }
+
 
     // MARK: - Load Local
 
@@ -722,9 +724,22 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         }
     }
 
+    /// Force stop playback, killing PiP if active. Used by the close (X) button.
+    func forceStop() {
+        if isPipActive || engine.isPipActive {
+            isPipActive = false
+            engine.stopPip()
+        }
+        stopInternal()
+    }
+
     func stop() {
         // If PiP is active, don't tear down — playback continues in PiP window
         if engine.isPipActive { return }
+        stopInternal()
+    }
+
+    private func stopInternal() {
         positionTimer?.cancel()
         metricsTimer?.cancel()
         engine.stop()

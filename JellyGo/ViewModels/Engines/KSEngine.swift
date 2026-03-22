@@ -9,6 +9,7 @@ import AVKit
 final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     weak var delegate: PlayerEngineDelegate?
     var onPipStopped: (() -> Void)?
+    var onPipStarted: (() -> Void)?
 
     private var playerLayer: KSPlayerLayer?
     private var shouldDisableSubs = false
@@ -23,6 +24,8 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     private var currentOptions: JellyGoKSOptions?
     /// KVO observation on AVPictureInPictureController.isPictureInPictureActive.
     private var pipObservation: NSKeyValueObservation?
+    /// CATextLayer for rendering subtitles visible in PiP window.
+    private var pipSubtitleLayer: CATextLayer?
 
     override init() {
         super.init()
@@ -51,13 +54,19 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
         self.playerLayer = layer
 
         // Observe AVPictureInPictureController.isPictureInPictureActive via KVO
-        // to detect when PiP ends externally (user dismisses PiP window).
+        // to detect PiP start (e.g. auto-PiP from background) and PiP end.
         if let pip = layer.player.pipController {
             pipObservation = pip.observe(\.isPictureInPictureActive, options: [.new]) { [weak self] _, change in
-                guard let self, let active = change.newValue, !active else { return }
+                guard let self, let active = change.newValue else { return }
                 DispatchQueue.main.async {
-                    self.currentOptions?.pipActive = false
-                    self.onPipStopped?()
+                    if active {
+                        // PiP started externally (auto-PiP when app goes to background).
+                        // Notify via onPipStarted so ViewModel sets isPipActive = true.
+                        self.onPipStarted?()
+                    } else {
+                        // PiP ended externally (user dismissed PiP window)
+                        self.onPipStopped?()
+                    }
                 }
             }
         }
@@ -79,6 +88,7 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     }
 
     func stop() {
+        removePipSubtitleLayer()
         currentOptions?.pipActive = false
         pipObservation = nil
         playerLayer?.stop()
@@ -252,6 +262,106 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
         }
     }
 
+    // MARK: - PiP Subtitles (CATextLayer overlay)
+
+    private func findVideoLayer() -> CALayer? {
+        guard let playerView = playerLayer?.player.view else { return nil }
+        return findDisplayLayer(in: playerView.layer)
+    }
+
+    private func findDisplayLayer(in layer: CALayer) -> CALayer? {
+        if layer is AVSampleBufferDisplayLayer || layer is AVPlayerLayer {
+            return layer
+        }
+        for sub in layer.sublayers ?? [] {
+            if let found = findDisplayLayer(in: sub) { return found }
+        }
+        return nil
+    }
+
+    func addPipSubtitleLayer() {
+        guard pipSubtitleLayer == nil else { return }
+        guard let targetLayer = playerLayer?.player.view?.layer else { return }
+
+        let textLayer = CATextLayer()
+        textLayer.isWrapped = true
+        textLayer.alignmentMode = .center
+        textLayer.contentsScale = UIScreen.main.scale
+        textLayer.fontSize = 16
+        textLayer.foregroundColor = UIColor.white.cgColor
+        textLayer.shadowColor = UIColor.black.cgColor
+        textLayer.shadowRadius = 3
+        textLayer.shadowOpacity = 1.0
+        textLayer.shadowOffset = CGSize(width: 0, height: 1)
+        textLayer.truncationMode = .end
+        textLayer.backgroundColor = UIColor.black.withAlphaComponent(0.55).cgColor
+        textLayer.cornerRadius = 4
+        textLayer.string = ""
+        textLayer.isHidden = true
+
+        let bounds = targetLayer.bounds
+        let height: CGFloat = 60
+        let hPad: CGFloat = 20
+        textLayer.frame = CGRect(x: hPad, y: bounds.height - height - 12,
+                                 width: bounds.width - hPad * 2, height: height)
+        textLayer.zPosition = 9999
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        targetLayer.addSublayer(textLayer)
+        CATransaction.commit()
+
+        pipSubtitleLayer = textLayer
+    }
+
+    func removePipSubtitleLayer() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        pipSubtitleLayer?.removeFromSuperlayer()
+        CATransaction.commit()
+        pipSubtitleLayer = nil
+    }
+
+    func updatePipSubtitleText(_ text: String) {
+        guard let layer = pipSubtitleLayer else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+
+        if text.isEmpty {
+            layer.isHidden = true
+            layer.string = ""
+        } else {
+            let style = NSMutableParagraphStyle()
+            style.alignment = .center
+            style.lineBreakMode = .byWordWrapping
+            let font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: style,
+            ]
+            layer.string = NSAttributedString(string: text, attributes: attrs)
+            layer.isHidden = false
+
+            if let parent = layer.superlayer {
+                let parentBounds = parent.bounds
+                let hPad: CGFloat = 20
+                let maxWidth = parentBounds.width - hPad * 2
+                let textSize = (text as NSString).boundingRect(
+                    with: CGSize(width: maxWidth - 16, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: attrs, context: nil).size
+                let layerHeight = min(textSize.height + 12, 80)
+                let layerWidth = min(textSize.width + 16, maxWidth)
+                let x = (parentBounds.width - layerWidth) / 2
+                layer.frame = CGRect(x: x, y: parentBounds.height - layerHeight - 12,
+                                     width: layerWidth, height: layerHeight)
+            }
+        }
+
+        CATransaction.commit()
+    }
+
     // MARK: - Capabilities
 
     var needsDoviTranscode: Bool { true }  // DOVI RPU tone mapping not implemented
@@ -276,7 +386,7 @@ extension KSEngine: KSPlayerLayerDelegate {
                 let subs = subtitleTracks
                 let auds = audioTracks
                 delegate?.engineTracksUpdated(subtitles: subs, audio: auds)
-                if shouldDisableSubs {
+                if shouldDisableSubs && !isPipActive {
                     disableEngineSubtitles()
                 }
                 let size = layer.player.naturalSize
@@ -380,10 +490,11 @@ final class JellyGoKSOptions: KSOptions {
         autoSelectEmbedSubtitle = false
     }
 
-    /// Use Metal renderer normally — but switch to display layer when PiP is active
-    /// so AVSampleBufferDisplayLayer receives frames for the PiP window.
+    /// Always route frames through AVSampleBufferDisplayLayer so PiP is ready instantly.
+    /// This ensures PiP works on first tap and when app goes to background (auto-PiP).
+    /// Metal renderer is not used; display layer handles all rendering.
     nonisolated override func isUseDisplayLayer() -> Bool {
-        pipActive
+        true
     }
 
     /// Force HW decode — Metal renderer handles rotation, no need for SW FFmpeg filters.
@@ -403,6 +514,7 @@ import SwiftUI
 final class KSEngine: NSObject, PlayerEngineBackend {
     weak var delegate: PlayerEngineDelegate?
     var onPipStopped: (() -> Void)?
+    var onPipStarted: (() -> Void)?
 
     func play(url: URL, startTimeMs: Int32, options: [String: Any]) {
         DispatchQueue.main.async {
@@ -445,6 +557,9 @@ final class KSEngine: NSObject, PlayerEngineBackend {
     var isPipActive: Bool { false }
     func startPip() {}
     func stopPip() {}
+    func addPipSubtitleLayer() {}
+    func removePipSubtitleLayer() {}
+    func updatePipSubtitleText(_ text: String) {}
 
     var needsDoviTranscode: Bool { true }  // DOVI RPU tone mapping not implemented
     var needsManualResumeSeek: Bool { true }
