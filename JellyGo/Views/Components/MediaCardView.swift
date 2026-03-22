@@ -357,7 +357,12 @@ struct HeroBannerView: View {
             ?? DownloadManager.localPosterURL(itemId: item.id) {
             return local
         }
-        return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
+        let hasBackdrop = item.imageTags?["Backdrop"] != nil
+        if hasBackdrop {
+            return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
+        }
+        // Fallback to Primary poster if no backdrop available
+        return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: 1280)
     }
 
     private func bannerLogoURL(item: JellyfinItem) -> URL? {

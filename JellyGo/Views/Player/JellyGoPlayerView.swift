@@ -97,6 +97,7 @@ struct JellyGoPlayerView: View {
                     // Dim overlay: 0.5 when overlay visible & not scrubbing
                     Color.black
                         .opacity(shouldDim ? 0.5 : 0)
+                        .animation(.easeInOut(duration: 0.3), value: shouldDim)
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
                         .simultaneousGesture(
@@ -413,8 +414,13 @@ struct JellyGoPlayerView: View {
 
                 Spacer().allowsHitTesting(false)
 
-                sfPlaybackProgress
-                    .sfVisible(showOverlay && !vm.isLoading)
+                VStack(spacing: 10) {
+                    sfActionButtons
+                        .sfVisible(!isScrubbing && showOverlay && !vm.isLoading)
+
+                    sfPlaybackProgress
+                        .sfVisible(showOverlay && !vm.isLoading)
+                }
                     .padding(.bottom, geo.safeAreaInsets.bottom + geo.size.height * 0.04)
                     .padding(.leading, geo.safeAreaInsets.leading + geo.size.width * 0.05)
                     .padding(.trailing, geo.safeAreaInsets.trailing + geo.size.width * 0.05)
@@ -452,16 +458,12 @@ struct JellyGoPlayerView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 8) {
-                sfQualityButton
-
-                if item.type == "Episode" {
-                    sfGlassButton("rectangle.stack.fill") {
-                        withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
-                            showEpisodeList.toggle()
-                        }
-                        if showEpisodeList { stopTimer() } else { pokeTimer() }
+            if item.type == "Episode" {
+                sfGlassButton("rectangle.stack.fill") {
+                    withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
+                        showEpisodeList.toggle()
                     }
+                    if showEpisodeList { stopTimer() } else { pokeTimer() }
                 }
             }
         }
@@ -530,7 +532,7 @@ struct JellyGoPlayerView: View {
                 .padding(12)
                 .contentShape(Circle())
         }
-        .glassEffect(.regular.tint(Color.black.opacity(0.15)), in: .circle)
+        .glassEffect(.clear.interactive(), in: .circle)
         .buttonStyle(.plain)
     }
 
@@ -612,8 +614,10 @@ struct JellyGoPlayerView: View {
                 } label: {
                     Label("Previous", systemImage: "backward.fill")
                         .labelStyle(.iconOnly)
-                        .font(.system(size: 30, weight: .regular))
-                        .padding(12)
+                        .font(.title2.weight(.regular))
+                        .imageScale(.large)
+                        .padding(16)
+                        .glassEffect(.clear.interactive(), in: .circle)
                 }
                 .opacity(canGoPrev ? 1 : 0.3)
                 .disabled(!canGoPrev)
@@ -628,10 +632,11 @@ struct JellyGoPlayerView: View {
                         Label("Play", systemImage: "play.fill")
                     }
                 }
-                .font(.system(size: 44, weight: .bold))
+                .font(.largeTitle.weight(.bold))
+                .imageScale(.large)
                 .labelStyle(.iconOnly)
-                .padding(20)
-                .contentShape(Circle())
+                .padding(24)
+                .glassEffect(.clear.interactive(), in: .circle)
             }
 
             // Next episode (only for episodes)
@@ -643,8 +648,10 @@ struct JellyGoPlayerView: View {
                 } label: {
                     Label("Next", systemImage: "forward.fill")
                         .labelStyle(.iconOnly)
-                        .font(.system(size: 30, weight: .regular))
-                        .padding(12)
+                        .font(.title2.weight(.regular))
+                        .imageScale(.large)
+                        .padding(16)
+                        .glassEffect(.clear.interactive(), in: .circle)
                 }
                 .opacity(canGoNext ? 1 : 0.3)
                 .disabled(!canGoNext)
@@ -660,7 +667,7 @@ struct JellyGoPlayerView: View {
     @State private var sliderSize: CGSize = .zero
 
     private var sfPlaybackProgress: some View {
-        HStack(alignment: .bottom, spacing: 12) {
+        VStack(spacing: 10) {
             VStack(spacing: 5) {
                 sfCapsuleSlider
                     .background(GeometryReader { g in
@@ -672,10 +679,6 @@ struct JellyGoPlayerView: View {
                     .offset(y: isScrubbing ? 5 : 0)
                     .frame(maxWidth: isScrubbing ? nil : max(0, sliderSize.width - 32))
             }
-            .frame(maxWidth: .infinity)
-
-            sfMoreMenu
-                .sfVisible(!isScrubbing)
         }
         .frame(maxWidth: .infinity)
         .animation(.bouncy(duration: 0.4, extraBounce: 0.1), value: isScrubbing)
@@ -689,6 +692,60 @@ struct JellyGoPlayerView: View {
                     .transition(.opacity.animation(.linear(duration: 0.1)))
             }
         }
+    }
+
+    // MARK: - Action Buttons (above progress bar)
+
+    private var sfActionButtons: some View {
+        let audioStreams = (resolvedItem ?? item).mediaStreams?.filter(\.isAudio) ?? []
+        let vlcAudioTracks = vm.audioTracks
+        let cleanAudio: [JGAudioTrack] = vlcAudioTracks.enumerated().map { i, t in
+            let jellyfinIdx = t.index == -1 ? nil : (i < audioStreams.count ? audioStreams[i] : nil)
+            let name = jellyfinIdx?.languageName ?? t.name
+            return JGAudioTrack(index: t.index, name: name)
+        }
+        let allSubs = (resolvedItem ?? item).mediaStreams?.filter(\.isSubtitle) ?? []
+        let availableSubs: [JellyfinMediaStream] = localURL != nil
+            ? allSubs.filter { Self.findLocalSubtitle(itemId: item.id, stream: $0) != nil }
+            : allSubs
+
+        return HStack(spacing: 0) {
+            Spacer()
+            JGActionBarView(
+                subtitleStreams: availableSubs,
+                audioTracks: cleanAudio,
+                currentSubIdx: vm.currentSubtitleIndex,
+                currentAudioIdx: vm.currentAudioIndex,
+                currentQuality: vm.selectedQuality,
+                isTranscoding: vm.statsIsTranscoding,
+                isLocalFile: localURL != nil,
+                localQualityText: localQualityText,
+                currentSpeed: vm.playbackSpeed,
+                subtitleDelay: vm.subtitleDelaySecs,
+                showHUD: showHUD,
+                onSubtitleChanged: { selectSubtitle(index: $0) },
+                onAudioChanged: { vm.setAudio(index: $0) },
+                onQualityChanged: { q in Task {
+                    subtitleManager.reset()
+                    await vm.changeQuality(to: q)
+                    await autoSelectSubtitle()
+                }},
+                onSpeedChanged: { vm.setPlaybackSpeed($0) },
+                onShowDelayBar: { showDelayBar = true },
+                onToggleHUD: { showHUD.toggle() }
+            ).equatable()
+        }
+    }
+
+    // Action bar buttons are in JGActionBarView (isolated Equatable struct)
+
+    private func sfActionPill(icon: String) -> some View {
+        Image(systemName: icon)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(minWidth: 18, minHeight: 18)
+            .padding(12)
+            .glassEffect(.clear.interactive(), in: .circle)
     }
 
     // MARK: - Capsule Slider
@@ -1883,7 +1940,7 @@ private struct JGMoreMenuView: View {
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .padding(10)
-                .glassEffect(.regular.tint(Color.black.opacity(0.15)), in: .circle)
+                .glassEffect(.clear.interactive(), in: .circle)
         }
         .buttonStyle(.plain)
         .menuStyle(.borderlessButton)
@@ -2018,6 +2075,280 @@ private struct JGRoundedCorner: Shape {
     func path(in rect: CGRect) -> Path {
         Path(UIBezierPath(roundedRect: rect, byRoundingCorners: corners,
                           cornerRadii: CGSize(width: radius, height: radius)).cgPath)
+    }
+}
+
+// MARK: - Isolated Subtitle Menu (prevents re-render from player state changes)
+
+private struct JGSubtitleMenuView: View {
+    let subtitleStreams: [JellyfinMediaStream]
+    let currentSubIdx: Int32
+    let onSubtitleChanged: (Int32) -> Void
+
+    var body: some View {
+        Menu {
+            if subtitleStreams.isEmpty {
+                Text(String(localized: "No Subtitles", bundle: AppState.currentBundle))
+            } else {
+                Button {
+                    onSubtitleChanged(-1)
+                } label: {
+                    if currentSubIdx < 0 {
+                        Label(String(localized: "Off", bundle: AppState.currentBundle), systemImage: "checkmark")
+                    } else {
+                        Text(String(localized: "Off", bundle: AppState.currentBundle))
+                    }
+                }
+
+                Divider()
+
+                ForEach(subtitleStreams.sorted { ($0.languageName ?? "").localizedCompare($1.languageName ?? "") == .orderedAscending }, id: \.index) { s in
+                    Button {
+                        onSubtitleChanged(Int32(s.index))
+                    } label: {
+                        let name = s.languageName ?? "Track \(s.index)"
+                        if currentSubIdx == Int32(s.index) {
+                            Label(name, systemImage: "checkmark")
+                        } else {
+                            Text(name)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "captions.bubble")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(minWidth: 18, minHeight: 18)
+                .padding(12)
+                .glassEffect(.clear.interactive(), in: .circle)
+        }
+        .menuStyle(.borderlessButton)
+        .menuOrder(.fixed)
+    }
+}
+
+extension JGSubtitleMenuView: Equatable {
+    static func == (lhs: JGSubtitleMenuView, rhs: JGSubtitleMenuView) -> Bool {
+        lhs.currentSubIdx == rhs.currentSubIdx &&
+        lhs.subtitleStreams.count == rhs.subtitleStreams.count
+    }
+}
+
+extension JGSubtitleMenuView {
+    func equatable() -> EquatableView<JGSubtitleMenuView> {
+        EquatableView(content: self)
+    }
+}
+
+// MARK: - Isolated Action Bar (glass capsule, prevents re-render flash)
+
+private struct JGActionBarView: View {
+    let subtitleStreams: [JellyfinMediaStream]
+    let audioTracks: [JGAudioTrack]
+    let currentSubIdx: Int32
+    let currentAudioIdx: Int32
+    let currentQuality: VideoQuality
+    let isTranscoding: Bool
+    let isLocalFile: Bool
+    let localQualityText: String
+    let currentSpeed: Float
+    let subtitleDelay: Double
+    let showHUD: Bool
+    let onSubtitleChanged: (Int32) -> Void
+    let onAudioChanged: (Int32) -> Void
+    let onQualityChanged: (VideoQuality) -> Void
+    let onSpeedChanged: (Float) -> Void
+    let onShowDelayBar: () -> Void
+    let onToggleHUD: () -> Void
+
+    @State private var selectedAudio: Int32 = 0
+
+    private func pill(icon: String) -> some View {
+        Image(systemName: icon)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(minWidth: 18, minHeight: 18)
+            .padding(12)
+    }
+
+    private var divider: some View {
+        Rectangle().fill(.white.opacity(0.2)).frame(width: 1, height: 20)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            audioMenu
+            divider
+            subtitleMenu
+            divider
+            qualityMenu
+            divider
+            moreMenu
+        }
+        .background {
+            Capsule()
+                .fill(.clear)
+                .glassEffect(.clear, in: .capsule)
+                .allowsHitTesting(false)
+        }
+    }
+
+    // MARK: - Audio
+
+    private var audioMenu: some View {
+        Menu {
+            if audioTracks.count <= 1 {
+                Text(audioTracks.first?.name ?? String(localized: "No Audio", bundle: AppState.currentBundle))
+            } else {
+                Picker(String(localized: "Audio", bundle: AppState.currentBundle), selection: $selectedAudio) {
+                    ForEach(audioTracks) { t in
+                        Text(t.name).tag(t.index)
+                    }
+                }
+            }
+        } label: {
+            pill(icon: "waveform")
+        }
+        .menuStyle(.borderlessButton)
+        .onAppear { selectedAudio = currentAudioIdx }
+        .onChange(of: currentAudioIdx) { _, val in selectedAudio = val }
+        .onChange(of: selectedAudio) { _, val in
+            guard val != currentAudioIdx else { return }
+            onAudioChanged(val)
+        }
+    }
+
+    // MARK: - Subtitle
+
+    private var subtitleMenu: some View {
+        Menu {
+            if subtitleStreams.isEmpty {
+                Text(String(localized: "No Subtitles", bundle: AppState.currentBundle))
+            } else {
+                Button {
+                    onSubtitleChanged(-1)
+                } label: {
+                    if currentSubIdx < 0 {
+                        Label(String(localized: "Off", bundle: AppState.currentBundle), systemImage: "checkmark")
+                    } else {
+                        Text(String(localized: "Off", bundle: AppState.currentBundle))
+                    }
+                }
+                Divider()
+                ForEach(subtitleStreams.sorted { ($0.languageName ?? "").localizedCompare($1.languageName ?? "") == .orderedAscending }, id: \.index) { s in
+                    Button {
+                        onSubtitleChanged(Int32(s.index))
+                    } label: {
+                        let name = s.languageName ?? "Track \(s.index)"
+                        if currentSubIdx == Int32(s.index) {
+                            Label(name, systemImage: "checkmark")
+                        } else {
+                            Text(name)
+                        }
+                    }
+                }
+            }
+        } label: {
+            pill(icon: "captions.bubble")
+        }
+        .menuStyle(.borderlessButton)
+        .menuOrder(.fixed)
+    }
+
+    // MARK: - Quality
+
+    private var qualityMenu: some View {
+        Menu {
+            if isLocalFile {
+                Text(localQualityText)
+            } else {
+                ForEach(VideoQuality.allCases) { q in
+                    Button {
+                        onQualityChanged(q)
+                    } label: {
+                        if currentQuality == q {
+                            Label(q.rawValue, systemImage: "checkmark")
+                        } else {
+                            Text(q.rawValue)
+                        }
+                    }
+                }
+            }
+        } label: {
+            pill(icon: "slider.horizontal.3")
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    // MARK: - More
+
+    private var moreMenu: some View {
+        let speeds: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        let speedLabel = currentSpeed == 1.0 ? "1\u{00D7}" : String(format: "%.2g\u{00D7}", currentSpeed)
+        return Menu {
+            Menu {
+                ForEach(speeds, id: \.self) { s in
+                    Button {
+                        onSpeedChanged(s)
+                    } label: {
+                        let sLabel = s == 1.0 ? "1\u{00D7}" : String(format: "%.2g\u{00D7}", s)
+                        if currentSpeed == s {
+                            Label(sLabel, systemImage: "checkmark")
+                        } else {
+                            Text(sLabel)
+                        }
+                    }
+                }
+            } label: {
+                Label("\(String(localized: "Speed", bundle: AppState.currentBundle)) \u{2022} \(speedLabel)", systemImage: "gauge.with.dots.needle.67percent")
+            }
+
+            if currentSubIdx >= 0 {
+                Button {
+                    onShowDelayBar()
+                } label: {
+                    let delayStr = subtitleDelay == 0
+                        ? "0s"
+                        : String(format: "%+.1fs", subtitleDelay)
+                    Label("\(String(localized: "Subtitle Delay", bundle: AppState.currentBundle)) \u{2022} \(delayStr)", systemImage: "timer")
+                }
+            }
+
+            Divider()
+
+            Button {
+                onToggleHUD()
+            } label: {
+                Label(
+                    String(localized: "Stats", bundle: AppState.currentBundle),
+                    systemImage: showHUD ? "info.circle.fill" : "info.circle"
+                )
+            }
+        } label: {
+            pill(icon: "ellipsis")
+        }
+        .menuStyle(.borderlessButton)
+    }
+}
+
+extension JGActionBarView: Equatable {
+    static func == (lhs: JGActionBarView, rhs: JGActionBarView) -> Bool {
+        lhs.currentSubIdx == rhs.currentSubIdx &&
+        lhs.currentAudioIdx == rhs.currentAudioIdx &&
+        lhs.currentQuality == rhs.currentQuality &&
+        lhs.isTranscoding == rhs.isTranscoding &&
+        lhs.currentSpeed == rhs.currentSpeed &&
+        lhs.subtitleDelay == rhs.subtitleDelay &&
+        lhs.showHUD == rhs.showHUD &&
+        lhs.subtitleStreams.count == rhs.subtitleStreams.count &&
+        lhs.audioTracks == rhs.audioTracks
+    }
+}
+
+extension JGActionBarView {
+    func equatable() -> EquatableView<JGActionBarView> {
+        EquatableView(content: self)
     }
 }
 
