@@ -346,3 +346,15 @@
 
 /* Detail */
 "MORE" = "DAHA FAZLA";
+
+/* Live TV */
+"Live TV" = "Canlı TV";
+"Search channels" = "Kanal ara";
+"No Channels" = "Kanal Bulunamadı";
+"No live TV channels found on this server." = "Bu sunucuda canlı TV kanalı bulunamadı.";
+"Channels" = "Kanallar";
+"Watch" = "İzle";
+"Add to Favorites" = "Favorilere Ekle";
+"Remove from Favorites" = "Favorilerden Kaldır";
+"Retry" = "Tekrar Dene";
+"LIVE" = "CANLI";

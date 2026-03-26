@@ -168,7 +168,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     @Published var currentSubtitleIndex: Int32 = -1
     @Published var currentAudioIndex: Int32 = -1
 
-    private var item: JellyfinItem?
+    private(set) var item: JellyfinItem?
     private var appState: AppState?
     private var positionTimer: Task<Void, Never>?
     private var metricsTimer: Task<Void, Never>?
@@ -179,6 +179,9 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     /// KSPlayer reports time relative to stream start, we add this to get real video time.
     private var transcodeOffsetMs: Int32 = 0
     private var nowPlayingArtwork: MPMediaItemArtwork?
+    private var playSessionId: String?
+    private var liveStreamId: String?
+    private var mediaSourceId: String?
 
     init() {
         // Select engine based on user preference
@@ -389,7 +392,8 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                     premiereDate: item.premiereDate, mediaStreams: item.mediaStreams,
                     mediaSources: item.mediaSources, childCount: item.childCount,
                     providerIds: item.providerIds,
-                    endDate: item.endDate, productionLocations: item.productionLocations, imageTags: item.imageTags
+                    endDate: item.endDate, productionLocations: item.productionLocations, imageTags: item.imageTags, backdropImageTags: item.backdropImageTags,
+                    channelNumber: item.channelNumber, currentProgram: item.currentProgram
                 )
                 self.item = patched
             }
@@ -424,7 +428,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             return
         }
 
-        let resumeTicks = item.userData?.playbackPositionTicks ?? 0
+        let resumeTicks = item.isChannel ? 0 : (item.userData?.playbackPositionTicks ?? 0)
         let seekMs = Int32(resumeTicks / 10_000)
         await startPlayback(jellyfinStartTicks: resumeTicks, seekMs: seekMs)
     }
@@ -447,8 +451,11 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             // Fall through to PlaybackInfo path below
         }
 
+        let isLiveTV = item.isChannel
+
         // Direct mode: skip PlaybackInfo, stream the file as-is
-        if selectedQuality.resolved.forceDirectPlay && !doviNeedsTranscode {
+        // Live TV always uses PlaybackInfo (needs AutoOpenLiveStream)
+        if selectedQuality.resolved.forceDirectPlay && !doviNeedsTranscode && !isLiveTV {
             guard let directURL = JellyfinAPI.shared.streamURL(
                 serverURL: appState.serverURL,
                 itemId: item.id,
@@ -514,27 +521,63 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 maxBitrate: selectedQuality.resolved.maxBitrate,
                 externalSubtitles: disableEngineSubtitlesFlag,
                 audioStreamIndex: audioIdx,
-                forceTranscode: doviNeedsTranscode
+                forceTranscode: doviNeedsTranscode,
+                isLiveTV: isLiveTV
             )
+            self.playSessionId = info.playSessionId
+            if isLiveTV {
+                print("[LIVETV] playSessionId=\(info.playSessionId ?? "nil") mediaSources count: \(info.mediaSources.count)")
+                for (i, src) in info.mediaSources.enumerated() {
+                    print("[LIVETV] source[\(i)] id=\(src.id) container=\(src.container ?? "nil") liveStreamId=\(src.liveStreamId ?? "nil") transcodingUrl=\(src.transcodingUrl?.prefix(200) ?? "nil") supportsDirectPlay=\(src.supportsDirectPlay ?? false) supportsDirectStream=\(src.supportsDirectStream ?? false)")
+                }
+            }
             guard let source = info.mediaSources.first else {
                 DispatchQueue.main.async { self.error = String(localized: "No playable source found", bundle: AppState.currentBundle); self.isLoading = false }
                 return
             }
 
+            self.liveStreamId = source.liveStreamId
+            self.mediaSourceId = source.id
+
             var url: URL
-            if let transcodePath = source.transcodingUrl,
+
+            // Live TV with no TranscodingUrl: direct stream via Jellyfin proxy
+            if isLiveTV, source.transcodingUrl == nil {
+                guard let directURL = JellyfinAPI.shared.streamURL(
+                    serverURL: appState.serverURL,
+                    itemId: item.id,
+                    mediaSourceId: source.id,
+                    token: appState.token
+                ) else {
+                    DispatchQueue.main.async { self.error = String(localized: "No playable source found", bundle: AppState.currentBundle); self.isLoading = false }
+                    return
+                }
+                // Add LiveStreamId to keep session alive
+                if let lsid = source.liveStreamId,
+                   var comps = URLComponents(url: directURL, resolvingAgainstBaseURL: false) {
+                    var qi = comps.queryItems ?? []
+                    qi.append(URLQueryItem(name: "LiveStreamId", value: lsid))
+                    comps.queryItems = qi
+                    url = comps.url ?? directURL
+                } else {
+                    url = directURL
+                }
+                print("[LIVETV] Direct stream URL: \(url.absoluteString)")
+            } else if let transcodePath = source.transcodingUrl,
                let transURL = URL(string: appState.serverURL + transcodePath) {
+                // Ensure api_key is present (needed for HLS segments that can't send auth headers)
+                var comps = URLComponents(url: transURL, resolvingAgainstBaseURL: false) ?? URLComponents()
+                var items = comps.queryItems ?? []
+                if !items.contains(where: { $0.name == "api_key" }) {
+                    items.append(URLQueryItem(name: "api_key", value: appState.token))
+                }
                 // Strip embedded subtitles from transcode URL when we manage subs externally
-                if disableEngineSubtitlesFlag,
-                   var comps = URLComponents(url: transURL, resolvingAgainstBaseURL: false) {
-                    var items = comps.queryItems ?? []
+                if disableEngineSubtitlesFlag {
                     items.removeAll { $0.name == "SubtitleStreamIndex" }
                     items.append(URLQueryItem(name: "SubtitleStreamIndex", value: "-1"))
-                    comps.queryItems = items
-                    url = comps.url ?? transURL
-                } else {
-                    url = transURL
                 }
+                comps.queryItems = items
+                url = comps.url ?? transURL
             } else if let directURL = JellyfinAPI.shared.streamURL(
                 serverURL: appState.serverURL,
                 itemId: item.id,
@@ -613,13 +656,17 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             // transcodeOffsetMs reserved for engines that report HLS time as 0-based
             // Currently disabled — KSPlayer appears to report absolute time on transcode
 
-            engine.play(url: url, startTimeMs: seekMs, options: [
+            if isLiveTV { print("[LIVETV] Playing URL: \(url.absoluteString)") }
+
+            engine.play(url: url, startTimeMs: isLiveTV ? 0 : seekMs, options: [
                 "appState": appState,
                 "disableSubs": disableEngineSubtitlesFlag,
-                "useStartTime": useStartTime,
-                "isTranscoding": isTranscoding
+                "useStartTime": !isLiveTV && useStartTime,
+                "isTranscoding": isTranscoding,
+                "isLiveTV": isLiveTV
             ])
         } catch {
+            print("[LIVETV] PlaybackInfo error: \(error)")
             DispatchQueue.main.async { self.error = error.localizedDescription; self.isLoading = false }
             return
         }
@@ -627,6 +674,13 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         if NetworkMonitor.shared.isConnected {
             await JellyfinAPI.shared.reportPlaybackStart(
                 serverURL: appState.serverURL, itemId: item.id, token: appState.token)
+            // Live TV: also send progress with all session IDs to keep transcode alive
+            if isLiveTV {
+                await JellyfinAPI.shared.reportLivePlaybackProgress(
+                    serverURL: appState.serverURL, itemId: item.id,
+                    playSessionId: self.playSessionId, liveStreamId: self.liveStreamId,
+                    mediaSourceId: self.mediaSourceId, token: appState.token)
+            }
         }
 
         if disableEngineSubtitlesFlag { engine.setSubtitleTrack(-1) }
@@ -643,8 +697,9 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     }
 
     private func waitForPlaying() async {
+        let timeout = (item?.isChannel == true) ? 30_000 : 15_000
         var waited = 0
-        while !engine.isPlaying && error == nil && waited < 15_000 {
+        while !engine.isPlaying && error == nil && waited < timeout {
             try? await Task.sleep(for: .milliseconds(200))
             waited += 200
         }
@@ -746,22 +801,31 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         NowPlayingManager.shared.clearNowPlaying()
         guard let item, let appState else { return }
 
+        let isLive = item.isChannel
         let ticks: Int64
-        if isLoading && resumeMs > 0 {
+        if isLive {
+            ticks = 0
+        } else if isLoading && resumeMs > 0 {
             ticks = Int64(resumeMs) * 10_000
         } else {
             ticks = Int64(Double(position) * Double(item.runTimeTicks ?? 0))
         }
 
-        if currentSeconds > 2 {
+        if !isLive && currentSeconds > 2 {
             LocalPlaybackStore.savePosition(currentSeconds, for: item.id)
         }
 
+        let capturedLiveStreamId = self.liveStreamId
         Task {
             if NetworkMonitor.shared.isConnected {
                 await JellyfinAPI.shared.reportPlaybackStopped(
                     serverURL: appState.serverURL, itemId: item.id,
                     positionTicks: ticks, token: appState.token)
+                // Close the live stream to release the tuner
+                if isLive, let lsid = capturedLiveStreamId {
+                    await JellyfinAPI.shared.closeLiveStream(
+                        serverURL: appState.serverURL, liveStreamId: lsid, token: appState.token)
+                }
             }
             await MainActor.run {
                 NotificationCenter.default.post(name: .playbackStopped, object: nil)
@@ -771,10 +835,24 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
     private func startPositionTimer() {
         positionTimer?.cancel()
+        let interval: UInt64 = (item?.isChannel == true) ? 5 : 10
         positionTimer = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(10))
+                try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled, let item, let appState else { continue }
+
+                // Live TV: send keepalive progress to prevent server from closing transcode session
+                if item.isChannel {
+                    self.updateNowPlayingPlaybackState()
+                    if NetworkMonitor.shared.isConnected {
+                        await JellyfinAPI.shared.reportLivePlaybackProgress(
+                            serverURL: appState.serverURL, itemId: item.id,
+                            playSessionId: self.playSessionId, liveStreamId: self.liveStreamId,
+                            mediaSourceId: self.mediaSourceId, token: appState.token)
+                    }
+                    continue
+                }
+
                 let ticks = Int64(Double(position) * Double(item.runTimeTicks ?? 0))
                 guard ticks > 0 else { continue }
                 let secs = Double(ticks) / 10_000_000

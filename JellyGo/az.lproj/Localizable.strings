@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "DAVAMI";
+
+/* Live TV */
+"Live TV" = "Canlı TV";
+"Search channels" = "Kanal axtar";
+"No Channels" = "Kanal Tapılmadı";
+"No live TV channels found on this server." = "Bu serverdə canlı TV kanalı tapılmadı.";
+"Channels" = "Kanallar";
+"Watch" = "İzlə";
+"Retry" = "Yenidən cəhd et";
+"LIVE" = "CANLI";
+"Add to Favorites" = "Favorilərə Əlavə Et";
+"Remove from Favorites" = "Favorilərədn Sil";

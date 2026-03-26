@@ -9,17 +9,30 @@ struct JellyGoPlayerView: View {
     let initialItem: JellyfinItem
     var localURL: URL? = nil
     var qualityOverride: VideoQuality? = nil
+    @ObservedObject var vm: PlayerViewModel
+    /// When true the caller owns the VM — we skip load/stop lifecycle.
+    let externalVM: Bool
+    /// When true we're embedded inline — hide X, no zoom, no ignoresSafeArea, show fullscreen btn
+    let isInline: Bool
+    /// Called when inline player requests fullscreen (only when isInline)
+    var onFullscreen: (() -> Void)? = nil
     @State private var item: JellyfinItem
 
-    init(item: JellyfinItem, localURL: URL? = nil, qualityOverride: VideoQuality? = nil) {
+    init(item: JellyfinItem, localURL: URL? = nil, qualityOverride: VideoQuality? = nil,
+         vm: PlayerViewModel, externalVM: Bool = false, isInline: Bool = false,
+         onFullscreen: (() -> Void)? = nil) {
         self.initialItem = item
         self.localURL = localURL
         self.qualityOverride = qualityOverride
+        self.vm = vm
+        self.externalVM = externalVM
+        self.isInline = isInline
+        self.onFullscreen = onFullscreen
         self._item = State(initialValue: item)
+        self._isAspectFilled = State(initialValue: !isInline)
     }
 
     @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = PlayerViewModel()
     @StateObject private var subtitleManager = SubtitleManager()
     @Environment(\.dismiss) private var dismiss
 
@@ -30,8 +43,8 @@ struct JellyGoPlayerView: View {
     @State private var scrubbedSeconds: Double = 0
     @State private var scrubTranslation: CGPoint = .zero
 
-    // Aspect fill
-    @State private var isAspectFilled = true
+    // Aspect fill — inline (externalVM) starts fit, fullscreen starts fill
+    @State private var isAspectFilled: Bool
     @State private var videoScale: CGFloat = 1
 
     // Brightness / Volume swipe
@@ -85,27 +98,26 @@ struct JellyGoPlayerView: View {
             HStack(spacing: 0) {
                 // Video area
                 ZStack {
-                    Color.black.ignoresSafeArea()
+                    Color.black.modifier(SafeAreaIgnoreModifier(enabled: !isInline))
 
                     vm.makeVideoSurface()
                         .scaleEffect(videoScale)
                         .opacity(vm.isLoading ? 0 : 1)
                         .modifier(GammaBoostModifier(
                             boost: vm.needsViewBrightnessBoost ? vm.brightnessBoost : 1.0))
-                        .ignoresSafeArea()
+                        .modifier(SafeAreaIgnoreModifier(enabled: !isInline))
 
                     // Dim overlay: 0.5 when overlay visible & not scrubbing
                     Color.black
                         .opacity(shouldDim ? 0.5 : 0)
                         .animation(.easeInOut(duration: 0.3), value: shouldDim)
-                        .ignoresSafeArea()
+                        .modifier(SafeAreaIgnoreModifier(enabled: !isInline))
                         .contentShape(Rectangle())
-                        .simultaneousGesture(
+                        .simultaneousGesture(isLive ? nil :
                             SpatialTapGesture(count: 2)
                                 .onEnded { val in
                                     let x = val.location.x
                                     let w = geo.size.width
-                                    // Only trigger in left 35% or right 35%, ignore middle 30%
                                     guard x < w * 0.35 || x > w * 0.65 else { return }
                                     let isLeft = x < w * 0.35
                                     doubleTapLocation = val.location
@@ -116,11 +128,13 @@ struct JellyGoPlayerView: View {
                                 }
                         )
                         .onLongPressGesture(minimumDuration: 0.5, pressing: { pressing in
+                            guard !isLive else { return }
                             if !pressing && isLongPressSpeed {
                                 vm.setPlaybackSpeed(preHoldSpeed)
                                 withAnimation { isLongPressSpeed = false }
                             }
                         }, perform: {
+                            guard !isLive else { return }
                             preHoldSpeed = vm.playbackSpeed
                             vm.setPlaybackSpeed(2.0)
                             withAnimation { isLongPressSpeed = true }
@@ -167,7 +181,7 @@ struct JellyGoPlayerView: View {
                     // Hidden during PiP — engine renders subtitles in PiP window instead
                     if !vm.isPipActive {
                         SubtitleOverlayView(manager: subtitleManager)
-                            .ignoresSafeArea()
+                            .modifier(SafeAreaIgnoreModifier(enabled: !isInline))
                     }
 
                     if vm.isLoading {
@@ -202,7 +216,7 @@ struct JellyGoPlayerView: View {
                             }
                             .frame(width: loadGeo.size.width, height: loadGeo.size.height)
                         }
-                        .ignoresSafeArea()
+                        .modifier(SafeAreaIgnoreModifier(enabled: !isInline))
                         .allowsHitTesting(false)
                     }
 
@@ -373,11 +387,11 @@ struct JellyGoPlayerView: View {
                     vm.removePipSubtitleLayer()
                 }
             }
-        .ignoresSafeArea()
+        .modifier(SafeAreaIgnoreModifier(enabled: !isInline))
         }
-        .ignoresSafeArea()
+        .modifier(SafeAreaIgnoreModifier(enabled: !isInline))
         .environment(\.colorScheme, .dark)
-        .statusBarHidden(true)
+        .statusBarHidden(!isInline)
         .animation(.linear(duration: 0.1), value: isScrubbing)
         .animation(.bouncy(duration: 0.25), value: showOverlay)
         .onChange(of: vm.isLoading) { _, loading in
@@ -388,22 +402,29 @@ struct JellyGoPlayerView: View {
                 scheduleHide()
             }
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(Color.black.modifier(SafeAreaIgnoreModifier(enabled: !isInline)))
         .animation(.spring(duration: 0.4, bounce: 0.15), value: showEpisodeList)
         .task {
-            vm.disableEngineSubtitles()
-            // Start subtitle fetch and episode list in parallel with video load
-            async let subtitleTask: () = autoSelectSubtitle()
-            async let episodeTask: () = loadEpisodeList()
-            if let url = localURL {
-                await vm.loadLocal(url: url, item: item, appState: appState)
+            if !externalVM {
+                vm.disableEngineSubtitles()
+                // Start subtitle fetch and episode list in parallel with video load
+                async let subtitleTask: () = autoSelectSubtitle()
+                async let episodeTask: () = loadEpisodeList()
+                if let url = localURL {
+                    await vm.loadLocal(url: url, item: item, appState: appState)
+                } else {
+                    await vm.load(item: item, appState: appState, qualityOverride: qualityOverride)
+                }
+                // Ensure subtitle fetch completes before we consider player ready
+                _ = await (subtitleTask, episodeTask)
             } else {
-                await vm.load(item: item, appState: appState, qualityOverride: qualityOverride)
+                // External VM: still load episode/channel list for navigation
+                await loadEpisodeList()
             }
-            // Ensure subtitle fetch completes before we consider player ready
-            _ = await (subtitleTask, episodeTask)
         }
-        .onDisappear { vm.stop() }  // vm.stop() is a no-op when PiP is active
+        .onDisappear {
+            if !externalVM { vm.stop() }  // vm.stop() is a no-op when PiP is active
+        }
         .onAppear {
             // Orientation already set before fullScreenCover presentation
             scheduleHide()
@@ -424,27 +445,33 @@ struct JellyGoPlayerView: View {
     // MARK: - Controls Overlay
 
     private func controlsOverlay(geo: GeometryProxy) -> some View {
-        ZStack {
+        let insetTop = isInline ? 0 : geo.safeAreaInsets.top
+        let insetBottom = isInline ? 0 : geo.safeAreaInsets.bottom
+        let insetLeading = isInline ? 0 : geo.safeAreaInsets.leading
+        let insetTrailing = isInline ? 0 : geo.safeAreaInsets.trailing
+        let vPad = isInline ? 0.01 : 0.03
+
+        return ZStack {
             VStack {
                 sfNavigationBar
                     .sfVisible(!isScrubbing && (showOverlay || vm.isLoading))
                     .offset(y: (showOverlay || vm.isLoading) ? 0 : -20)
-                    .padding(.top, geo.safeAreaInsets.top + geo.size.height * 0.03)
-                    .padding(.leading, geo.safeAreaInsets.leading + geo.size.width * 0.05)
-                    .padding(.trailing, geo.safeAreaInsets.trailing + geo.size.width * 0.05)
+                    .padding(.top, insetTop + geo.size.height * vPad)
+                    .padding(.leading, insetLeading + geo.size.width * 0.03)
+                    .padding(.trailing, insetTrailing + geo.size.width * 0.03)
 
                 Spacer().allowsHitTesting(false)
 
-                VStack(spacing: 10) {
+                VStack(spacing: isInline ? 6 : 10) {
                     sfActionButtons
                         .sfVisible(!isScrubbing && showOverlay && !vm.isLoading)
 
                     sfPlaybackProgress
                         .sfVisible(showOverlay && !vm.isLoading)
                 }
-                    .padding(.bottom, geo.safeAreaInsets.bottom + geo.size.height * 0.04)
-                    .padding(.leading, geo.safeAreaInsets.leading + geo.size.width * 0.05)
-                    .padding(.trailing, geo.safeAreaInsets.trailing + geo.size.width * 0.05)
+                    .padding(.bottom, insetBottom + geo.size.height * (isInline ? 0.01 : 0.04))
+                    .padding(.leading, insetLeading + geo.size.width * 0.03)
+                    .padding(.trailing, insetTrailing + geo.size.width * 0.03)
                     .background(alignment: .top) {
                         Color.black
                             .mask(LinearGradient(
@@ -459,6 +486,7 @@ struct JellyGoPlayerView: View {
             sfPlaybackButtons
                 .sfVisible(!isScrubbing && showOverlay && !vm.isLoading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+
         }
     }
 
@@ -466,12 +494,14 @@ struct JellyGoPlayerView: View {
 
     private var sfNavigationBar: some View {
         HStack(alignment: .center) {
-            sfNavButton("xmark") { vm.forceStop(); dismiss() }
+            if !isInline {
+                sfNavButton("xmark") { if !externalVM { vm.forceStop() }; dismiss() }
+            }
 
             mediaInfoCard
                 .contentShape(RoundedRectangle(cornerRadius: 14))
                 .onTapGesture {
-                    guard item.type == "Episode" else { return }
+                    guard item.type == "Episode" || item.isChannel else { return }
                     withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
                         showEpisodeList.toggle()
                     }
@@ -479,8 +509,8 @@ struct JellyGoPlayerView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            if item.type == "Episode" {
-                sfGlassButton("rectangle.stack.fill") {
+            if !isInline, item.type == "Episode" || item.isChannel {
+                sfGlassButton(item.isChannel ? "tv.and.mediabox" : "rectangle.stack.fill") {
                     withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
                         showEpisodeList.toggle()
                     }
@@ -629,11 +659,14 @@ struct JellyGoPlayerView: View {
     }
 
     private var isEpisode: Bool { item.type == "Episode" }
+    private var isLive: Bool { item.isChannel }
+    /// Shows prev/next navigation buttons (episodes or live channels) — hidden inline
+    private var hasListNavigation: Bool { !isInline && (isEpisode || isLive) }
 
     private var sfPlaybackButtons: some View {
         HStack(spacing: 48) {
-            // Previous episode (only for episodes)
-            if isEpisode {
+            // Previous (episode or channel)
+            if hasListNavigation {
                 Button {
                     guard let idx = episodeListItems.firstIndex(where: { $0.id == item.id }),
                           idx > 0 else { return }
@@ -666,8 +699,8 @@ struct JellyGoPlayerView: View {
                 .glassEffect(.clear.interactive(), in: .circle)
             }
 
-            // Next episode (only for episodes)
-            if isEpisode {
+            // Next (episode or channel)
+            if hasListNavigation {
                 Button {
                     guard let idx = episodeListItems.firstIndex(where: { $0.id == item.id }),
                           idx < episodeListItems.count - 1 else { return }
@@ -697,14 +730,20 @@ struct JellyGoPlayerView: View {
         VStack(spacing: 10) {
             VStack(spacing: 5) {
                 sfCapsuleSlider
+                    .opacity(isLive ? 0.3 : 1)
+                    .allowsHitTesting(!isLive)
                     .background(GeometryReader { g in
                         Color.clear.onAppear { sliderSize = g.size }
                             .onChange(of: g.size) { _, s in sliderSize = s }
                     })
 
-                sfSplitTimestamp
-                    .offset(y: isScrubbing ? 5 : 0)
-                    .frame(maxWidth: isScrubbing ? nil : max(0, sliderSize.width - 32))
+                if isLive {
+                    EmptyView()
+                } else {
+                    sfSplitTimestamp
+                        .offset(y: isScrubbing ? 5 : 0)
+                        .frame(maxWidth: isScrubbing ? nil : max(0, sliderSize.width - 32))
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -719,6 +758,28 @@ struct JellyGoPlayerView: View {
                     .transition(.opacity.animation(.linear(duration: 0.1)))
             }
         }
+    }
+
+    private var liveBadgeStandalone: some View {
+        Button {
+            // Reload live stream to catch up to real-time
+            Task {
+                vm.stop()
+                await vm.load(item: item, appState: appState)
+            }
+            pokeTimer()
+        } label: {
+            HStack(spacing: 5) {
+                Circle().fill(.red).frame(width: 7, height: 7)
+                    .shadow(color: .red.opacity(0.8), radius: 3)
+                Text(String(localized: "LIVE", bundle: AppState.currentBundle))
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+        }
+        .glassEffect(.clear.interactive(), in: .capsule)
+        .buttonStyle(.plain)
     }
 
     // MARK: - Action Buttons (above progress bar)
@@ -737,30 +798,54 @@ struct JellyGoPlayerView: View {
             : allSubs
 
         return HStack(spacing: 0) {
+            if isLive {
+                liveBadgeStandalone
+            }
             Spacer()
-            JGActionBarView(
-                subtitleStreams: availableSubs,
-                audioTracks: cleanAudio,
-                currentSubIdx: vm.currentSubtitleIndex,
-                currentAudioIdx: vm.currentAudioIndex,
-                currentQuality: vm.selectedQuality,
-                isTranscoding: vm.statsIsTranscoding,
-                isLocalFile: localURL != nil,
-                localQualityText: localQualityText,
-                currentSpeed: vm.playbackSpeed,
-                subtitleDelay: vm.subtitleDelaySecs,
-                showHUD: showHUD,
-                onSubtitleChanged: { selectSubtitle(index: $0) },
-                onAudioChanged: { vm.setAudio(index: $0) },
-                onQualityChanged: { q in Task {
-                    subtitleManager.reset()
-                    await vm.changeQuality(to: q)
-                    await autoSelectSubtitle()
-                }},
-                onSpeedChanged: { vm.setPlaybackSpeed($0) },
-                onShowDelayBar: { showDelayBar = true },
-                onToggleHUD: { showHUD.toggle() }
-            ).equatable()
+            if !isInline {
+                JGActionBarView(
+                    subtitleStreams: availableSubs,
+                    audioTracks: cleanAudio,
+                    currentSubIdx: vm.currentSubtitleIndex,
+                    currentAudioIdx: vm.currentAudioIndex,
+                    currentQuality: vm.selectedQuality,
+                    isTranscoding: vm.statsIsTranscoding,
+                    isLocalFile: localURL != nil,
+                    localQualityText: localQualityText,
+                    currentSpeed: vm.playbackSpeed,
+                    subtitleDelay: vm.subtitleDelaySecs,
+                    showHUD: showHUD,
+                    isLive: isLive,
+                    onSubtitleChanged: { selectSubtitle(index: $0) },
+                    onAudioChanged: { vm.setAudio(index: $0) },
+                    onQualityChanged: { q in Task {
+                        subtitleManager.reset()
+                        await vm.changeQuality(to: q)
+                        await autoSelectSubtitle()
+                    }},
+                    onSpeedChanged: { vm.setPlaybackSpeed($0) },
+                    onShowDelayBar: { showDelayBar = true },
+                    onToggleHUD: { showHUD.toggle() }
+                ).equatable()
+            }
+            if let onFullscreen {
+                Button {
+                    onFullscreen()
+                    pokeTimer()
+                } label: {
+                    Image(systemName: isInline
+                        ? "arrow.up.left.and.arrow.down.right"
+                        : "arrow.down.right.and.arrow.up.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .padding(12)
+                        .contentShape(Circle())
+                }
+                .glassEffect(.clear.interactive(), in: .circle)
+                .buttonStyle(.plain)
+                .padding(.leading, 10)
+            }
         }
     }
 
@@ -1094,7 +1179,11 @@ struct JellyGoPlayerView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
-                if let se = item.parentIndexNumber {
+                if item.isChannel {
+                    Text(String(localized: "Channels", bundle: Self.bundle))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                } else if let se = item.parentIndexNumber {
                     Text(String(format: String(localized: "Season %lld", bundle: Self.bundle), Int64(se)))
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
@@ -1115,36 +1204,46 @@ struct JellyGoPlayerView: View {
             .padding(.top, geo.safeAreaInsets.top + 12)
             .padding(.bottom, 10)
 
-            // Episode list
+            // List
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(episodeListItems) { episode in
-                            episodeRow(episode: episode)
-                                .id(episode.id)
-                                .onTapGesture {
-                                    guard episode.id != item.id else {
-                                        withAnimation(.spring(duration: 0.4, bounce: 0.15)) { showEpisodeList = false }
-                                        return
-                                    }
-                                    withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
-                                        showEpisodeList = false
-                                        item = episode
-                                    }
-                                    Task {
-                                        vm.stop()
-                                        subtitleManager.reset()
+                    LazyVStack(alignment: .leading, spacing: item.isChannel ? 2 : 12) {
+                        ForEach(episodeListItems) { listItem in
+                            Group {
+                                if item.isChannel {
+                                    channelRow(channel: listItem)
+                                } else {
+                                    episodeRow(episode: listItem)
+                                }
+                            }
+                            .id(listItem.id)
+                            .onTapGesture {
+                                guard listItem.id != item.id else {
+                                    withAnimation(.spring(duration: 0.4, bounce: 0.15)) { showEpisodeList = false }
+                                    return
+                                }
+                                withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
+                                    showEpisodeList = false
+                                    item = listItem
+                                }
+                                Task {
+                                    vm.stop()
+                                    subtitleManager.reset()
+                                    if item.isChannel {
+                                        await vm.load(item: listItem, appState: appState)
+                                    } else {
                                         async let _ = autoSelectSubtitle()
                                         if localURL != nil,
-                                           let dl = DownloadManager.shared.downloads.first(where: { $0.id == episode.id }),
+                                           let dl = DownloadManager.shared.downloads.first(where: { $0.id == listItem.id }),
                                            let dlURL = dl.localURL,
                                            FileManager.default.fileExists(atPath: dlURL.path) {
-                                            await vm.loadLocal(url: dlURL, item: episode, appState: appState)
+                                            await vm.loadLocal(url: dlURL, item: listItem, appState: appState)
                                         } else {
-                                            await vm.load(item: episode, appState: appState)
+                                            await vm.load(item: listItem, appState: appState)
                                         }
                                     }
                                 }
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -1156,6 +1255,61 @@ struct JellyGoPlayerView: View {
             }
         }
         .background(Color.black.opacity(0.95))
+    }
+
+    private func channelRow(channel: JellyfinItem) -> some View {
+        let isCurrent = channel.id == item.id
+        return HStack(spacing: 10) {
+            // Channel logo
+            AsyncImage(url: JellyfinAPI.shared.imageURL(serverURL: appState.serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 80)) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable().aspectRatio(contentMode: .fit)
+                default:
+                    Image(systemName: "tv")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+            }
+            .frame(width: 36, height: 36)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.1)))
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    if let num = channel.channelNumber {
+                        Text(num)
+                            .font(.system(size: 10, weight: .bold).monospacedDigit())
+                            .foregroundStyle(isCurrent ? Color.accentColor : .white.opacity(0.5))
+                    }
+                    Text(channel.name)
+                        .font(.system(size: 12, weight: isCurrent ? .bold : .medium))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                }
+                if let program = channel.currentProgram {
+                    Text(program.name)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            if isCurrent {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isCurrent ? Color.accentColor.opacity(0.15) : .clear)
+        )
+        .contentShape(Rectangle())
     }
 
     private func episodeRow(episode: JellyfinItem) -> some View {
@@ -1248,6 +1402,12 @@ struct JellyGoPlayerView: View {
     }
 
     private func loadEpisodeList() async {
+        // Live TV: load channel list
+        if item.isChannel {
+            await loadChannelList()
+            return
+        }
+
         guard item.type == "Episode",
               let seriesId = item.seriesId else { return }
 
@@ -1293,30 +1453,86 @@ struct JellyGoPlayerView: View {
         }
     }
 
+    private func loadChannelList() async {
+        do {
+            var channels = try await JellyfinAPI.shared.getLiveTvChannels(
+                serverURL: appState.serverURL,
+                userId: appState.userId,
+                token: appState.token
+            )
+            // If launched from favorites view, show only favorites in player channel list
+            if UserDefaults.standard.bool(forKey: "jellygo.liveTvFavoritesOnly") {
+                channels = channels.filter { $0.userData?.isFavorite == true }
+            }
+            episodeListItems = channels
+        } catch {
+            Logger(subsystem: "JellyGo", category: "JellyGoPlayerView").error("loadChannelList failed: \(error)")
+        }
+    }
+
     // MARK: - Media Info Card
 
     private var mediaInfoCard: some View {
         let isEpisode = item.type == "Episode"
+        let isChannel = item.isChannel
+
         let logoId = isEpisode ? (item.seriesId ?? item.id) : item.id
-        let logoURL: URL? = DownloadManager.localLogoURL(itemId: logoId)
-            ?? JellyfinAPI.shared.logoURL(serverURL: appState.serverURL, itemId: logoId, maxWidth: 300)
+        let logoURL: URL? = isChannel
+            ? JellyfinAPI.shared.imageURL(serverURL: appState.serverURL, itemId: item.id, imageType: "Primary", maxWidth: 120)
+            : (DownloadManager.localLogoURL(itemId: logoId)
+                ?? JellyfinAPI.shared.logoURL(serverURL: appState.serverURL, itemId: logoId, maxWidth: 300))
 
         return HStack(spacing: 12) {
-            AsyncImage(url: logoURL) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().aspectRatio(contentMode: .fit)
-                default:
-                    // Fallback: show name if no logo
-                    Text(isEpisode ? (item.seriesName ?? item.name) : item.name)
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
+            if isChannel {
+                // Channel logo — square, smaller
+                AsyncImage(url: logoURL) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().aspectRatio(contentMode: .fit)
+                    default:
+                        Image(systemName: "tv")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
                 }
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                AsyncImage(url: logoURL) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().aspectRatio(contentMode: .fit)
+                    default:
+                        Text(isEpisode ? (item.seriesName ?? item.name) : item.name)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: 100, maxHeight: 40)
             }
-            .frame(maxWidth: 100, maxHeight: 40)
 
-            if isEpisode {
+            if isChannel {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        if let num = item.channelNumber {
+                            Text(num)
+                                .font(.system(size: 11, weight: .bold).monospacedDigit())
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        Text(item.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                    }
+                    if let program = item.currentProgram {
+                        Text(program.name)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.5))
+                            .lineLimit(1)
+                    }
+                }
+            } else if isEpisode {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.name)
                         .font(.system(size: 13, weight: .semibold))
@@ -1889,6 +2105,14 @@ private struct JGProgressBar: View {
 
 // MARK: - Helpers
 
+private struct SafeAreaIgnoreModifier: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled { content.ignoresSafeArea() }
+        else { content }
+    }
+}
+
 private extension View {
     @ViewBuilder
     func sfVisible(_ condition: Bool) -> some View {
@@ -2182,6 +2406,7 @@ private struct JGActionBarView: View {
     let currentSpeed: Float
     let subtitleDelay: Double
     let showHUD: Bool
+    var isLive: Bool = false
     let onSubtitleChanged: (Int32) -> Void
     let onAudioChanged: (Int32) -> Void
     let onQualityChanged: (VideoQuality) -> Void
@@ -2205,13 +2430,19 @@ private struct JGActionBarView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            audioMenu
-            divider
-            subtitleMenu
-            divider
-            qualityMenu
-            divider
-            moreMenu
+            if isLive {
+                qualityMenu
+                divider
+                moreMenu
+            } else {
+                audioMenu
+                divider
+                subtitleMenu
+                divider
+                qualityMenu
+                divider
+                moreMenu
+            }
         }
         .background {
             Capsule()
@@ -2220,6 +2451,7 @@ private struct JGActionBarView: View {
                 .allowsHitTesting(false)
         }
     }
+
 
     // MARK: - Audio
 
@@ -2368,6 +2600,7 @@ extension JGActionBarView: Equatable {
         lhs.currentSpeed == rhs.currentSpeed &&
         lhs.subtitleDelay == rhs.subtitleDelay &&
         lhs.showHUD == rhs.showHUD &&
+        lhs.isLive == rhs.isLive &&
         lhs.subtitleStreams.count == rhs.subtitleStreams.count &&
         lhs.audioTracks == rhs.audioTracks
     }

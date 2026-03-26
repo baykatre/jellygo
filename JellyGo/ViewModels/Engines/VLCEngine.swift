@@ -31,6 +31,8 @@ final class VLCEngine: PlayerEngineBackend {
     private var didDisableSubs = false
     private var shouldDisableSubs = false
     private var didReportInfo = false
+    private var isLiveTV = false
+    private var liveURL: URL?
 
     init() {
         player.delegate = bridge
@@ -39,6 +41,17 @@ final class VLCEngine: PlayerEngineBackend {
         bridge.onStateChanged = { [weak self] state in
             DispatchQueue.main.async {
                 guard let self else { return }
+
+                // Live TV: reconnect on error or ended
+                if self.isLiveTV && (state == .error || state == .ended || state == .stopped) {
+                    print("[LIVETV-VLC] state=\(state.rawValue) — reconnecting...")
+                    self.delegate?.engineStateChanged(isPlaying: true, isBuffering: true, error: nil)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                        self?.player.play()
+                    }
+                    return
+                }
+
                 let playing = self.player.isPlaying
                 let error = state == .error ? String(localized: "Playback error", bundle: AppState.currentBundle) : nil
                 self.delegate?.engineStateChanged(isPlaying: playing, isBuffering: false, error: error)
@@ -92,6 +105,8 @@ final class VLCEngine: PlayerEngineBackend {
     func play(url: URL, startTimeMs: Int32, options: [String: Any]) {
         tracksLoaded = false
         didDisableSubs = false
+        isLiveTV = options["isLiveTV"] as? Bool ?? false
+        liveURL = isLiveTV ? url : nil
         let media = VLCMedia(url: url)
 
         // Apply media options passed from ViewModel
@@ -106,6 +121,12 @@ final class VLCEngine: PlayerEngineBackend {
         }
         if shouldDisableSubs {
             media.addOption(":sub-track-id=-1")
+        }
+
+        if isLiveTV {
+            media.addOption(":network-caching=3000")
+            media.addOption(":live-caching=3000")
+            media.addOption(":clock-jitter=0")
         }
 
         player.media = media

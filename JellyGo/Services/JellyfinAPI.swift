@@ -197,7 +197,7 @@ final class JellyfinAPI {
     func getItemDetails(serverURL: String, itemId: String, userId: String, token: String) async throws -> JellyfinItem {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         let url = try buildURL(base, path: "Users/\(userId)/Items/\(itemId)", queryItems: [
-            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CommunityRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,EndDate,ProductionLocations,MediaStreams,MediaSources,ChildCount,ProviderIds,ImageTags")
+            URLQueryItem(name: "Fields", value: "Genres,People,Taglines,OfficialRating,CommunityRating,CriticRating,Overview,UserData,RunTimeTicks,PremiereDate,EndDate,ProductionLocations,MediaStreams,MediaSources,ChildCount,ProviderIds,ImageTags,BackdropImageTags")
         ])
         let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
@@ -297,7 +297,7 @@ final class JellyfinAPI {
             URLQueryItem(name: "StartIndex", value: "\(startIndex)"),
             URLQueryItem(name: "Limit", value: "\(limit)"),
             URLQueryItem(name: "Recursive", value: recursive ? "true" : "false"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags,BackdropImageTags")
         ]
         if let parentId { queryItems.append(URLQueryItem(name: "ParentId", value: parentId)) }
         if let types = itemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
@@ -313,7 +313,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         let url = try buildURL(base, path: "Users/\(userId)/Items/Resume", queryItems: [
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags"),
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags,BackdropImageTags"),
             URLQueryItem(name: "MediaTypes", value: "Video")
         ])
         let req = baseRequest(url: url, token: token)
@@ -326,7 +326,7 @@ final class JellyfinAPI {
         let url = try buildURL(base, path: "Shows/NextUp", queryItems: [
             URLQueryItem(name: "UserId", value: userId),
             URLQueryItem(name: "Limit", value: "12"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags,BackdropImageTags")
         ])
         let req = baseRequest(url: url, token: token)
         let data = try await perform(req)
@@ -337,7 +337,7 @@ final class JellyfinAPI {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "Limit", value: "16"),
-            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags")
+            URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,UserData,RunTimeTicks,MediaStreams,MediaSources,Genres,OfficialRating,ImageTags,BackdropImageTags")
         ]
         if let libraryId { queryItems.append(URLQueryItem(name: "ParentId", value: libraryId)) }
         if let types = includeItemTypes { queryItems.append(URLQueryItem(name: "IncludeItemTypes", value: types.joined(separator: ","))) }
@@ -364,7 +364,7 @@ final class JellyfinAPI {
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, forceTranscode: Bool = false) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, forceTranscode: Bool = false, isLiveTV: Bool = false) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
         if startTimeTicks > 0 {
@@ -382,17 +382,21 @@ final class JellyfinAPI {
 
         // Device profile: direct play MP4/H264/HEVC, fallback to HLS transcode
         let subMethod = externalSubtitles ? "External" : "Hls"
-        let profile: [String: Any] = [
+        var profile: [String: Any] = [
             "UserId": userId,
+            "AutoOpenLiveStream": isLiveTV,
+            "EnableDirectPlay": true,
+            "EnableDirectStream": true,
+            "EnableTranscoding": true,
             "DeviceProfile": [
                 "MaxStaticBitrate": 100_000_000,
                 "MaxStreamingBitrate": maxBitrate ?? 120_000_000,
                 "DirectPlayProfiles": forceTranscode ? [] as [[String: String]] : [
                     [
-                        "Container": "mp4,m4v,mov,m2ts,ts",
+                        "Container": "mp4,m4v,mov,m2ts,ts,mpegts",
                         "Type": "Video",
-                        "VideoCodec": "h264,hevc,h265",
-                        "AudioCodec": "aac,mp3,ac3,eac3,flac,alac,opus"
+                        "VideoCodec": "h264,hevc,h265,mpeg2video",
+                        "AudioCodec": "aac,mp3,ac3,eac3,flac,alac,opus,mp2"
                     ]
                 ],
                 "TranscodingProfiles": [
@@ -439,6 +443,14 @@ final class JellyfinAPI {
         ]
         req.httpBody = try? JSONSerialization.data(withJSONObject: profile)
         let data = try await perform(req)
+        if isLiveTV {
+            let raw = String(data: data, encoding: .utf8) ?? ""
+            print("[LIVETV] PlaybackInfo raw: \(raw.prefix(2000))")
+            // Dump to file for debugging
+            let logPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("livetv_debug.json")
+            try? data.write(to: logPath)
+            print("[LIVETV] Wrote debug to: \(logPath.path)")
+        }
         return try decode(JellyfinPlaybackInfo.self, from: data)
     }
 
@@ -473,6 +485,45 @@ final class JellyfinAPI {
             "IsPaused": isPaused
         ]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    func reportLivePlaybackProgress(serverURL: String, itemId: String, playSessionId: String?, liveStreamId: String?, mediaSourceId: String?, token: String) async {
+        guard let base = URL(string: serverURL) else { return }
+
+        // 1) Progress report with all live TV fields
+        var req = baseRequest(url: base.appendingPathComponent("Sessions/Playing/Progress"), token: token)
+        req.httpMethod = "POST"
+        var body: [String: Any] = [
+            "ItemId": itemId,
+            "IsPaused": false,
+            "CanSeek": false,
+            "PlayMethod": "Transcode",
+        ]
+        if let psid = playSessionId { body["PlaySessionId"] = psid }
+        if let lsid = liveStreamId { body["LiveStreamId"] = lsid }
+        if let msid = mediaSourceId { body["MediaSourceId"] = msid }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: req)
+
+        // 2) Dedicated ping to reset the transcode kill timer (60s for HLS)
+        if let psid = playSessionId {
+            let pingURL = try? buildURL(base, path: "Sessions/Playing/Ping", queryItems: [
+                URLQueryItem(name: "playSessionId", value: psid)
+            ])
+            if let pingURL {
+                var pingReq = baseRequest(url: pingURL, token: token)
+                pingReq.httpMethod = "POST"
+                _ = try? await URLSession.shared.data(for: pingReq)
+            }
+        }
+    }
+
+    func closeLiveStream(serverURL: String, liveStreamId: String, token: String) async {
+        guard let base = URL(string: serverURL) else { return }
+        var req = baseRequest(url: base.appendingPathComponent("LiveStreams/Close"), token: token)
+        req.httpMethod = "POST"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["LiveStreamId": liveStreamId])
         _ = try? await URLSession.shared.data(for: req)
     }
 
@@ -558,6 +609,44 @@ final class JellyfinAPI {
             }
         }
         return result
+    }
+
+    // MARK: - Live TV
+
+    func getLiveTvChannels(serverURL: String, userId: String, token: String, limit: Int = 500, startIndex: Int = 0) async throws -> [JellyfinItem] {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = try buildURL(base, path: "LiveTv/Channels", queryItems: [
+            URLQueryItem(name: "UserId", value: userId),
+            URLQueryItem(name: "StartIndex", value: "\(startIndex)"),
+            URLQueryItem(name: "Limit", value: "\(limit)"),
+            URLQueryItem(name: "AddCurrentProgram", value: "true"),
+            URLQueryItem(name: "EnableImages", value: "true"),
+            URLQueryItem(name: "EnableImageTypes", value: "Primary,Thumb,Backdrop"),
+            URLQueryItem(name: "Fields", value: "PrimaryImageAspectRatio,ChannelNumber,UserData"),
+            URLQueryItem(name: "EnableUserData", value: "true"),
+            URLQueryItem(name: "SortBy", value: "SortName"),
+            URLQueryItem(name: "SortOrder", value: "Ascending"),
+        ])
+        let req = baseRequest(url: url, token: token)
+        let data = try await perform(req)
+        return try decode(JellyfinItemsResponse.self, from: data).items
+    }
+
+    func getLiveTvPrograms(serverURL: String, userId: String, token: String, channelIds: [String], minStartDate: String, maxEndDate: String) async throws -> [JellyfinItem] {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        let url = try buildURL(base, path: "LiveTv/Programs", queryItems: [
+            URLQueryItem(name: "UserId", value: userId),
+            URLQueryItem(name: "ChannelIds", value: channelIds.joined(separator: ",")),
+            URLQueryItem(name: "MinStartDate", value: minStartDate),
+            URLQueryItem(name: "MaxEndDate", value: maxEndDate),
+            URLQueryItem(name: "Fields", value: "Overview,ChannelInfo"),
+            URLQueryItem(name: "EnableImages", value: "true"),
+            URLQueryItem(name: "SortBy", value: "StartDate"),
+            URLQueryItem(name: "SortOrder", value: "Ascending"),
+        ])
+        let req = baseRequest(url: url, token: token)
+        let data = try await perform(req)
+        return try decode(JellyfinItemsResponse.self, from: data).items
     }
 
     func getSimilarItems(serverURL: String, itemId: String, userId: String, token: String, limit: Int = 12) async throws -> [JellyfinItem] {

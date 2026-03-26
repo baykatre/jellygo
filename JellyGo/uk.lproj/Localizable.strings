@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "БІЛЬШЕ";
+
+/* Live TV */
+"Live TV" = "Пряма трансляція";
+"Search channels" = "Пошук каналів";
+"No Channels" = "Немає каналів";
+"No live TV channels found on this server." = "На цьому сервері не знайдено каналів прямої трансляції.";
+"Channels" = "Канали";
+"Watch" = "Дивитися";
+"Retry" = "Повторити";
+"LIVE" = "НАЖИВО";
+"Add to Favorites" = "Додати до обраного";
+"Remove from Favorites" = "Видалити з обраного";

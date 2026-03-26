@@ -346,3 +346,15 @@
 
 /* Detail */
 "MORE" = "MORE";
+
+/* Live TV */
+"Live TV" = "Live TV";
+"Search channels" = "Search channels";
+"No Channels" = "No Channels";
+"No live TV channels found on this server." = "No live TV channels found on this server.";
+"Channels" = "Channels";
+"Watch" = "Watch";
+"Retry" = "Retry";
+"LIVE" = "LIVE";
+"Add to Favorites" = "Add to Favorites";
+"Remove from Favorites" = "Remove from Favorites";

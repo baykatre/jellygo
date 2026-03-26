@@ -6,9 +6,10 @@ struct PlayerContainerView: View {
     var localURL: URL? = nil
     var qualityOverride: VideoQuality? = nil
     @EnvironmentObject private var appState: AppState
+    @StateObject private var vm = PlayerViewModel()
 
     var body: some View {
-        JellyGoPlayerView(item: item, localURL: localURL, qualityOverride: qualityOverride)
+        JellyGoPlayerView(item: item, localURL: localURL, qualityOverride: qualityOverride, vm: vm)
             .environmentObject(appState)
     }
 

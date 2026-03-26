@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "更多";
+
+/* Live TV */
+"Live TV" = "直播电视";
+"Search channels" = "搜索频道";
+"No Channels" = "无频道";
+"No live TV channels found on this server." = "在此服务器上未找到直播电视频道。";
+"Channels" = "频道";
+"Watch" = "观看";
+"Retry" = "重试";
+"LIVE" = "直播";
+"Add to Favorites" = "添加到收藏";
+"Remove from Favorites" = "从收藏中移除";

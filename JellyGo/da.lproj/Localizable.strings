@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "MERE";
+
+/* Live TV */
+"Live TV" = "Live TV";
+"Search channels" = "Søg kanaler";
+"No Channels" = "Ingen Kanaler";
+"No live TV channels found on this server." = "Ingen live TV-kanaler fundet på denne server.";
+"Channels" = "Kanaler";
+"Watch" = "Se";
+"Retry" = "Prøv igen";
+"LIVE" = "LIVE";
+"Add to Favorites" = "Føj til favoritter";
+"Remove from Favorites" = "Fjern fra favoritter";

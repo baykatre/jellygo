@@ -191,7 +191,8 @@ struct DownloadsView: View {
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
             childCount: nil, providerIds: nil,
-            endDate: nil, productionLocations: nil, imageTags: nil
+            endDate: nil, productionLocations: nil, imageTags: nil, backdropImageTags: nil,
+            channelNumber: nil, currentProgram: nil
         )
     }
 
@@ -207,7 +208,8 @@ struct DownloadsView: View {
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
             childCount: nil, providerIds: nil,
-            endDate: nil, productionLocations: nil, imageTags: nil
+            endDate: nil, productionLocations: nil, imageTags: nil, backdropImageTags: nil,
+            channelNumber: nil, currentProgram: nil
         )
     }
 
@@ -305,7 +307,8 @@ struct DownloadsView: View {
             officialRating: nil, taglines: nil, people: nil,
             premiereDate: nil, mediaStreams: nil, mediaSources: nil,
             childCount: nil, providerIds: nil,
-            endDate: nil, productionLocations: nil, imageTags: nil
+            endDate: nil, productionLocations: nil, imageTags: nil, backdropImageTags: nil,
+            channelNumber: nil, currentProgram: nil
         )
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {

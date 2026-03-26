@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "بیشتر";
+
+/* Live TV */
+"Live TV" = "تلویزیون زنده";
+"Search channels" = "جستجوی کانال‌ها";
+"No Channels" = "کانالی یافت نشد";
+"No live TV channels found on this server." = "هیچ کانال تلویزیون زنده‌ای در این سرور یافت نشد.";
+"Channels" = "کانال‌ها";
+"Watch" = "تماشا";
+"Retry" = "تلاش مجدد";
+"LIVE" = "زنده";
+"Add to Favorites" = "افزودن به علاقه‌مندی‌ها";
+"Remove from Favorites" = "حذف از علاقه‌مندی‌ها";

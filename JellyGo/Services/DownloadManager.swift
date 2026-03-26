@@ -107,7 +107,8 @@ struct DownloadedItem: Codable, Identifiable {
             officialRating: officialRating, taglines: taglines, people: nil,
             premiereDate: premiereDate, mediaStreams: nil, mediaSources: nil,
             childCount: nil, providerIds: nil,
-            endDate: nil, productionLocations: nil, imageTags: nil
+            endDate: nil, productionLocations: nil, imageTags: nil, backdropImageTags: nil,
+            channelNumber: nil, currentProgram: nil
         )
     }
 

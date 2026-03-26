@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "ЕЩЁ";
+
+/* Live TV */
+"Live TV" = "Прямой эфир";
+"Search channels" = "Поиск каналов";
+"No Channels" = "Нет каналов";
+"No live TV channels found on this server." = "На этом сервере не найдено каналов прямого эфира.";
+"Channels" = "Каналы";
+"Watch" = "Смотреть";
+"Retry" = "Повторить";
+"LIVE" = "ЭФИР";
+"Add to Favorites" = "Добавить в избранное";
+"Remove from Favorites" = "Удалить из избранного";

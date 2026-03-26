@@ -32,6 +32,7 @@ struct FallbackAsyncImage<Placeholder: View>: View {
                     placeholder
                 }
             }
+            .id(url)
         } else {
             placeholder
         }
@@ -56,6 +57,7 @@ struct HeroBannerView: View {
     let items: [JellyfinItem]
     let serverURL: String
     var pullDown: CGFloat = 0
+    var scrollOffset: CGFloat = 0
     var onPlay: (JellyfinItem) -> Void = { _ in }
     var onTap: ((JellyfinItem) -> Void)? = nil
 
@@ -69,6 +71,7 @@ struct HeroBannerView: View {
     @State private var isDragging = false
     @State private var pauseUntil: Date = .distantPast
     @State private var dominantColor: Color = Color(white: 0.12)
+    @State private var isVisible = false
 
     private let autoTimer = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
 
@@ -82,31 +85,50 @@ struct HeroBannerView: View {
 
     var body: some View {
         let size = bannerSize
-        // Crossfade: amplified so ~35% drag ≈ 100% opacity swap
-        let rawProg = min(abs(progress), 1.0)
-        let fadeProg = min(rawProg * 2.8, 1.0)
-        // Parallax: tracks raw finger movement, keeps drifting after crossfade is done
-        let curParallax = progress * 60
-        let nxtParallax = -progress * 20
+        // Normalized progress: -1 (full right swipe) to +1 (full left swipe)
+        let norm = min(max(progress, -1), 1)
+        // Crossfade: starts at 15% drag, fully swapped by 55%
+        let fadeRaw = (abs(norm) - 0.15) / 0.4
+        let fadeProg = min(max(fadeRaw, 0), 1)
+        // Direction sign: -1 when swiping left (next), +1 when swiping right (prev)
+        let dir: CGFloat = norm < 0 ? -1 : 1
+
+        // Multi-layer parallax (Disney+ style)
+        // Both layers move in the SAME direction, at different speeds
+        // Outgoing: moves with the drag
+        let outBg   = norm * size.width * 0.3
+        let outLogo = norm * size.width * 0.55
+        let outBtn  = norm * size.width * 0.7
+        // Incoming: starts offset on opposite side, slides toward center
+        let inBg   = -dir * size.width * 0.3 * (1.0 - fadeProg)
+        let inLogo = -dir * size.width * 0.55 * (1.0 - fadeProg)
+        let inBtn  = -dir * size.width * 0.7 * (1.0 - fadeProg)
 
         ZStack(alignment: .bottom) {
-            // Layer A — stable identity, never changes URL at snap time
+            // Layer A — backdrop
             backdropLayer(item: items[indexA], size: size,
-                          parallaxOffset: aIsCurrent ? curParallax : nxtParallax)
+                          parallaxOffset: aIsCurrent ? outBg : inBg)
                 .opacity(Double(aIsCurrent ? 1.0 - fadeProg : fadeProg))
 
-            // Layer B — stable identity
+            // Layer B — backdrop
             backdropLayer(item: items[indexB], size: size,
-                          parallaxOffset: aIsCurrent ? nxtParallax : curParallax)
+                          parallaxOffset: aIsCurrent ? inBg : outBg)
                 .opacity(Double(aIsCurrent ? fadeProg : 1.0 - fadeProg))
 
             // Progressive blur + subtle gradient
             gradientOverlay(size: size)
 
-            // Content — hides during drag/transition
-            contentOverlay(item: items[currentItemIndex], size: size)
-                .opacity(isDragging ? 0 : 1)
-                .animation(.easeOut(duration: isDragging ? 0.08 : 0.25), value: isDragging)
+            // Content A
+            contentOverlay(item: items[indexA], size: size,
+                           logoOffset: aIsCurrent ? outLogo : inLogo,
+                           btnOffset: aIsCurrent ? outBtn : inBtn)
+                .opacity(Double(aIsCurrent ? 1.0 - fadeProg : fadeProg))
+
+            // Content B
+            contentOverlay(item: items[indexB], size: size,
+                           logoOffset: aIsCurrent ? inLogo : outLogo,
+                           btnOffset: aIsCurrent ? inBtn : outBtn)
+                .opacity(Double(aIsCurrent ? fadeProg : 1.0 - fadeProg))
 
             // Dot indicator
             if items.count > 1 {
@@ -124,6 +146,7 @@ struct HeroBannerView: View {
         .frame(width: size.width, height: size.height + pullDown)
         .offset(y: -pullDown)
         .padding(.bottom, -pullDown)
+        .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
             let item = items[currentItemIndex]
@@ -131,10 +154,14 @@ struct HeroBannerView: View {
         }
         .gesture(items.count > 1 ? dragGesture(size: size) : nil)
         .onReceive(autoTimer) { now in
-            guard items.count > 1, now >= pauseUntil, !isTransitioning else { return }
+            guard isVisible, items.count > 1, now >= pauseUntil, !isTransitioning, !isDragging else { return }
             commitTransition(direction: -1, size: size)
         }
-        .onAppear { extractDominantColor(for: items[currentItemIndex]) }
+        .onAppear {
+            isVisible = true
+            extractDominantColor(for: items[currentItemIndex])
+        }
+        .onDisappear { isVisible = false }
         .onChange(of: currentItemIndex) { _, newIndex in
             extractDominantColor(for: items[newIndex])
         }
@@ -191,16 +218,22 @@ struct HeroBannerView: View {
             dragOffset = direction < 0 ? -1 : 1
 
             let target = direction < 0 ? -size.width : size.width
-            withAnimation(.easeOut(duration: 0.3)) { dragOffset = target }
+            withAnimation(.easeInOut(duration: 0.6)) { dragOffset = target }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) {
                 finishTransition()
             }
             return
         }
 
-        // User drag: crossfade already done visually — snap in place, no animation
-        finishTransition()
+        // User drag: animate remaining distance to complete the transition
+        let target = direction < 0 ? -size.width : size.width
+        let remaining = abs(target - dragOffset) / size.width
+        let duration = max(0.15, Double(remaining) * 0.4)
+        withAnimation(.easeOut(duration: duration)) { dragOffset = target }
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.02) {
+            finishTransition()
+        }
     }
 
     private func finishTransition() {
@@ -219,16 +252,14 @@ struct HeroBannerView: View {
 
     @ViewBuilder
     private func backdropLayer(item: JellyfinItem, size: CGSize, parallaxOffset: CGFloat = 0) -> some View {
-        let url = bannerBackdropURL(item: item)
-        let imgView = AsyncImage(url: url) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().aspectRatio(contentMode: .fill)
-                    .offset(x: parallaxOffset)
-            default:
-                Color(white: 0.12)
-            }
-        }
+        // Scroll parallax: image moves at 40% of scroll speed → feels sticky
+        let scrollParallax = scrollOffset * 0.4
+        let imgView = FallbackAsyncImage(
+            primaryURL: bannerBackdropURL(item: item),
+            fallbackURL: nil,
+            placeholder: Color(white: 0.12)
+        )
+        .offset(x: parallaxOffset, y: scrollParallax)
 
         GeometryReader { geo in
             // Reflection
@@ -256,7 +287,7 @@ struct HeroBannerView: View {
                 .mask(
                     LinearGradient(
                         stops: [
-                            .init(color: .clear, location: 0.35),
+                            .init(color: .clear, location: 0.48),
                             .init(color: .white, location: 0.75),
                         ],
                         startPoint: .top,
@@ -267,8 +298,8 @@ struct HeroBannerView: View {
             // Hafif siyah fade (alttan)
             LinearGradient(
                 stops: [
-                    .init(color: .clear, location: 0.6),
-                    .init(color: .black.opacity(0.4), location: 0.85),
+                    .init(color: .clear, location: 0.65),
+                    .init(color: .black.opacity(0.4), location: 0.82),
                     .init(color: .black.opacity(0.6), location: 1.0),
                 ],
                 startPoint: .top,
@@ -280,7 +311,8 @@ struct HeroBannerView: View {
     }
 
     @ViewBuilder
-    private func contentOverlay(item: JellyfinItem, size: CGSize) -> some View {
+    private func contentOverlay(item: JellyfinItem, size: CGSize,
+                                logoOffset: CGFloat = 0, btnOffset: CGFloat = 0) -> some View {
         VStack(alignment: .center, spacing: 10) {
             LogoTitleView(
                 title: item.name,
@@ -288,9 +320,11 @@ struct HeroBannerView: View {
             )
             .frame(maxWidth: 280, alignment: .center)
             .multilineTextAlignment(.center)
+            .offset(x: logoOffset)
 
             // Genre line: Type · Genre1 · Genre2
             genreLine(item: item)
+                .offset(x: logoOffset)
 
             HStack(spacing: 10) {
                 Button { onPlay(item) } label: { bannerPlayLabel }
@@ -304,6 +338,7 @@ struct HeroBannerView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .offset(x: btnOffset)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 38)
@@ -357,12 +392,11 @@ struct HeroBannerView: View {
             ?? DownloadManager.localPosterURL(itemId: item.id) {
             return local
         }
-        let hasBackdrop = item.imageTags?["Backdrop"] != nil
-        if hasBackdrop {
-            return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
-        }
-        // Fallback to Primary poster if no backdrop available
-        return JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: 1280)
+        return JellyfinAPI.shared.backdropURL(serverURL: serverURL, itemId: item.id, maxWidth: 1280)
+    }
+
+    private func bannerPrimaryURL(item: JellyfinItem) -> URL? {
+        JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: item.id, imageType: "Primary", maxWidth: 1280)
     }
 
     private func bannerLogoURL(item: JellyfinItem) -> URL? {

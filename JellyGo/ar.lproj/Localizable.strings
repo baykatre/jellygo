@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "المزيد";
+
+/* Live TV */
+"Live TV" = "البث المباشر";
+"Search channels" = "البحث عن القنوات";
+"No Channels" = "لا توجد قنوات";
+"No live TV channels found on this server." = "لم يتم العثور على قنوات تلفزيون مباشر على هذا الخادم.";
+"Channels" = "القنوات";
+"Watch" = "مشاهدة";
+"Retry" = "إعادة المحاولة";
+"LIVE" = "مباشر";
+"Add to Favorites" = "إضافة إلى المفضلة";
+"Remove from Favorites" = "إزالة من المفضلة";

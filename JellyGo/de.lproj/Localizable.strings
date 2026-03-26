@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "MEHR";
+
+/* Live TV */
+"Live TV" = "Live-TV";
+"Search channels" = "Kanäle suchen";
+"No Channels" = "Keine Kanäle";
+"No live TV channels found on this server." = "Keine Live-TV-Kanäle auf diesem Server gefunden.";
+"Channels" = "Kanäle";
+"Watch" = "Ansehen";
+"Retry" = "Erneut versuchen";
+"LIVE" = "LIVE";
+"Add to Favorites" = "Zu Favoriten hinzufügen";
+"Remove from Favorites" = "Aus Favoriten entfernen";

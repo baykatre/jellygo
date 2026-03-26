@@ -5,6 +5,8 @@ struct HomeView: View {
     @EnvironmentObject private var dm: DownloadManager
     @StateObject private var vm = HomeViewModel()
     @StateObject private var exploreVM = ExploreViewModel()
+    @StateObject private var liveTvVM = LiveTvViewModel()
+    @StateObject private var liveTvPlayerVM = PlayerViewModel()
     @State private var heroPlayItem: JellyfinItem?
     @State private var autoPlayItem: JellyfinItem?
     @State private var showSettings = false
@@ -13,6 +15,7 @@ struct HomeView: View {
     @State private var selectedTab: Int = 0
     @State private var homePath = NavigationPath()
     @State private var heroPullDown: CGFloat = 0
+    @State private var heroScrollOffset: CGFloat = 0
     @State private var showOverlay = true
     @State private var badgeBounce = false
 
@@ -26,7 +29,11 @@ struct HomeView: View {
                 ExploreView(vm: exploreVM)
             }
 
-            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 2, role: .search) {
+            Tab(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv", value: 2) {
+                LiveTvView(vm: liveTvVM, playerVM: liveTvPlayerVM)
+            }
+
+            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 3, role: .search) {
                 DownloadsView()
             }
         }
@@ -38,16 +45,28 @@ struct HomeView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: downloadBanner?.id)
+        .onChange(of: selectedTab) { oldTab, newTab in
+            // Leaving Live TV → start PiP if playing
+            if oldTab == 2 && newTab != 2 && liveTvPlayerVM.isPlaying && liveTvPlayerVM.isPipSupported {
+                liveTvPlayerVM.togglePip()
+            }
+            // Returning to Live TV → stop PiP, video returns to inline
+            if newTab == 2 && liveTvPlayerVM.isPipActive {
+                liveTvPlayerVM.togglePip()
+            }
+        }
         .task(id: appState.serverValidated) {
             guard appState.serverValidated else { return }
             await vm.load(appState: appState)
             Task { await exploreVM.load(appState: appState) }
+            Task { await liveTvVM.load(appState: appState) }
         }
         .task(id: appState.sessionId) {
             // Session changed (account switch) → reload if already validated
             guard appState.serverValidated else { return }
             await vm.load(appState: appState)
             Task { await exploreVM.load(appState: appState) }
+            Task { await liveTvVM.load(appState: appState) }
         }
         .onReceive(dm.downloadStarted) { started in
             bannerTask?.cancel()
@@ -64,7 +83,7 @@ struct HomeView: View {
         Button {
             withAnimation { downloadBanner = nil }
             bannerTask?.cancel()
-            selectedTab = 2
+            selectedTab = 3
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "arrow.down.circle.fill")
@@ -109,6 +128,7 @@ struct HomeView: View {
                             items: vm.featuredItems,
                             serverURL: vm.serverURL,
                             pullDown: heroPullDown,
+                            scrollOffset: heroScrollOffset,
                             onPlay: { item in
                                 homePath.append(item)
                             },
@@ -144,6 +164,7 @@ struct HomeView: View {
                 geo.contentOffset.y + geo.contentInsets.top
             } action: { old, offset in
                 heroPullDown = max(0, -offset)
+                heroScrollOffset = max(0, offset)
                 let delta = offset - old
                 if delta > 4 && offset > 50 {
                     withAnimation(.easeOut(duration: 0.25)) { showOverlay = false }

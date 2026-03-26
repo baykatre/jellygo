@@ -119,6 +119,9 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
     let endDate: String?
     let productionLocations: [String]?
     let imageTags: [String: String]?
+    let backdropImageTags: [String]?
+    let channelNumber: String?
+    let currentProgram: JellyfinProgram?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -149,6 +152,9 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
         case endDate = "EndDate"
         case productionLocations = "ProductionLocations"
         case imageTags = "ImageTags"
+        case backdropImageTags = "BackdropImageTags"
+        case channelNumber = "ChannelNumber"
+        case currentProgram = "CurrentProgram"
     }
 
     var runtimeMinutes: Int? {
@@ -183,6 +189,61 @@ struct JellyfinItem: Codable, Identifiable, Hashable {
     var isSeries: Bool { type == "Series" }
     var isEpisode: Bool { type == "Episode" }
     var isSeason: Bool { type == "Season" }
+    var isChannel: Bool { type == "TvChannel" }
+
+    var hasBackdropImage: Bool {
+        if let tags = backdropImageTags, !tags.isEmpty { return true }
+        return false
+    }
+
+    var hasLogoImage: Bool {
+        imageTags?["Logo"] != nil
+    }
+}
+
+// MARK: - Live TV Program
+
+struct JellyfinProgram: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let overview: String?
+    let startDate: String?
+    let endDate: String?
+    let episodeTitle: String?
+    let channelId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case name = "Name"
+        case overview = "Overview"
+        case startDate = "StartDate"
+        case endDate = "EndDate"
+        case episodeTitle = "EpisodeTitle"
+        case channelId = "ChannelId"
+    }
+
+    var formattedTimeRange: String? {
+        guard let start = startDate, let end = endDate else { return nil }
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let s = fmt.date(from: start), let e = fmt.date(from: end) else { return nil }
+        let tf = DateFormatter()
+        tf.dateFormat = "HH:mm"
+        tf.locale = Locale.current
+        return "\(tf.string(from: s)) - \(tf.string(from: e))"
+    }
+
+    var progress: Double? {
+        guard let start = startDate, let end = endDate else { return nil }
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let s = fmt.date(from: start), let e = fmt.date(from: end) else { return nil }
+        let now = Date()
+        let total = e.timeIntervalSince(s)
+        guard total > 0 else { return nil }
+        let elapsed = now.timeIntervalSince(s)
+        return max(0, min(1, elapsed / total))
+    }
 }
 
 struct JellyfinPerson: Codable, Identifiable, Hashable {
@@ -224,9 +285,11 @@ struct JellyfinUserData: Codable, Hashable {
 
 struct JellyfinPlaybackInfo: Codable {
     let mediaSources: [JellyfinMediaSource]
+    let playSessionId: String?
 
     enum CodingKeys: String, CodingKey {
         case mediaSources = "MediaSources"
+        case playSessionId = "PlaySessionId"
     }
 }
 
@@ -241,6 +304,8 @@ struct JellyfinMediaSource: Codable, Identifiable, Hashable {
     let supportsDirectStream: Bool?
     let transcodingUrl: String?
     let transcodeReasons: [String]?
+    let liveStreamId: String?
+    let openToken: String?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -253,6 +318,8 @@ struct JellyfinMediaSource: Codable, Identifiable, Hashable {
         case supportsDirectStream = "SupportsDirectStream"
         case transcodingUrl = "TranscodingUrl"
         case transcodeReasons = "TranscodeReasons"
+        case liveStreamId = "LiveStreamId"
+        case openToken = "OpenToken"
     }
 }
 
@@ -425,5 +492,8 @@ extension JellyfinItem {
         self.endDate = nil
         self.productionLocations = nil
         self.imageTags = nil
+        self.backdropImageTags = nil
+        self.channelNumber = nil
+        self.currentProgram = nil
     }
 }

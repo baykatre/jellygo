@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "MER";
+
+/* Live TV */
+"Live TV" = "Live-TV";
+"Search channels" = "Sök kanaler";
+"No Channels" = "Inga Kanaler";
+"No live TV channels found on this server." = "Inga live-TV-kanaler hittades på denna server.";
+"Channels" = "Kanaler";
+"Watch" = "Titta";
+"Retry" = "Försök igen";
+"LIVE" = "LIVE";
+"Add to Favorites" = "Lägg till i favoriter";
+"Remove from Favorites" = "Ta bort från favoriter";

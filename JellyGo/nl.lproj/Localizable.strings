@@ -348,3 +348,15 @@
 
 /* Detail */
 "MORE" = "MEER";
+
+/* Live TV */
+"Live TV" = "Live TV";
+"Search channels" = "Kanalen zoeken";
+"No Channels" = "Geen Kanalen";
+"No live TV channels found on this server." = "Geen live TV-kanalen gevonden op deze server.";
+"Channels" = "Kanalen";
+"Watch" = "Bekijken";
+"Retry" = "Opnieuw proberen";
+"LIVE" = "LIVE";
+"Add to Favorites" = "Toevoegen aan favorieten";
+"Remove from Favorites" = "Verwijderen uit favorieten";

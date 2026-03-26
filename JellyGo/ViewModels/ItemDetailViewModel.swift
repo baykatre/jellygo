@@ -302,7 +302,8 @@ final class ItemDetailViewModel: ObservableObject {
                 genres: nil, officialRating: nil, taglines: nil, people: nil,
                 premiereDate: nil, mediaStreams: nil, mediaSources: nil,
                 childCount: grouped[num]?.count, providerIds: nil,
-                endDate: nil, productionLocations: nil, imageTags: nil
+                endDate: nil, productionLocations: nil, imageTags: nil, backdropImageTags: nil,
+                channelNumber: nil, currentProgram: nil
             )
         }
 
@@ -362,7 +363,8 @@ final class ItemDetailViewModel: ObservableObject {
                     genres: nil, officialRating: nil, taglines: nil, people: nil,
                     premiereDate: nil, mediaStreams: nil, mediaSources: nil,
                     childCount: grouped[num]?.count, providerIds: nil,
-                    endDate: nil, productionLocations: nil, imageTags: nil
+                    endDate: nil, productionLocations: nil, imageTags: nil, backdropImageTags: nil,
+                    channelNumber: nil, currentProgram: nil
                 )
             }
 

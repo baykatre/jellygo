@@ -19,10 +19,10 @@ final class HomeViewModel: ObservableObject {
 
     private func buildFeatured() {
         if !topRatedPool.isEmpty {
-            featuredItems = Array(topRatedPool.prefix(6))
+            featuredItems = Array(topRatedPool.filter { $0.hasBackdropImage }.prefix(6))
         } else {
             let pool = Array(latestMovies.prefix(8)) + Array(latestShows.prefix(8))
-            featuredItems = Array(pool.shuffled().prefix(6))
+            featuredItems = Array(pool.filter { $0.hasBackdropImage }.shuffled().prefix(6))
         }
     }
 
@@ -53,7 +53,7 @@ final class HomeViewModel: ObservableObject {
         async let trTask   = JellyfinAPI.shared.getItems(
             serverURL: url, userId: uid, token: token,
             itemTypes: ["Movie", "Series"], sortBy: "Random",
-            limit: 20, recursive: true)
+            limit: 50, recursive: true)
         async let libsTask = JellyfinAPI.shared.getLibraries(serverURL: url, userId: uid, token: token)
 
         continueWatching = (try? await cwTask)  ?? []

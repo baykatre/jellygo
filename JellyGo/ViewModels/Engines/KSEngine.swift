@@ -18,6 +18,9 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     private var _currentTimeMs: Int32 = 0
     private var _durationMs: Int32 = 0
     private var _videoSize: CGSize = .zero
+    private var isLiveTV = false
+    private var liveURL: URL?
+    private var liveStatsTimer: Timer?
     /// Persistent container view — player.view is added/removed dynamically
     private let containerView = KSPassthroughView()
     /// Shared KS options instance — kept alive for PiP display-layer toggling.
@@ -42,9 +45,26 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     func play(url: URL, startTimeMs: Int32, options: [String: Any]) {
         stop()
 
+        isLiveTV = options["isLiveTV"] as? Bool ?? false
+        liveURL = isLiveTV ? url : nil
+
         let ksOptions = JellyGoKSOptions()
         if startTimeMs > 0, options["useStartTime"] as? Bool == true {
             ksOptions.startPlayTime = TimeInterval(startTimeMs) / 1000.0
+        }
+
+        if isLiveTV {
+            // Live TV: force FFmpeg backend (KSMEPlayer) — AVPlayer can't handle infinite HTTP streams
+            // FFmpeg reads continuously from the stream without Content-Length issues
+            ksOptions.isLoopPlay = false
+            ksOptions.preferredForwardBufferDuration = 8
+            ksOptions.maxBufferDuration = 30
+            KSOptions.firstPlayerType = KSMEPlayer.self
+            KSOptions.secondPlayerType = KSMEPlayer.self
+        } else {
+            // Normal content: AVPlayer first, KSMEPlayer fallback
+            KSOptions.firstPlayerType = KSAVPlayer.self
+            KSOptions.secondPlayerType = KSMEPlayer.self
         }
 
         shouldDisableSubs = options["disableSubs"] as? Bool ?? false
@@ -52,6 +72,14 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
 
         let layer = KSPlayerLayer(url: url, options: ksOptions, delegate: self)
         self.playerLayer = layer
+
+        // Live TV: poll stats every second since KSPlayer's time callback is unreliable with totalTime=0
+        if isLiveTV {
+            liveStatsTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self, let layer = self.playerLayer else { return }
+                self.pollLiveStats(layer: layer)
+            }
+        }
 
         // Observe AVPictureInPictureController.isPictureInPictureActive via KVO
         // to detect PiP start (e.g. auto-PiP from background) and PiP end.
@@ -88,6 +116,8 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     }
 
     func stop() {
+        liveStatsTimer?.invalidate()
+        liveStatsTimer = nil
         removePipSubtitleLayer()
         currentOptions?.pipActive = false
         pipObservation = nil
@@ -413,26 +443,49 @@ extension KSEngine: KSPlayerLayerDelegate {
             _isPlaying = false
             delegate?.engineStateChanged(isPlaying: false, isBuffering: false, error: nil)
         case .playedToTheEnd:
-            _isPlaying = false
-            delegate?.engineStateChanged(isPlaying: false, isBuffering: false, error: nil)
+            if isLiveTV {
+                // Live stream buffer exhausted — reconnect
+                print("[LIVETV] playedToTheEnd — reconnecting...")
+                delegate?.engineStateChanged(isPlaying: true, isBuffering: true, error: nil)
+                layer.play()
+            } else {
+                _isPlaying = false
+                delegate?.engineStateChanged(isPlaying: false, isBuffering: false, error: nil)
+            }
         case .error:
-            _isPlaying = false
-            delegate?.engineStateChanged(isPlaying: false, isBuffering: false,
-                error: String(localized: "Playback error", bundle: AppState.currentBundle))
+            if isLiveTV {
+                // Live stream error — attempt reconnect
+                print("[LIVETV] error state — reconnecting...")
+                delegate?.engineStateChanged(isPlaying: true, isBuffering: true, error: nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    self?.playerLayer?.play()
+                }
+            } else {
+                _isPlaying = false
+                delegate?.engineStateChanged(isPlaying: false, isBuffering: false,
+                    error: String(localized: "Playback error", bundle: AppState.currentBundle))
+            }
         default:
             break
         }
     }
 
     func player(layer: KSPlayerLayer, currentTime: TimeInterval, totalTime: TimeInterval) {
-        guard totalTime > 0 else { return }
-        let currentMs = Int32(currentTime * 1000)
-        let durationMs = Int32(totalTime * 1000)
-        let pos = Float(currentTime / totalTime)
-        _currentTimeMs = currentMs
-        _durationMs = durationMs
-        _position = pos
-        delegate?.enginePositionChanged(position: pos, currentMs: currentMs, durationMs: durationMs)
+        if isLiveTV {
+            // Live TV: totalTime is 0 or infinite — report position as 0, duration as 0
+            _currentTimeMs = Int32(currentTime * 1000)
+            _durationMs = 0
+            _position = 0
+        } else {
+            guard totalTime > 0 else { return }
+            let currentMs = Int32(currentTime * 1000)
+            let durationMs = Int32(totalTime * 1000)
+            let pos = Float(currentTime / totalTime)
+            _currentTimeMs = currentMs
+            _durationMs = durationMs
+            _position = pos
+            delegate?.enginePositionChanged(position: pos, currentMs: currentMs, durationMs: durationMs)
+        }
         var stats = EngineStats()
         stats.bufferedSeconds = layer.player.playableTime
         if let info = layer.player.dynamicInfo {
@@ -451,9 +504,30 @@ extension KSEngine: KSPlayerLayerDelegate {
         delegate?.engineStatsUpdated(stats)
     }
 
+    private func pollLiveStats(layer: KSPlayerLayer) {
+        var stats = EngineStats()
+        stats.bufferedSeconds = layer.player.playableTime
+        if let info = layer.player.dynamicInfo {
+            stats.inputBitrateMbps = Double(info.videoBitrate + info.audioBitrate) / 1_000_000
+            stats.readBytes = Int(info.bytesRead)
+            stats.droppedFrames = Int32(info.droppedVideoFrameCount)
+            stats.fps = info.displayFPS
+        }
+        delegate?.engineStatsUpdated(stats)
+    }
+
     func player(layer: KSPlayerLayer, finish error: Error?) {
         if let error {
-            delegate?.engineStateChanged(isPlaying: false, isBuffering: false, error: error.localizedDescription)
+            if isLiveTV {
+                // Live stream finish with error — attempt reconnect
+                print("[LIVETV] finish error: \(error.localizedDescription) — reconnecting...")
+                delegate?.engineStateChanged(isPlaying: true, isBuffering: true, error: nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    self?.playerLayer?.play()
+                }
+            } else {
+                delegate?.engineStateChanged(isPlaying: false, isBuffering: false, error: error.localizedDescription)
+            }
         }
     }
 

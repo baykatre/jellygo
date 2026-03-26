@@ -13,6 +13,12 @@ struct JellyGoApp: App {
     @StateObject private var appState = AppState()
     @State private var showSplash = true
 
+    init() {
+        // Clear URLSession cache once on launch to flush any stale 404 responses
+        // for images that may have been added to Jellyfin since last run.
+        URLCache.shared.removeAllCachedResponses()
+    }
+
     var body: some Scene {
         WindowGroup {
             ZStack {
