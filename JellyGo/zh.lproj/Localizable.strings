@@ -360,3 +360,25 @@
 "LIVE" = "直播";
 "Add to Favorites" = "添加到收藏";
 "Remove from Favorites" = "从收藏中移除";
+
+/* Experimental */
+"Experimental" = "实验性";
+"Experimental features may be unstable." = "实验性功能可能不稳定。";
+
+/* Pro Paywall */
+"Restore" = "恢复";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "解锁所有内容。一次付款。永久使用。";
+"Offline Downloads" = "离线下载";
+"Download movies and shows to watch anywhere, anytime." = "下载电影和剧集，随时随地观看。";
+"Multiple Servers & Accounts" = "多服务器和账户";
+"Switch between unlimited Jellyfin servers and user accounts." = "在无限的 Jellyfin 服务器和用户账户之间切换。";
+"Watch live channels from your Jellyfin server." = "从您的 Jellyfin 服务器观看实时频道。";
+"All Future Pro Features" = "所有未来的 Pro 功能";
+"One-time purchase. Lifetime updates." = "一次性购买。终身更新。";
+"Get Lifetime Access" = "获取终身访问权限";
+"One-time purchase. No subscription. Family Sharing supported." = "一次性购买。无订阅。支持家人共享。";
+"Product not available. Try again later." = "商品不可用。请稍后再试。";
+"Purchase pending approval." = "购买等待批准。";
+"Pro Active" = "Pro 已激活";
+"Upgrade to Pro" = "升级到 Pro";

@@ -360,3 +360,25 @@
 "LIVE" = "LIVE";
 "Add to Favorites" = "Toevoegen aan favorieten";
 "Remove from Favorites" = "Verwijderen uit favorieten";
+
+/* Experimental */
+"Experimental" = "Experimenteel";
+"Experimental features may be unstable." = "Experimentele functies kunnen instabiel zijn.";
+
+/* Pro Paywall */
+"Restore" = "Herstellen";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "Ontgrendel alles. Eén betaling. Voor altijd.";
+"Offline Downloads" = "Offline downloads";
+"Download movies and shows to watch anywhere, anytime." = "Download films en series om overal en altijd te kijken.";
+"Multiple Servers & Accounts" = "Meerdere servers en accounts";
+"Switch between unlimited Jellyfin servers and user accounts." = "Schakel tussen onbeperkte Jellyfin-servers en gebruikersaccounts.";
+"Watch live channels from your Jellyfin server." = "Bekijk livekanalen van je Jellyfin-server.";
+"All Future Pro Features" = "Alle toekomstige Pro-functies";
+"One-time purchase. Lifetime updates." = "Eenmalige aankoop. Levenslange updates.";
+"Get Lifetime Access" = "Krijg levenslange toegang";
+"One-time purchase. No subscription. Family Sharing supported." = "Eenmalige aankoop. Geen abonnement. Delen met gezin ondersteund.";
+"Product not available. Try again later." = "Product niet beschikbaar. Probeer het later opnieuw.";
+"Purchase pending approval." = "Aankoop wacht op goedkeuring.";
+"Pro Active" = "Pro actief";
+"Upgrade to Pro" = "Upgrade naar Pro";

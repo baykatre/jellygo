@@ -302,6 +302,11 @@ struct JellyGoPlayerView: View {
                 DragGesture(minimumDistance: 12)
                     .onChanged { val in
                         guard !showEpisodeList, !isLongPressSpeed else { return }
+                        // Edge buffer: ignore swipes that start in top/bottom 60pt
+                        // (avoids conflict with system swipe-to-close gestures)
+                        let edgeBuffer: CGFloat = 60
+                        guard val.startLocation.y > edgeBuffer,
+                              val.startLocation.y < geo.size.height - edgeBuffer else { return }
                         let h = abs(val.translation.width)
                         let v = abs(val.translation.height)
                         if !isSwipeActive {

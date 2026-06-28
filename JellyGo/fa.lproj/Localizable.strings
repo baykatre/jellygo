@@ -360,3 +360,25 @@
 "LIVE" = "زنده";
 "Add to Favorites" = "افزودن به علاقه‌مندی‌ها";
 "Remove from Favorites" = "حذف از علاقه‌مندی‌ها";
+
+/* Experimental */
+"Experimental" = "آزمایشی";
+"Experimental features may be unstable." = "ویژگی‌های آزمایشی ممکن است ناپایدار باشند.";
+
+/* Pro Paywall */
+"Restore" = "بازیابی";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "همه چیز را باز کنید. یک پرداخت. برای همیشه.";
+"Offline Downloads" = "دانلودهای آفلاین";
+"Download movies and shows to watch anywhere, anytime." = "فیلم‌ها و سریال‌ها را برای تماشا در هر زمان و مکانی دانلود کنید.";
+"Multiple Servers & Accounts" = "چندین سرور و حساب";
+"Switch between unlimited Jellyfin servers and user accounts." = "بین سرورهای Jellyfin و حساب‌های کاربری نامحدود جابجا شوید.";
+"Watch live channels from your Jellyfin server." = "کانال‌های زنده را از سرور Jellyfin خود تماشا کنید.";
+"All Future Pro Features" = "همه ویژگی‌های آینده Pro";
+"One-time purchase. Lifetime updates." = "خرید یک‌باره. به‌روزرسانی‌های مادام‌العمر.";
+"Get Lifetime Access" = "دسترسی مادام‌العمر دریافت کنید";
+"One-time purchase. No subscription. Family Sharing supported." = "خرید یک‌باره. بدون اشتراک. اشتراک خانوادگی پشتیبانی می‌شود.";
+"Product not available. Try again later." = "محصول در دسترس نیست. بعداً دوباره امتحان کنید.";
+"Purchase pending approval." = "خرید در انتظار تأیید است.";
+"Pro Active" = "Pro فعال";
+"Upgrade to Pro" = "ارتقا به Pro";

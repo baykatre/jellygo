@@ -111,8 +111,12 @@ struct ItemDetailView: View {
                     downloadedEpisodeTarget = dl.id
                     selectedSeason = targetSeason
                 } else if !isOffline {
+                    // Show first season immediately so the page isn't blank while bestSeasonToOpen searches
+                    selectedSeason = vm.seasons.first
                     let season = await vm.bestSeasonToOpen(appState: appState)
-                    selectedSeason = season ?? vm.seasons.first
+                    if let season, season.id != selectedSeason?.id {
+                        selectedSeason = season
+                    }
                     if let sid = selectedSeason?.id, let ep = vm.resumeEpisode(seasonId: sid) {
                         activeItem = ep
                     }

@@ -17,6 +17,8 @@ struct JellyGoApp: App {
         // Clear URLSession cache once on launch to flush any stale 404 responses
         // for images that may have been added to Jellyfin since last run.
         URLCache.shared.removeAllCachedResponses()
+        // Initialize StoreKit on launch (loads product, refreshes entitlement)
+        _ = StoreManager.shared
     }
 
     var body: some Scene {

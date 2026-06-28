@@ -360,3 +360,25 @@
 "LIVE" = "НАЖИВО";
 "Add to Favorites" = "Додати до обраного";
 "Remove from Favorites" = "Видалити з обраного";
+
+/* Experimental */
+"Experimental" = "Експериментальне";
+"Experimental features may be unstable." = "Експериментальні функції можуть бути нестабільними.";
+
+/* Pro Paywall */
+"Restore" = "Відновити";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "Розблокуйте все. Одна оплата. Назавжди.";
+"Offline Downloads" = "Офлайн-завантаження";
+"Download movies and shows to watch anywhere, anytime." = "Завантажуйте фільми та серіали, щоб дивитися будь-де та будь-коли.";
+"Multiple Servers & Accounts" = "Кілька серверів і облікових записів";
+"Switch between unlimited Jellyfin servers and user accounts." = "Перемикайтеся між необмеженою кількістю серверів Jellyfin та облікових записів.";
+"Watch live channels from your Jellyfin server." = "Дивіться прямі канали з вашого сервера Jellyfin.";
+"All Future Pro Features" = "Усі майбутні функції Pro";
+"One-time purchase. Lifetime updates." = "Одноразова покупка. Довічні оновлення.";
+"Get Lifetime Access" = "Отримати довічний доступ";
+"One-time purchase. No subscription. Family Sharing supported." = "Одноразова покупка. Без підписки. Підтримка Сімейного доступу.";
+"Product not available. Try again later." = "Продукт недоступний. Спробуйте пізніше.";
+"Purchase pending approval." = "Покупка очікує підтвердження.";
+"Pro Active" = "Pro активний";
+"Upgrade to Pro" = "Перейти на Pro";

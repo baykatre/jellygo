@@ -29,8 +29,10 @@ struct HomeView: View {
                 ExploreView(vm: exploreVM)
             }
 
-            Tab(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv", value: 2) {
-                LiveTvView(vm: liveTvVM, playerVM: liveTvPlayerVM)
+            if appState.experimentalLiveTv {
+                Tab(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv", value: 2) {
+                    LiveTvView(vm: liveTvVM, playerVM: liveTvPlayerVM)
+                }
             }
 
             Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 3, role: .search) {
@@ -45,6 +47,10 @@ struct HomeView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: downloadBanner?.id)
+        .sheet(isPresented: $appState.showPaywall) {
+            PaywallView()
+                .environmentObject(appState)
+        }
         .onChange(of: selectedTab) { oldTab, newTab in
             // Leaving Live TV → start PiP if playing
             if oldTab == 2 && newTab != 2 && liveTvPlayerVM.isPlaying && liveTvPlayerVM.isPipSupported {
@@ -531,6 +537,37 @@ struct SettingsView: View {
 
     var body: some View {
         List {
+            Section {
+                Button {
+                    appState.showPaywall = true
+                } label: {
+                    HStack {
+                        Label {
+                            Text(appState.isPro
+                                 ? String(localized: "Pro Active", bundle: AppState.currentBundle)
+                                 : String(localized: "Upgrade to Pro", bundle: AppState.currentBundle))
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemName: "crown.fill")
+                                .foregroundStyle(LinearGradient(
+                                    colors: [Color(red: 1.0, green: 0.78, blue: 0.32), Color(red: 0.95, green: 0.55, blue: 0.20)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                ))
+                        }
+                        Spacer()
+                        if appState.isPro {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+
             if quickConnectAvailable {
                 Section {
                     NavigationLink {
@@ -592,6 +629,25 @@ struct SettingsView: View {
                 } label: {
                     Label(String(localized: "About", bundle: AppState.currentBundle), systemImage: "info.circle")
                 }
+            }
+
+            Section {
+                Toggle(isOn: Binding(
+                    get: { appState.experimentalLiveTv },
+                    set: { newValue in
+                        if newValue && !appState.isPro {
+                            appState.showPaywall = true
+                        } else {
+                            appState.experimentalLiveTv = newValue
+                        }
+                    }
+                )) {
+                    Label(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv")
+                }
+            } header: {
+                Text(String(localized: "Experimental", bundle: AppState.currentBundle))
+            } footer: {
+                Text(String(localized: "Experimental features may be unstable.", bundle: AppState.currentBundle))
             }
 
             Section {
@@ -666,7 +722,13 @@ struct SettingsView: View {
                     .textCase(.uppercase)
                     .padding(.leading, 20)
                 Spacer()
-                Button { showAddAccountSheet = true } label: {
+                Button {
+                    if !appState.isPro && !appState.savedAccounts.isEmpty {
+                        appState.showPaywall = true
+                    } else {
+                        showAddAccountSheet = true
+                    }
+                } label: {
                     Label(String(localized: "Add", bundle: AppState.currentBundle), systemImage: "plus")
                         .font(.subheadline.weight(.medium))
                         .labelStyle(.iconOnly)

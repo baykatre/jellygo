@@ -339,6 +339,11 @@ final class DownloadManager: NSObject, ObservableObject {
     // MARK: - Start
 
     func startDownload(item: JellyfinItem, qualityLabel: String, downloadURL: URL, appState: AppState) {
+        // Pro-only feature
+        guard appState.isPro else {
+            appState.showPaywall = true
+            return
+        }
         guard !isDownloaded(item.id), !isDownloading(item.id),
               !isQueued(item.id), !isPaused(item.id) else { return }
 

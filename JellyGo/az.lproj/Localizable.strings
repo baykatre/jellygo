@@ -360,3 +360,25 @@
 "LIVE" = "CANLI";
 "Add to Favorites" = "Favorilərə Əlavə Et";
 "Remove from Favorites" = "Favorilərədn Sil";
+
+/* Experimental */
+"Experimental" = "Eksperimental";
+"Experimental features may be unstable." = "Eksperimental funksiyalar qeyri-sabit ola bilər.";
+
+/* Pro Paywall */
+"Restore" = "Bərpa et";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "Hər şeyin kilidini aç. Tək ödəniş. Əbədi.";
+"Offline Downloads" = "Oflayn Yükləmələr";
+"Download movies and shows to watch anywhere, anytime." = "Hər yerdə, hər zaman izləmək üçün filmləri və serialları yükləyin.";
+"Multiple Servers & Accounts" = "Çoxlu Server və Hesablar";
+"Switch between unlimited Jellyfin servers and user accounts." = "Limitsiz Jellyfin server və istifadəçi hesabları arasında keçid edin.";
+"Watch live channels from your Jellyfin server." = "Jellyfin serverinizdən canlı kanalları izləyin.";
+"All Future Pro Features" = "Bütün Gələcək Pro Funksiyaları";
+"One-time purchase. Lifetime updates." = "Birdəfəlik alış. Ömürlük yeniləmələr.";
+"Get Lifetime Access" = "Ömürlük Giriş Əldə Et";
+"One-time purchase. No subscription. Family Sharing supported." = "Birdəfəlik alış. Abunəlik yoxdur. Ailə Paylaşımı dəstəklənir.";
+"Product not available. Try again later." = "Məhsul mövcud deyil. Sonra yenidən cəhd edin.";
+"Purchase pending approval." = "Alış təsdiq gözləyir.";
+"Pro Active" = "Pro Aktivdir";
+"Upgrade to Pro" = "Pro-ya Yüksəlt";

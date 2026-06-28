@@ -360,3 +360,25 @@
 "LIVE" = "LIVE";
 "Add to Favorites" = "Lägg till i favoriter";
 "Remove from Favorites" = "Ta bort från favoriter";
+
+/* Experimental */
+"Experimental" = "Experimentell";
+"Experimental features may be unstable." = "Experimentella funktioner kan vara instabila.";
+
+/* Pro Paywall */
+"Restore" = "Återställ";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "Lås upp allt. En betalning. För alltid.";
+"Offline Downloads" = "Offline-nedladdningar";
+"Download movies and shows to watch anywhere, anytime." = "Ladda ner filmer och serier för att se var och när som helst.";
+"Multiple Servers & Accounts" = "Flera servrar och konton";
+"Switch between unlimited Jellyfin servers and user accounts." = "Växla mellan obegränsade Jellyfin-servrar och användarkonton.";
+"Watch live channels from your Jellyfin server." = "Titta på livekanaler från din Jellyfin-server.";
+"All Future Pro Features" = "Alla framtida Pro-funktioner";
+"One-time purchase. Lifetime updates." = "Engångsköp. Livstidsuppdateringar.";
+"Get Lifetime Access" = "Få livstidstillgång";
+"One-time purchase. No subscription. Family Sharing supported." = "Engångsköp. Ingen prenumeration. Familjedelning stöds.";
+"Product not available. Try again later." = "Produkten är inte tillgänglig. Försök igen senare.";
+"Purchase pending approval." = "Köpet väntar på godkännande.";
+"Pro Active" = "Pro aktiv";
+"Upgrade to Pro" = "Uppgradera till Pro";

@@ -360,3 +360,25 @@
 "LIVE" = "EN DIRECT";
 "Add to Favorites" = "Ajouter aux favoris";
 "Remove from Favorites" = "Retirer des favoris";
+
+/* Experimental */
+"Experimental" = "Expérimental";
+"Experimental features may be unstable." = "Les fonctionnalités expérimentales peuvent être instables.";
+
+/* Pro Paywall */
+"Restore" = "Restaurer";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "Tout débloquer. Un paiement. Pour toujours.";
+"Offline Downloads" = "Téléchargements hors ligne";
+"Download movies and shows to watch anywhere, anytime." = "Téléchargez films et séries pour les regarder partout, à tout moment.";
+"Multiple Servers & Accounts" = "Plusieurs serveurs et comptes";
+"Switch between unlimited Jellyfin servers and user accounts." = "Basculez entre un nombre illimité de serveurs Jellyfin et de comptes.";
+"Watch live channels from your Jellyfin server." = "Regardez des chaînes en direct depuis votre serveur Jellyfin.";
+"All Future Pro Features" = "Toutes les futures fonctionnalités Pro";
+"One-time purchase. Lifetime updates." = "Achat unique. Mises à jour à vie.";
+"Get Lifetime Access" = "Obtenir l'accès à vie";
+"One-time purchase. No subscription. Family Sharing supported." = "Achat unique. Pas d'abonnement. Partage familial pris en charge.";
+"Product not available. Try again later." = "Produit non disponible. Réessayez plus tard.";
+"Purchase pending approval." = "Achat en attente d'approbation.";
+"Pro Active" = "Pro actif";
+"Upgrade to Pro" = "Passer à Pro";

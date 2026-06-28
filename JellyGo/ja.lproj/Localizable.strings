@@ -360,3 +360,25 @@
 "LIVE" = "ライブ";
 "Add to Favorites" = "お気に入りに追加";
 "Remove from Favorites" = "お気に入りから削除";
+
+/* Experimental */
+"Experimental" = "実験的";
+"Experimental features may be unstable." = "実験的な機能は不安定な場合があります。";
+
+/* Pro Paywall */
+"Restore" = "復元";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "すべてのロックを解除。一度の支払い。永久に。";
+"Offline Downloads" = "オフラインダウンロード";
+"Download movies and shows to watch anywhere, anytime." = "映画やドラマをダウンロードして、どこでもいつでも視聴できます。";
+"Multiple Servers & Accounts" = "複数のサーバーとアカウント";
+"Switch between unlimited Jellyfin servers and user accounts." = "無制限の Jellyfin サーバーとユーザーアカウントを切り替えます。";
+"Watch live channels from your Jellyfin server." = "Jellyfin サーバーからライブチャンネルを視聴。";
+"All Future Pro Features" = "今後のすべての Pro 機能";
+"One-time purchase. Lifetime updates." = "一度の購入。生涯アップデート。";
+"Get Lifetime Access" = "生涯アクセスを取得";
+"One-time purchase. No subscription. Family Sharing supported." = "一度の購入。サブスクリプションなし。ファミリー共有対応。";
+"Product not available. Try again later." = "商品が利用できません。後でもう一度お試しください。";
+"Purchase pending approval." = "購入は承認待ちです。";
+"Pro Active" = "Pro 有効";
+"Upgrade to Pro" = "Pro にアップグレード";

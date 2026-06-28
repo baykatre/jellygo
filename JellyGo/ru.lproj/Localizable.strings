@@ -360,3 +360,25 @@
 "LIVE" = "ЭФИР";
 "Add to Favorites" = "Добавить в избранное";
 "Remove from Favorites" = "Удалить из избранного";
+
+/* Experimental */
+"Experimental" = "Экспериментальное";
+"Experimental features may be unstable." = "Экспериментальные функции могут быть нестабильными.";
+
+/* Pro Paywall */
+"Restore" = "Восстановить";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "Разблокируйте всё. Одна оплата. Навсегда.";
+"Offline Downloads" = "Загрузки офлайн";
+"Download movies and shows to watch anywhere, anytime." = "Загружайте фильмы и сериалы, чтобы смотреть в любом месте и в любое время.";
+"Multiple Servers & Accounts" = "Несколько серверов и аккаунтов";
+"Switch between unlimited Jellyfin servers and user accounts." = "Переключайтесь между неограниченным числом серверов Jellyfin и учётных записей.";
+"Watch live channels from your Jellyfin server." = "Смотрите прямые каналы с вашего сервера Jellyfin.";
+"All Future Pro Features" = "Все будущие функции Pro";
+"One-time purchase. Lifetime updates." = "Разовая покупка. Пожизненные обновления.";
+"Get Lifetime Access" = "Получить пожизненный доступ";
+"One-time purchase. No subscription. Family Sharing supported." = "Разовая покупка. Без подписки. Поддержка Семейного доступа.";
+"Product not available. Try again later." = "Продукт недоступен. Попробуйте позже.";
+"Purchase pending approval." = "Покупка ожидает одобрения.";
+"Pro Active" = "Pro активен";
+"Upgrade to Pro" = "Перейти на Pro";

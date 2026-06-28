@@ -6,9 +6,9 @@ struct OfflineView: View {
     @State private var heroPlayItem: JellyfinItem?
     @State private var autoPlayItem: JellyfinItem?
     @State private var showSettings = false
-    @State private var showOverlay = true
     @State private var heroPullDown: CGFloat = 0
     @State private var offlinePath = NavigationPath()
+    @State private var showOverlay = true
 
     // MARK: - Computed Data
 

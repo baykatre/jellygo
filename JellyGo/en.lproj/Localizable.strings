@@ -358,3 +358,25 @@
 "LIVE" = "LIVE";
 "Add to Favorites" = "Add to Favorites";
 "Remove from Favorites" = "Remove from Favorites";
+
+/* Experimental */
+"Experimental" = "Experimental";
+"Experimental features may be unstable." = "Experimental features may be unstable.";
+
+/* Pro Paywall */
+"Restore" = "Restore";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "Unlock everything. One payment. Forever.";
+"Offline Downloads" = "Offline Downloads";
+"Download movies and shows to watch anywhere, anytime." = "Download movies and shows to watch anywhere, anytime.";
+"Multiple Servers & Accounts" = "Multiple Servers & Accounts";
+"Switch between unlimited Jellyfin servers and user accounts." = "Switch between unlimited Jellyfin servers and user accounts.";
+"Watch live channels from your Jellyfin server." = "Watch live channels from your Jellyfin server.";
+"All Future Pro Features" = "All Future Pro Features";
+"One-time purchase. Lifetime updates." = "One-time purchase. Lifetime updates.";
+"Get Lifetime Access" = "Get Lifetime Access";
+"One-time purchase. No subscription. Family Sharing supported." = "One-time purchase. No subscription. Family Sharing supported.";
+"Product not available. Try again later." = "Product not available. Try again later.";
+"Purchase pending approval." = "Purchase pending approval.";
+"Pro Active" = "Pro Active";
+"Upgrade to Pro" = "Upgrade to Pro";

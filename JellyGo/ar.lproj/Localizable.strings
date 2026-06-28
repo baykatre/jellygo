@@ -360,3 +360,25 @@
 "LIVE" = "مباشر";
 "Add to Favorites" = "إضافة إلى المفضلة";
 "Remove from Favorites" = "إزالة من المفضلة";
+
+/* Experimental */
+"Experimental" = "تجريبي";
+"Experimental features may be unstable." = "قد تكون الميزات التجريبية غير مستقرة.";
+
+/* Pro Paywall */
+"Restore" = "استعادة";
+"JellyGo Pro" = "JellyGo Pro";
+"Unlock everything. One payment. Forever." = "افتح كل شيء. دفعة واحدة. للأبد.";
+"Offline Downloads" = "التنزيلات دون اتصال";
+"Download movies and shows to watch anywhere, anytime." = "قم بتنزيل الأفلام والمسلسلات لمشاهدتها في أي مكان وأي وقت.";
+"Multiple Servers & Accounts" = "خوادم وحسابات متعددة";
+"Switch between unlimited Jellyfin servers and user accounts." = "التبديل بين عدد غير محدود من خوادم Jellyfin وحسابات المستخدمين.";
+"Watch live channels from your Jellyfin server." = "شاهد القنوات المباشرة من خادم Jellyfin الخاص بك.";
+"All Future Pro Features" = "جميع ميزات Pro المستقبلية";
+"One-time purchase. Lifetime updates." = "شراء لمرة واحدة. تحديثات مدى الحياة.";
+"Get Lifetime Access" = "احصل على الوصول مدى الحياة";
+"One-time purchase. No subscription. Family Sharing supported." = "شراء لمرة واحدة. لا اشتراك. مشاركة عائلية مدعومة.";
+"Product not available. Try again later." = "المنتج غير متاح. حاول مرة أخرى لاحقًا.";
+"Purchase pending approval." = "الشراء في انتظار الموافقة.";
+"Pro Active" = "Pro نشط";
+"Upgrade to Pro" = "الترقية إلى Pro";

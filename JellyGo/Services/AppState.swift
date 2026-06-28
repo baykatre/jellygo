@@ -99,6 +99,17 @@ final class AppState: ObservableObject {
         UserDefaults.standard.bool(forKey: "jellygo.manualOffline") {
         didSet { UserDefaults.standard.set(manualOffline, forKey: "jellygo.manualOffline") }
     }
+    /// Pro entitlement (lifetime IAP). Synced from StoreManager.
+    /// In DEBUG builds, always Pro so paywall doesn't block development.
+    @Published var isPro: Bool = {
+        #if DEBUG
+        return true
+        #else
+        return UserDefaults.standard.bool(forKey: "jellygo.isPro")
+        #endif
+    }()
+    /// Set to non-nil to present the paywall sheet from anywhere in the app.
+    @Published var showPaywall: Bool = false
     @Published var isPlayerActive = false      // true while player is presented
     @Published var sessionId: UUID = UUID()   // changes on every account switch → triggers reloads
     @Published var serverURL: String = ""
@@ -217,6 +228,11 @@ final class AppState: ObservableObject {
         return UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
     }() {
         didSet { UserDefaults.standard.set(showLatestShows, forKey: "jellygo.showLatestShows") }
+    }
+
+    // MARK: Experimental Features
+    @Published var experimentalLiveTv: Bool = UserDefaults.standard.bool(forKey: "jellygo.experimentalLiveTv") {
+        didSet { UserDefaults.standard.set(experimentalLiveTv, forKey: "jellygo.experimentalLiveTv") }
     }
 
     // MARK: App Language

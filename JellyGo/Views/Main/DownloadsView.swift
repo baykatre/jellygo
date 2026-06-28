@@ -156,9 +156,9 @@ struct DownloadsView: View {
                             let seasonCount = Set(groupEps.compactMap(\.seasonNumber)).count
                             NavigationLink(value: DownloadedSeriesNav(seriesId: sid)) {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    BackdropCardView(item: seriesItem, serverURL: first.serverURL, width: 260)
+                                    PosterCardView(item: seriesItem, serverURL: first.serverURL, width: 140, showYear: false)
                                     seriesDetailText(seasonCount: seasonCount, episodeCount: groupEps.count, totalSize: groupEps.compactMap(\.fileSize).reduce(0, +))
-                                        .frame(width: 260, alignment: .leading)
+                                        .frame(width: 140, alignment: .leading)
                                 }
                             }
                             .buttonStyle(.plain)
@@ -253,9 +253,9 @@ struct DownloadsView: View {
                     ForEach(items) { item in
                         NavigationLink(value: DownloadedSeriesNav(seriesId: item.id)) {
                             VStack(alignment: .leading, spacing: 6) {
-                                BackdropCardView(item: makeMovieCardItem(item), serverURL: item.serverURL, width: 260)
+                                PosterCardView(item: makeMovieCardItem(item), serverURL: item.serverURL, width: 140, showYear: false)
                                 movieDetailText(item: item)
-                                    .frame(width: 260, alignment: .leading)
+                                    .frame(width: 140, alignment: .leading)
                             }
                         }
                         .buttonStyle(.plain)

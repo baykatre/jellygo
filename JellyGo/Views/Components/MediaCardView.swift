@@ -146,7 +146,6 @@ struct HeroBannerView: View {
         .frame(width: size.width, height: size.height + pullDown)
         .offset(y: -pullDown)
         .padding(.bottom, -pullDown)
-        .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
             let item = items[currentItemIndex]
@@ -281,9 +280,10 @@ struct HeroBannerView: View {
     @ViewBuilder
     private func gradientOverlay(size: CGSize) -> some View {
         ZStack(alignment: .bottom) {
-            // Camsı blur
+            // Camsı blur — force dark scheme so it stays cinematic in light mode
             Rectangle()
                 .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
                 .mask(
                     LinearGradient(
                         stops: [
@@ -528,8 +528,8 @@ struct PosterCardView: View {
             }
             .shadow(color: showShadow ? .black.opacity(0.3) : .clear, radius: 6, y: 3)
 
-            if showYear, let year = item.productionYear {
-                Text(String(year))
+            if showYear {
+                Text(displayYear)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -540,6 +540,11 @@ struct PosterCardView: View {
     // For episodes in Latest Shows, show the parent series poster + name
     private var displayId: String { item.isEpisode ? (item.seriesId ?? item.id) : item.id }
     private var displayName: String { item.isEpisode ? (item.seriesName ?? item.name) : item.name }
+    private var displayYear: String {
+        if let y = item.productionYear { return String(y) }
+        if let raw = item.premiereDate, raw.count >= 4 { return String(raw.prefix(4)) }
+        return " "
+    }
 
     @ViewBuilder
     private var posterImage: some View {
