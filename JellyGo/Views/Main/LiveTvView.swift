@@ -5,12 +5,9 @@ struct LiveTvView: View {
     @ObservedObject var vm: LiveTvViewModel
     @ObservedObject var playerVM: PlayerViewModel
 
-    @State private var scrollPositionId: String?
     @State private var currentChannel: JellyfinItem?
     @State private var isFullscreen = false
-    @State private var inlineRefreshId = 0
     @State private var showFavoritesOnly: Bool = UserDefaults.standard.bool(forKey: "jellygo.liveTvFavoritesOnly")
-    @State private var channelSwitchTask: Task<Void, Never>?
     @State private var searchText = ""
     @State private var isSearchVisible = false
 
@@ -91,28 +88,15 @@ struct LiveTvView: View {
                 }
             }
         }
-        .onChange(of: vm.channels) { _, channels in
-            guard !channels.isEmpty, currentChannel == nil else { return }
-            autoSelectInitialChannel(from: channels)
-        }
-        .onAppear {
-            if !vm.channels.isEmpty && currentChannel == nil {
-                autoSelectInitialChannel(from: vm.channels)
-            }
-        }
         .fullScreenCover(isPresented: $isFullscreen, onDismiss: {
             AppDelegate.orientationLock = .portrait
             PlayerContainerView.rotate(to: .portrait)
-            // Sync channel if changed in fullscreen
+            // Sync channel if changed in fullscreen (user browsed channels while playing)
             if let playingItem = playerVM.item,
                playingItem.id != currentChannel?.id,
                let ch = vm.channels.first(where: { $0.id == playingItem.id }) {
                 currentChannel = ch
-                withAnimation(.spring(duration: 0.3)) {
-                    scrollPositionId = ch.id
-                }
             }
-            inlineRefreshId += 1
         }) {
             if let ch = currentChannel {
                 FullscreenLivePlayerWrapper(item: ch, vm: playerVM)
@@ -124,30 +108,7 @@ struct LiveTvView: View {
     // MARK: - Main Content
 
     private var liveContent: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                // Inline player — same JellyGoPlayerView
-                if let ch = currentChannel {
-                    JellyGoPlayerView(item: ch, vm: playerVM, externalVM: true,
-                                      isInline: true, onFullscreen: { goFullscreen() })
-                        .frame(height: geo.size.height * 0.45)
-                        .clipped()
-                        .clipShape(Rectangle())
-                        .id("\(ch.id)-\(inlineRefreshId)")
-                }
-
-                // Channel strip
-                channelStrip(geo: geo)
-            }
-        }
-    }
-
-    // MARK: - Channel Strip
-
-    private func channelStrip(geo: GeometryProxy) -> some View {
-        let channels = filteredChannels
-
-        return VStack(spacing: 0) {
+        VStack(spacing: 0) {
             if isSearchVisible {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
@@ -167,59 +128,51 @@ struct LiveTvView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
                 .background(RoundedRectangle(cornerRadius: 10).fill(.quaternary))
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
                 .padding(.top, 6)
                 .padding(.bottom, 4)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Horizontal scrollable channel cards
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 12) {
-                    ForEach(channels) { channel in
-                        LiveChannelCard(
+            List {
+                ForEach(filteredChannels) { channel in
+                    Button {
+                        selectChannel(channel)
+                    } label: {
+                        LiveChannelRow(
                             channel: channel,
                             serverURL: vm.serverURL,
-                            isSelected: channel.id == currentChannel?.id,
-                            onToggleFavorite: { toggleFavorite(channel) }
+                            isPlaying: channel.id == currentChannel?.id
                         )
-                        .id(channel.id)
-                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
-                        .onTapGesture {
-                            switchToChannel(channel)
+                    }
+                    .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing) {
+                        Button {
+                            toggleFavorite(channel)
+                        } label: {
+                            if channel.userData?.isFavorite == true {
+                                Label(String(localized: "Remove from Favorites", bundle: AppState.currentBundle), systemImage: "heart.slash")
+                            } else {
+                                Label(String(localized: "Add to Favorites", bundle: AppState.currentBundle), systemImage: "heart")
+                            }
                         }
+                        .tint(.red)
                     }
                 }
-                .scrollTargetLayout()
-                .padding(.horizontal, 20)
             }
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $scrollPositionId)
-            .contentMargins(.horizontal, 0, for: .scrollIndicators)
-
-            Spacer(minLength: 0)
+            .listStyle(.plain)
+            .animation(.default, value: filteredChannels.map(\.id))
         }
     }
 
     // MARK: - Actions
 
-    private func autoSelectInitialChannel(from channels: [JellyfinItem]) {
-        let sorted = filteredChannels
-        guard !sorted.isEmpty else { return }
-
-        let initial = sorted.first(where: { $0.userData?.isFavorite == true }) ?? sorted[0]
-        scrollPositionId = initial.id
-        switchToChannel(initial)
-    }
-
-    private func switchToChannel(_ channel: JellyfinItem) {
-        guard channel.id != currentChannel?.id else { return }
-        channelSwitchTask?.cancel()
+    private func selectChannel(_ channel: JellyfinItem) {
         currentChannel = channel
-        withAnimation(.spring(duration: 0.3)) {
-            scrollPositionId = channel.id
+        if playerVM.item?.id != channel.id {
+            startPlaying(channel)
         }
-        startPlaying(channel)
+        goFullscreen()
     }
 
     private func goFullscreen() {
@@ -263,7 +216,7 @@ struct LiveTvView: View {
     }
 }
 
-// MARK: - Live Channel Card (Horizontal Strip)
+// MARK: - Fullscreen Player Wrapper
 
 // Wrapper to dismiss fullscreen via @Environment
 private struct FullscreenLivePlayerWrapper: View {
@@ -279,63 +232,57 @@ private struct FullscreenLivePlayerWrapper: View {
     }
 }
 
-private struct LiveChannelCard: View {
+// MARK: - Live Channel Row (Flat List)
+
+private struct LiveChannelRow: View {
     let channel: JellyfinItem
     let serverURL: String
-    let isSelected: Bool
-    var onToggleFavorite: () -> Void
+    let isPlaying: Bool
 
     private var isFavorite: Bool { channel.userData?.isFavorite == true }
 
     var body: some View {
-        VStack(spacing: 0) {
+        HStack(spacing: 12) {
             // Channel logo
             ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(hue: Double(abs(channel.name.hashValue % 360)) / 360.0, saturation: 0.3, brightness: 0.15),
-                        Color(hue: Double(abs(channel.name.hashValue % 360)) / 360.0, saturation: 0.4, brightness: 0.08)
-                    ],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
+                RoundedRectangle(cornerRadius: 8).fill(.quaternary)
 
-                AsyncImage(url: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 200)) { phase in
+                AsyncImage(url: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 120)) { phase in
                     switch phase {
                     case .success(let image):
                         image.resizable().aspectRatio(contentMode: .fit)
-                            .padding(10)
+                            .padding(6)
                     default:
                         Text(channel.name.prefix(2).uppercased())
-                            .font(.system(size: 20, weight: .black, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.15))
+                            .font(.system(size: 14, weight: .black, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-            .frame(height: 70)
-            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 12, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 12))
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
 
             // Info
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
                     if let num = channel.channelNumber {
                         Text(num)
-                            .font(.system(size: 9, weight: .bold).monospacedDigit())
+                            .font(.system(size: 12, weight: .bold).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     Text(channel.name)
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 15, weight: .semibold))
                         .lineLimit(1)
-                    Spacer(minLength: 0)
-                    if isFavorite {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.red)
+                    if isPlaying {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.tint)
                     }
                 }
 
                 if let program = channel.currentProgram {
                     Text(program.name)
-                        .font(.system(size: 9))
+                        .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
 
@@ -345,39 +292,28 @@ private struct LiveChannelCard: View {
                                 .fill(.quaternary)
                                 .overlay(alignment: .leading) {
                                     Capsule()
-                                        .fill(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                                        .fill(.tint)
                                         .frame(width: geo.size.width * progress)
                                 }
                         }
-                        .frame(height: 2)
+                        .frame(height: 3)
                     }
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 2)
-        )
-        .scaleEffect(isSelected ? 1.0 : 0.92)
-        .opacity(isSelected ? 1.0 : 0.7)
-        .animation(.spring(duration: 0.3), value: isSelected)
-        .contextMenu {
-            Button {
-                onToggleFavorite()
-            } label: {
-                if isFavorite {
-                    Label(String(localized: "Remove from Favorites", bundle: AppState.currentBundle), systemImage: "heart.slash")
                 } else {
-                    Label(String(localized: "Add to Favorites", bundle: AppState.currentBundle), systemImage: "heart")
+                    Text(String(localized: "No program info", bundle: AppState.currentBundle))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.tertiary)
                 }
             }
+
+            Spacer(minLength: 4)
+
+            if isFavorite {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.red)
+            }
         }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
     }
 }
