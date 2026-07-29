@@ -12,22 +12,18 @@ struct JellyGoPlayerView: View {
     @ObservedObject var vm: PlayerViewModel
     /// When true the caller owns the VM — we skip load/stop lifecycle.
     let externalVM: Bool
-    /// When true we're embedded inline — hide X, no zoom, no ignoresSafeArea, show fullscreen btn
+    /// When true we're embedded inline — hide X, no zoom, no ignoresSafeArea
     let isInline: Bool
-    /// Called when inline player requests fullscreen (only when isInline)
-    var onFullscreen: (() -> Void)? = nil
     @State private var item: JellyfinItem
 
     init(item: JellyfinItem, localURL: URL? = nil, qualityOverride: VideoQuality? = nil,
-         vm: PlayerViewModel, externalVM: Bool = false, isInline: Bool = false,
-         onFullscreen: (() -> Void)? = nil) {
+         vm: PlayerViewModel, externalVM: Bool = false, isInline: Bool = false) {
         self.initialItem = item
         self.localURL = localURL
         self.qualityOverride = qualityOverride
         self.vm = vm
         self.externalVM = externalVM
         self.isInline = isInline
-        self.onFullscreen = onFullscreen
         self._item = State(initialValue: item)
         self._isAspectFilled = State(initialValue: !isInline)
     }
@@ -832,24 +828,6 @@ struct JellyGoPlayerView: View {
                     onShowDelayBar: { showDelayBar = true },
                     onToggleHUD: { showHUD.toggle() }
                 ).equatable()
-            }
-            if let onFullscreen {
-                Button {
-                    onFullscreen()
-                    pokeTimer()
-                } label: {
-                    Image(systemName: isInline
-                        ? "arrow.up.left.and.arrow.down.right"
-                        : "arrow.down.right.and.arrow.up.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(minWidth: 18, minHeight: 18)
-                        .padding(12)
-                        .contentShape(Circle())
-                }
-                .glassEffect(.clear.interactive(), in: .circle)
-                .buttonStyle(.plain)
-                .padding(.leading, 10)
             }
         }
     }

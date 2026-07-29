@@ -103,7 +103,7 @@ struct LiveTvView: View {
             }
         }) {
             if let ch = currentChannel {
-                FullscreenLivePlayerWrapper(item: ch, vm: playerVM)
+                JellyGoPlayerView(item: ch, vm: playerVM, externalVM: true)
                     .environmentObject(appState)
             }
         }
@@ -217,22 +217,6 @@ struct LiveTvView: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - Fullscreen Player Wrapper
-
-// Wrapper to dismiss fullscreen via @Environment
-private struct FullscreenLivePlayerWrapper: View {
-    let item: JellyfinItem
-    @ObservedObject var vm: PlayerViewModel
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        JellyGoPlayerView(item: item, vm: vm, externalVM: true, onFullscreen: { [dismiss] in
-            print("[LIVETV] fullscreen wrapper dismiss called")
-            dismiss()
-        })
     }
 }
 
