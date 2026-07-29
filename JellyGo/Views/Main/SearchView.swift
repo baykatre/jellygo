@@ -154,16 +154,11 @@ struct SearchResultCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            AsyncImage(url: posterURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    fallbackPoster
-                default:
-                    Color.secondary.opacity(0.2)
-                }
-            }
+            FallbackAsyncImage(
+                primaryURL: posterURL,
+                fallbackURL: nil,
+                placeholder: fallbackPoster
+            )
             .frame(width: 120, height: 180)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(alignment: .topTrailing) { typeTag }

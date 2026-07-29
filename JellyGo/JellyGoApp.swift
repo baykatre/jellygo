@@ -14,6 +14,10 @@ struct JellyGoApp: App {
     @State private var showSplash = true
 
     init() {
+        // Default URLCache is a few MB — video streaming traffic shares this cache
+        // and evicts cached poster/backdrop images, leaving them blank after playback.
+        // Give it much more headroom so image caching survives alongside streaming.
+        URLCache.shared = URLCache(memoryCapacity: 50 * 1024 * 1024, diskCapacity: 300 * 1024 * 1024, directory: nil)
         // Clear URLSession cache once on launch to flush any stale 404 responses
         // for images that may have been added to Jellyfin since last run.
         URLCache.shared.removeAllCachedResponses()

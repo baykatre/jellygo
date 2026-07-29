@@ -191,14 +191,15 @@ struct JellyGoPlayerView: View {
                                         .resizable().scaledToFill()
                                         .frame(width: loadGeo.size.width, height: loadGeo.size.height)
                                         .clipped()
-                                } else if let url = JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: backdropId) {
-                                    AsyncImage(url: url) { img in
-                                        img.resizable().scaledToFill()
-                                            .frame(width: loadGeo.size.width, height: loadGeo.size.height)
-                                            .clipped()
-                                    } placeholder: {
-                                        Color.black
-                                    }
+                                } else {
+                                    FallbackAsyncImage(
+                                        primaryURL: JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: backdropId),
+                                        fallbackURL: nil,
+                                        placeholder: Color.black
+                                    )
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: loadGeo.size.width, height: loadGeo.size.height)
+                                    .clipped()
                                 }
                                 Color.black.opacity(0.5)
                                 VStack(spacing: 12) {
@@ -1244,16 +1245,14 @@ struct JellyGoPlayerView: View {
         let isCurrent = channel.id == item.id
         return HStack(spacing: 10) {
             // Channel logo
-            AsyncImage(url: JellyfinAPI.shared.imageURL(serverURL: appState.serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 80)) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().aspectRatio(contentMode: .fit)
-                default:
-                    Image(systemName: "tv")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.4))
-                }
-            }
+            FallbackAsyncImage(
+                primaryURL: JellyfinAPI.shared.imageURL(serverURL: appState.serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 80),
+                fallbackURL: nil,
+                placeholder: Image(systemName: "tv")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.4)),
+                contentMode: .fit
+            )
             .frame(width: 36, height: 36)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.1)))
@@ -1312,14 +1311,11 @@ struct JellyGoPlayerView: View {
         return HStack(alignment: .top, spacing: 10) {
             // Thumbnail
             ZStack(alignment: .bottomLeading) {
-                AsyncImage(url: thumbURL) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().aspectRatio(contentMode: .fill)
-                    default:
-                        Color.white.opacity(0.1)
-                    }
-                }
+                FallbackAsyncImage(
+                    primaryURL: thumbURL,
+                    fallbackURL: nil,
+                    placeholder: Color.white.opacity(0.1)
+                )
                 .frame(width: 96, height: 54)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
@@ -1468,30 +1464,26 @@ struct JellyGoPlayerView: View {
         return HStack(spacing: 12) {
             if isChannel {
                 // Channel logo — square, smaller
-                AsyncImage(url: logoURL) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().aspectRatio(contentMode: .fit)
-                    default:
-                        Image(systemName: "tv")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-                }
+                FallbackAsyncImage(
+                    primaryURL: logoURL,
+                    fallbackURL: nil,
+                    placeholder: Image(systemName: "tv")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.white.opacity(0.5)),
+                    contentMode: .fit
+                )
                 .frame(width: 32, height: 32)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                AsyncImage(url: logoURL) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().aspectRatio(contentMode: .fit)
-                    default:
-                        Text(isEpisode ? (item.seriesName ?? item.name) : item.name)
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                    }
-                }
+                FallbackAsyncImage(
+                    primaryURL: logoURL,
+                    fallbackURL: nil,
+                    placeholder: Text(isEpisode ? (item.seriesName ?? item.name) : item.name)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1),
+                    contentMode: .fit
+                )
                 .frame(maxWidth: 100, maxHeight: 40)
             }
 

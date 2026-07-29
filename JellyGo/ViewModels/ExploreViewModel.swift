@@ -85,6 +85,11 @@ final class ExploreViewModel: ObservableObject {
                 case .featured(let items):
                     featuredItems = items
                     isLoading = false
+                    // Preload hero banner images so swiping between slides never hits the network.
+                    ImageCache.shared.warm(items.flatMap {
+                        [JellyfinAPI.shared.backdropURL(serverURL: url, itemId: $0.id, maxWidth: 1280),
+                         JellyfinAPI.shared.logoURL(serverURL: url, itemId: $0.id)]
+                    })
                 case .latestMovies(let items):
                     latestMovies = items
                     updatePendingGenres()

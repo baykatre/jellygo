@@ -31,6 +31,10 @@ struct ExploreView: View {
                                         try? await Task.sleep(for: .milliseconds(300))
                                         heroPlayItem = item
                                     }
+                                } else {
+                                    // Series: no single episode to direct-play — open detail
+                                    // page, which resolves resume/next-up and plays from there.
+                                    heroDetailItem = item
                                 }
                             },
                             onTap: { item in
@@ -164,10 +168,10 @@ struct ExploreView: View {
             }
             .background(Color(.systemBackground).ignoresSafeArea())
             .navigationDestination(for: JellyfinItem.self) { item in
-                ExploreDetailWrapper(item: item)
+                ItemDetailView(item: item)
             }
             .navigationDestination(item: $heroDetailItem) { item in
-                ExploreDetailWrapper(item: item)
+                ItemDetailView(item: item)
             }
             .navigationDestination(for: ExploreBrowseDestination.self) { dest in
                 ExploreSectionListView(destination: dest)
@@ -251,31 +255,6 @@ struct ExploreView: View {
             }
             .disabled(true)
         }
-    }
-}
-
-// MARK: - Detail Wrapper (X button instead of back)
-
-private struct ExploreDetailWrapper: View {
-    let item: JellyfinItem
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ItemDetailView(item: item)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
-                    }
-                }
-            }
     }
 }
 

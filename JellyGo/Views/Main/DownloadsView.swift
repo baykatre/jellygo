@@ -314,15 +314,12 @@ struct DownloadsView: View {
             HStack(spacing: 12) {
                 NavigationLink(value: navItem) {
                     HStack(spacing: 12) {
-                        AsyncImage(url: activeThumbnailURL(task)) { phase in
-                            switch phase {
-                            case .success(let img):
-                                img.resizable().aspectRatio(contentMode: .fill)
-                            default:
-                                Color(.systemGray5)
-                                    .overlay(Image(systemName: "arrow.down.circle").foregroundStyle(.secondary).font(.caption))
-                            }
-                        }
+                        FallbackAsyncImage(
+                            primaryURL: activeThumbnailURL(task),
+                            fallbackURL: nil,
+                            placeholder: Color(.systemGray5)
+                                .overlay(Image(systemName: "arrow.down.circle").foregroundStyle(.secondary).font(.caption))
+                        )
                         .frame(width: 80, height: 45)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 

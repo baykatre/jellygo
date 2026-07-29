@@ -623,7 +623,7 @@ struct ItemDetailView: View {
     // MARK: - Main Content
 
     private var mainContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        LazyVStack(alignment: .leading, spacing: 20) {
             if item.isSeries || item.isEpisode, !vm.seasons.isEmpty {
                 episodeSection
             }
@@ -1291,7 +1291,7 @@ struct ItemDetailView: View {
                 let highlightId = currentHighlightId(seasonId: seasonId)
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: 12) {
+                        LazyHStack(alignment: .top, spacing: 12) {
                             ForEach(eps) { episode in
                                 Button {
                                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -1553,7 +1553,7 @@ struct ItemDetailView: View {
                 .padding(.horizontal, 16)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 16) {
+                LazyHStack(alignment: .top, spacing: 16) {
                     ForEach(vm.similarItems) { similar in
                         VStack(alignment: .leading, spacing: 4) {
                             NavigationLink(value: similar) {
@@ -1637,7 +1637,7 @@ struct ItemDetailView: View {
                 .padding(.horizontal, 16)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 14) {
+                LazyHStack(alignment: .top, spacing: 14) {
                     ForEach(people.prefix(15)) { person in
                         CastCardView(person: person, serverURL: appState.serverURL)
                     }
@@ -1827,20 +1827,11 @@ struct CastCardView: View {
     var body: some View {
         Button { if !isOffline { showDetail = true } } label: {
             VStack(spacing: 8) {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    case .failure:
-                        placeholder
-                    default:
-                        if hasImage {
-                            placeholder.overlay(ProgressView().scaleEffect(0.6).tint(.secondary))
-                        } else {
-                            placeholder
-                        }
-                    }
-                }
+                FallbackAsyncImage(
+                    primaryURL: imageURL,
+                    fallbackURL: nil,
+                    placeholder: placeholder
+                )
                 .frame(width: 88, height: 88)
                 .clipShape(Circle())
 

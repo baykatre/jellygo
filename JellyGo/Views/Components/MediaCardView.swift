@@ -7,34 +7,44 @@ struct FallbackAsyncImage<Placeholder: View>: View {
     let primaryURL: URL?
     let fallbackURL: URL?
     let placeholder: Placeholder
+    var contentMode: ContentMode = .fill
 
     @State private var useFallback = false
+    @State private var uiImage: UIImage?
+    @State private var failed = false
 
     var body: some View {
         let url = (useFallback ? fallbackURL : primaryURL) ?? fallbackURL
 
-        if let url {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Group {
-                        if !useFallback && fallbackURL != nil {
-                            Color.clear.onAppear { useFallback = true }
-                        } else {
-                            placeholder
-                        }
-                    }
-                case .empty:
-                    placeholder.overlay(ProgressView().tint(.secondary))
-                @unknown default:
+        Group {
+            if let uiImage {
+                Image(uiImage: uiImage).resizable().aspectRatio(contentMode: contentMode)
+            } else if failed {
+                if !useFallback && fallbackURL != nil {
+                    Color.clear.onAppear { useFallback = true }
+                } else {
                     placeholder
                 }
+            } else if url == nil {
+                placeholder
+            } else {
+                placeholder.overlay(ProgressView().tint(.secondary))
             }
-            .id(url)
-        } else {
-            placeholder
+        }
+        .task(id: url) {
+            guard let url else { uiImage = nil; failed = false; return }
+            if let cached = ImageCache.shared.memoryCachedImage(for: url) {
+                uiImage = cached
+                failed = false
+                return
+            }
+            uiImage = nil
+            failed = false
+            guard let image = await ImageCache.shared.fetch(url: url) else {
+                failed = true
+                return
+            }
+            uiImage = image
         }
     }
 }

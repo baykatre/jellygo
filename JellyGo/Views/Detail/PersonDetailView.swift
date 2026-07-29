@@ -57,19 +57,16 @@ struct PersonDetailView: View {
     private var headerSection: some View {
         VStack(spacing: 16) {
             // Person photo
-            AsyncImage(url: personImageURL(maxWidth: 400)) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().aspectRatio(contentMode: .fill)
-                default:
-                    Color(.systemGray5)
-                        .overlay(
-                            Text(String(person.name.prefix(1)))
-                                .font(.system(size: 44, weight: .bold))
-                                .foregroundStyle(.secondary)
-                        )
-                }
-            }
+            FallbackAsyncImage(
+                primaryURL: personImageURL(maxWidth: 400),
+                fallbackURL: nil,
+                placeholder: Color(.systemGray5)
+                    .overlay(
+                        Text(String(person.name.prefix(1)))
+                            .font(.system(size: 44, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    )
+            )
             .frame(width: 140, height: 200)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(color: .black.opacity(0.2), radius: 12, y: 4)

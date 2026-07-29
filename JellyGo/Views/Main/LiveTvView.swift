@@ -10,6 +10,7 @@ struct LiveTvView: View {
     @State private var showFavoritesOnly: Bool = UserDefaults.standard.bool(forKey: "jellygo.liveTvFavoritesOnly")
     @State private var searchText = ""
     @State private var isSearchVisible = false
+    @State private var heroIndex = 0
 
     private var filteredChannels: [JellyfinItem] {
         var list = vm.channels
@@ -40,6 +41,12 @@ struct LiveTvView: View {
         return list
     }
 
+    /// Favorites if any, else the first few channels — featured in the hero slider.
+    private var heroChannels: [JellyfinItem] {
+        let favorites = vm.channels.filter { $0.userData?.isFavorite == true }
+        return Array((favorites.isEmpty ? vm.channels : favorites).prefix(8))
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -66,27 +73,8 @@ struct LiveTvView: View {
                     liveContent
                 }
             }
-            .navigationTitle(String(localized: "Live TV", bundle: AppState.currentBundle))
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 4) {
-                        Button {
-                            withAnimation(.spring(duration: 0.3)) { isSearchVisible.toggle() }
-                            if !isSearchVisible { searchText = "" }
-                        } label: {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(isSearchVisible ? .primary : .secondary)
-                        }
-                        Button {
-                            withAnimation(.spring(duration: 0.3)) { showFavoritesOnly.toggle() }
-                            UserDefaults.standard.set(showFavoritesOnly, forKey: "jellygo.liveTvFavoritesOnly")
-                        } label: {
-                            Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
-                                .foregroundStyle(showFavoritesOnly ? .red : .secondary)
-                        }
-                    }
-                }
-            }
+            .safeAreaInset(edge: .top) { liveTvHeader }
+            .navigationBarHidden(true)
         }
         .fullScreenCover(isPresented: $isFullscreen, onDismiss: {
             AppDelegate.orientationLock = .portrait
@@ -107,6 +95,44 @@ struct LiveTvView: View {
                     .environmentObject(appState)
             }
         }
+    }
+
+    // MARK: - Header
+
+    private var liveTvHeader: some View {
+        HStack {
+            Text(String(localized: "Live TV", bundle: AppState.currentBundle))
+                .font(.largeTitle.bold())
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button {
+                    withAnimation(.spring(duration: 0.3)) { isSearchVisible.toggle() }
+                    if !isSearchVisible { searchText = "" }
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(isSearchVisible ? Color.accentColor : .primary)
+                        .padding(8)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                Button {
+                    withAnimation(.spring(duration: 0.3)) { showFavoritesOnly.toggle() }
+                    UserDefaults.standard.set(showFavoritesOnly, forKey: "jellygo.liveTvFavoritesOnly")
+                } label: {
+                    Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(showFavoritesOnly ? .red : .primary)
+                        .padding(8)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
+        .background(Color(.systemBackground))
     }
 
     // MARK: - Main Content
@@ -139,6 +165,13 @@ struct LiveTvView: View {
             }
 
             List {
+                if searchText.isEmpty && !showFavoritesOnly, !heroChannels.isEmpty {
+                    liveHeroSlider
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+
                 ForEach(filteredChannels) { channel in
                     Button {
                         selectChannel(channel)
@@ -167,6 +200,112 @@ struct LiveTvView: View {
             .listStyle(.plain)
             .animation(.default, value: filteredChannels.map(\.id))
         }
+    }
+
+    // MARK: - Hero Slider
+
+    private var liveHeroSlider: some View {
+        VStack(spacing: 8) {
+            TabView(selection: $heroIndex) {
+                ForEach(Array(heroChannels.enumerated()), id: \.element.id) { index, channel in
+                    liveHeroCard(channel: channel)
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 168)
+            .onAppear { if heroIndex >= heroChannels.count { heroIndex = 0 } }
+
+            if heroChannels.count > 1 {
+                HStack(spacing: 5) {
+                    ForEach(heroChannels.indices, id: \.self) { i in
+                        Capsule()
+                            .fill(i == heroIndex ? Color.accentColor : Color.secondary.opacity(0.3))
+                            .frame(width: i == heroIndex ? 16 : 5, height: 5)
+                    }
+                }
+                .animation(.spring(duration: 0.3), value: heroIndex)
+            }
+        }
+        .padding(.bottom, 4)
+    }
+
+    private func heroColor(for channel: JellyfinItem) -> Color {
+        Color(hue: Double(abs(channel.name.hashValue % 360)) / 360.0, saturation: 0.55, brightness: 0.32)
+    }
+
+    private func liveHeroCard(channel: JellyfinItem) -> some View {
+        Button { selectChannel(channel) } label: {
+            ZStack {
+                LinearGradient(
+                    colors: [heroColor(for: channel), heroColor(for: channel).opacity(0.6)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+
+                FallbackAsyncImage(
+                    primaryURL: JellyfinAPI.shared.imageURL(serverURL: vm.serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 400),
+                    fallbackURL: nil,
+                    placeholder: Color.clear,
+                    contentMode: .fit
+                )
+                .padding(28)
+                .opacity(0.85)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+
+                LinearGradient(
+                    colors: [.black.opacity(0.7), .clear],
+                    startPoint: .bottom, endPoint: .top
+                )
+                .frame(maxHeight: .infinity, alignment: .bottom)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Spacer(minLength: 0)
+
+                    HStack(spacing: 6) {
+                        Circle().fill(.red).frame(width: 7, height: 7)
+                            .shadow(color: .red.opacity(0.8), radius: 3)
+                        Text(String(localized: "LIVE", bundle: AppState.currentBundle))
+                            .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        if let num = channel.channelNumber {
+                            Text("\u{00B7} \(num)")
+                                .font(.system(size: 11, weight: .bold).monospacedDigit())
+                                .opacity(0.7)
+                        }
+                    }
+                    .foregroundStyle(.white)
+
+                    Text(channel.name)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+
+                    if let program = channel.currentProgram {
+                        Text(program.name)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .lineLimit(1)
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(String(localized: "Watch Live", bundle: AppState.currentBundle))
+                            .font(.system(size: 13, weight: .bold))
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(.white, in: Capsule())
+                    .padding(.top, 4)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(height: 160)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Actions
@@ -235,17 +374,15 @@ private struct LiveChannelRow: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 8).fill(.quaternary)
 
-                AsyncImage(url: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 120)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fit)
-                            .padding(6)
-                    default:
-                        Text(channel.name.prefix(2).uppercased())
-                            .font(.system(size: 14, weight: .black, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                FallbackAsyncImage(
+                    primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 120),
+                    fallbackURL: nil,
+                    placeholder: Text(channel.name.prefix(2).uppercased())
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(.secondary),
+                    contentMode: .fit
+                )
+                .padding(6)
             }
             .frame(width: 52, height: 52)
             .clipShape(RoundedRectangle(cornerRadius: 8))

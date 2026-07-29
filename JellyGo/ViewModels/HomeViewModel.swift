@@ -85,6 +85,12 @@ final class HomeViewModel: ObservableObject {
         libraries = (try? await libsTask) ?? []
         buildFeatured()
 
+        // Preload hero banner images so swiping between slides never hits the network.
+        ImageCache.shared.warm(featuredItems.flatMap {
+            [JellyfinAPI.shared.backdropURL(serverURL: url, itemId: $0.id, maxWidth: 1280),
+             JellyfinAPI.shared.logoURL(serverURL: url, itemId: $0.id)]
+        })
+
         // Server became unreachable mid-session → try fallback
         if networkFailed {
             await appState.validateAndFallback()
