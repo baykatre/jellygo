@@ -91,11 +91,15 @@ struct LiveTvView: View {
         .fullScreenCover(isPresented: $isFullscreen, onDismiss: {
             AppDelegate.orientationLock = .portrait
             PlayerContainerView.rotate(to: .portrait)
-            // Sync channel if changed in fullscreen (user browsed channels while playing)
-            if let playingItem = playerVM.item,
-               playingItem.id != currentChannel?.id,
-               let ch = vm.channels.first(where: { $0.id == playingItem.id }) {
-                currentChannel = ch
+            if let playingItem = playerVM.item {
+                // Sync channel if changed in fullscreen (user browsed channels while playing)
+                if playingItem.id != currentChannel?.id,
+                   let ch = vm.channels.first(where: { $0.id == playingItem.id }) {
+                    currentChannel = ch
+                }
+            } else {
+                // Player was fully stopped (closed via X) — nothing is playing anymore
+                currentChannel = nil
             }
         }) {
             if let ch = currentChannel {

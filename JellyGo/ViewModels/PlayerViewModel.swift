@@ -800,6 +800,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         engine.stop()
         NowPlayingManager.shared.clearNowPlaying()
         guard let item, let appState else { return }
+        self.item = nil
 
         let isLive = item.isChannel
         let ticks: Int64
