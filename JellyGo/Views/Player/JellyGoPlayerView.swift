@@ -428,7 +428,7 @@ struct JellyGoPlayerView: View {
             }
         }
         .onDisappear {
-            if !externalVM { vm.stop() }  // vm.stop() is a no-op when PiP is active
+            vm.stop()  // no-op when PiP is active — preserves playback if backgrounded into PiP
         }
         .onAppear {
             // Orientation already set before fullScreenCover presentation
@@ -500,7 +500,7 @@ struct JellyGoPlayerView: View {
     private var sfNavigationBar: some View {
         HStack(alignment: .center) {
             if !isInline {
-                sfNavButton("xmark") { if !externalVM { vm.forceStop() }; dismiss() }
+                sfNavButton("xmark") { vm.forceStop(); dismiss() }
             }
 
             mediaInfoCard
