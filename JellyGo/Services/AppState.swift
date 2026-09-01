@@ -103,7 +103,8 @@ final class AppState: ObservableObject {
     /// In DEBUG builds, always Pro so paywall doesn't block development.
     @Published var isPro: Bool = {
         #if DEBUG
-        return true
+        // See StoreManager.debugShowPaywall — launch arg opts into the real paywall.
+        return !UserDefaults.standard.bool(forKey: "jellygo.debugShowPaywall")
         #else
         return UserDefaults.standard.bool(forKey: "jellygo.isPro")
         #endif

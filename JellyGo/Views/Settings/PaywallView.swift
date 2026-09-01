@@ -61,6 +61,11 @@ struct PaywallView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
         }
+        .task {
+            // Retry on every presentation — the launch-time load may have come
+            // back empty before the App Store account/network was ready.
+            await store.loadProductIfNeeded()
+        }
         .onChange(of: store.isPro) { _, isPro in
             if isPro { dismiss() }
         }
@@ -169,19 +174,34 @@ struct PaywallView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
+            } else if store.productLoadFailed {
+                Text(String(localized: "Couldn't load pricing from the App Store.", bundle: bundle))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
 
             Button {
-                Task { await store.purchase() }
+                Task {
+                    if store.product == nil {
+                        await store.retryLoadProduct()
+                    } else {
+                        await store.purchase()
+                    }
+                }
             } label: {
                 HStack(spacing: 12) {
-                    if store.isLoading {
+                    if store.isLoading || store.isLoadingProduct {
                         ProgressView().tint(.white)
-                    } else {
+                    } else if let price = store.displayPrice {
                         Text(String(localized: "Get Lifetime Access", bundle: bundle))
                             .font(.headline)
                         Spacer(minLength: 0)
-                        Text(store.displayPrice)
+                        Text(price)
+                            .font(.headline)
+                    } else {
+                        // Product never loaded — offer a way out instead of a dead button.
+                        Text(String(localized: "Retry", bundle: bundle))
                             .font(.headline)
                     }
                 }
@@ -193,7 +213,7 @@ struct PaywallView: View {
                 .shadow(color: .accentColor.opacity(0.35), radius: 14, y: 6)
             }
             .buttonStyle(.plain)
-            .disabled(store.isLoading || store.product == nil)
+            .disabled(store.isLoading || store.isLoadingProduct)
 
             HStack(spacing: 16) {
                 Button {
