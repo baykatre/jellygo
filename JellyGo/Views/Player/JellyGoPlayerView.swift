@@ -50,9 +50,12 @@ struct JellyGoPlayerView: View {
     @State private var adjustMode: AdjustMode?
     @State private var adjustHideTask: Task<Void, Never>?
     private static var currentScreen: UIScreen {
+        // Never force-unwrap here: during app shutdown or a scene transition, a pending
+        // SwiftUI transaction can still init this view for a moment with zero connected
+        // window scenes, which previously crashed (EXC_BREAKPOINT on `.first!`).
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .first!.screen
+            .first?.screen ?? UIScreen.main
     }
 
     @State private var brightnessValue: CGFloat = JellyGoPlayerView.currentScreen.brightness
