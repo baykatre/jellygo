@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "2630"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES"
+      buildArchitectures = "Automatic">
+      <PreActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Fix KSPlayer HDR Metadata Crash"
+               scriptText = "set -e; CHECKOUTS=&quot;${BUILD_DIR}/../../SourcePackages/checkouts&quot;; if [ -d &quot;$CHECKOUTS&quot; ]; then FFMPEGDECODE=&quot;$CHECKOUTS/KSPlayer/Sources/KSPlayer/MEPlayer/FFmpegDecode.swift&quot;; if [ -f &quot;$FFMPEGDECODE&quot; ]; then /usr/bin/sed -i &apos;&apos; -e &apos;s/display_primaries_r_x: UInt16(data.display_primaries.0.0.num).bigEndian/display_primaries_r_x: UInt16(clamping: data.display_primaries.0.0.num).bigEndian/&apos; -e &apos;s/display_primaries_r_y: UInt16(data.display_primaries.0.1.num).bigEndian/display_primaries_r_y: UInt16(clamping: data.display_primaries.0.1.num).bigEndian/&apos; -e &apos;s/display_primaries_g_x: UInt16(data.display_primaries.1.0.num).bigEndian/display_primaries_g_x: UInt16(clamping: data.display_primaries.1.0.num).bigEndian/&apos; -e &apos;s/display_primaries_g_y: UInt16(data.display_primaries.1.1.num).bigEndian/display_primaries_g_y: UInt16(clamping: data.display_primaries.1.1.num).bigEndian/&apos; -e &apos;s/display_primaries_b_x: UInt16(data.display_primaries.2.1.num).bigEndian/display_primaries_b_x: UInt16(clamping: data.display_primaries.2.1.num).bigEndian/&apos; -e &apos;s/display_primaries_b_y: UInt16(data.display_primaries.2.1.num).bigEndian/display_primaries_b_y: UInt16(clamping: data.display_primaries.2.1.num).bigEndian/&apos; -e &apos;s/white_point_x: UInt16(data.white_point.0.num).bigEndian/white_point_x: UInt16(clamping: data.white_point.0.num).bigEndian/&apos; -e &apos;s/white_point_y: UInt16(data.white_point.1.num).bigEndian/white_point_y: UInt16(clamping: data.white_point.1.num).bigEndian/&apos; -e &apos;s/minLuminance: UInt32(data.min_luminance.num).bigEndian/minLuminance: UInt32(clamping: data.min_luminance.num).bigEndian/&apos; -e &apos;s/maxLuminance: UInt32(data.max_luminance.num).bigEndian/maxLuminance: UInt32(clamping: data.max_luminance.num).bigEndian/&apos; &quot;$FFMPEGDECODE&quot;; fi; fi "
+               shellToInvoke = "/bin/sh">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "045AD0752F5CCFC5003D29D1"
+                     BuildableName = "JellyGo.app"
+                     BlueprintName = "JellyGo"
+                     ReferencedContainer = "container:JellyGo.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PreActions>
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "045AD0752F5CCFC5003D29D1"
+               BuildableName = "JellyGo.app"
+               BlueprintName = "JellyGo"
+               ReferencedContainer = "container:JellyGo.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "045AD0752F5CCFC5003D29D1"
+            BuildableName = "JellyGo.app"
+            BlueprintName = "JellyGo"
+            ReferencedContainer = "container:JellyGo.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "045AD0752F5CCFC5003D29D1"
+            BuildableName = "JellyGo.app"
+            BlueprintName = "JellyGo"
+            ReferencedContainer = "container:JellyGo.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>
