@@ -176,9 +176,10 @@ final class SubtitleManager: ObservableObject {
     /// Fetch and parse subtitle from URL. Returns true on success.
     @discardableResult
     func load(from url: URL, token: String) async -> Bool {
-        var req = URLRequest(url: url)
+        // Header-only auth: any query token is stripped so the request carries one channel.
+        var req = URLRequest(url: JellyfinMediaRequestBuilder.strippingTokens(url))
         req.timeoutInterval = 30
-        req.setValue("MediaBrowser Token=\"\(token)\"", forHTTPHeaderField: "Authorization")
+        req.setValue(JellyfinMediaRequestBuilder.authorizationHeaderValue(token: token), forHTTPHeaderField: "Authorization")
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             let httpStatus = (resp as? HTTPURLResponse)?.statusCode ?? -1

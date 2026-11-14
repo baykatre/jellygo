@@ -41,15 +41,14 @@ struct PersonDetailView: View {
 
     private func personImageURL(maxWidth: Int) -> URL? {
         if let local = DownloadManager.localPersonURL(personId: person.id) { return local }
-        guard !(AppState.shared?.manualOffline ?? false),
-              var components = URLComponents(string: appState.serverURL) else { return nil }
-        components.path = "/Items/\(person.id)/Images/Primary"
+        guard !(AppState.shared?.manualOffline ?? false) else { return nil }
         var items = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
         if vm.imageVersion > 0 {
             items.append(URLQueryItem(name: "v", value: "\(vm.imageVersion)"))
         }
-        components.queryItems = items
-        return components.url
+        // Keeps a reverse-proxy base path (the old `components.path = …` dropped it).
+        return JellyfinMediaRequestBuilder.url(serverURL: appState.serverURL,
+                                               path: "Items/\(person.id)/Images/Primary", queryItems: items)
     }
 
     // MARK: - Header

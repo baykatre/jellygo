@@ -519,14 +519,14 @@ struct DownloadsView: View {
             ?? DownloadManager.localPosterURL(itemId: task.id) {
             return local
         }
-        guard let base = URL(string: appState.serverURL) else { return nil }
         let isEpisode = task.seriesId != nil
         let path = isEpisode
             ? "Items/\(task.id)/Images/Primary"
             : "Items/\(task.id)/Images/Backdrop"
-        var c = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)
-        c?.queryItems = [URLQueryItem(name: "maxWidth", value: "320"),
-                         URLQueryItem(name: "api_key", value: appState.token)]
-        return c?.url
+        // AsyncImage cannot send headers → token as `ApiKey` query.
+        return JellyfinMediaRequestBuilder.mediaURL(
+            serverURL: appState.serverURL, path: path,
+            queryItems: [URLQueryItem(name: "maxWidth", value: "320")],
+            token: appState.token)
     }
 }

@@ -528,7 +528,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             if isLiveTV {
                 print("[LIVETV] playSessionId=\(info.playSessionId ?? "nil") mediaSources count: \(info.mediaSources.count)")
                 for (i, src) in info.mediaSources.enumerated() {
-                    print("[LIVETV] source[\(i)] id=\(src.id) container=\(src.container ?? "nil") liveStreamId=\(src.liveStreamId ?? "nil") transcodingUrl=\(src.transcodingUrl?.prefix(200) ?? "nil") supportsDirectPlay=\(src.supportsDirectPlay ?? false) supportsDirectStream=\(src.supportsDirectStream ?? false)")
+                    print("[LIVETV] source[\(i)] id=\(src.id) container=\(src.container ?? "nil") liveStreamId=\(src.liveStreamId ?? "nil") transcodingUrl=\(src.transcodingUrl.map { JellyfinMediaRequestBuilder.masked($0).prefix(200) } ?? "nil") supportsDirectPlay=\(src.supportsDirectPlay ?? false) supportsDirectStream=\(src.supportsDirectStream ?? false)")
                 }
             }
             guard let source = info.mediaSources.first else {
@@ -562,22 +562,25 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 } else {
                     url = directURL
                 }
-                print("[LIVETV] Direct stream URL: \(url.absoluteString)")
+                print("[LIVETV] Direct stream URL: \(JellyfinMediaRequestBuilder.masked(url))")
             } else if let transcodePath = source.transcodingUrl,
-               let transURL = URL(string: appState.serverURL + transcodePath) {
-                // Ensure api_key is present (needed for HLS segments that can't send auth headers)
-                var comps = URLComponents(url: transURL, resolvingAgainstBaseURL: false) ?? URLComponents()
-                var items = comps.queryItems ?? []
-                if !items.contains(where: { $0.name == "api_key" }) {
-                    items.append(URLQueryItem(name: "api_key", value: appState.token))
-                }
+               let transURL = JellyfinMediaRequestBuilder.resolve(serverURL: appState.serverURL,
+                                                                  pathOrURL: transcodePath) {
+                var adjusted = transURL
                 // Strip embedded subtitles from transcode URL when we manage subs externally
-                if disableEngineSubtitlesFlag {
+                if disableEngineSubtitlesFlag,
+                   var comps = URLComponents(url: transURL, resolvingAgainstBaseURL: false) {
+                    var items = comps.percentEncodedQueryItems ?? []
                     items.removeAll { $0.name == "SubtitleStreamIndex" }
                     items.append(URLQueryItem(name: "SubtitleStreamIndex", value: "-1"))
+                    comps.percentEncodedQueryItems = items
+                    adjusted = comps.url ?? transURL
                 }
-                comps.queryItems = items
-                url = comps.url ?? transURL
+                // Player engines (and HLS segment requests) cannot send our auth header, so the
+                // token goes in the query as `ApiKey`. The server-issued URL normally already has
+                // one; it is kept as-is, legacy `api_key` is dropped, and foreign origins get none.
+                url = JellyfinMediaRequestBuilder.authorizedURL(adjusted, serverURL: appState.serverURL,
+                                                                token: appState.token)
             } else if let directURL = JellyfinAPI.shared.streamURL(
                 serverURL: appState.serverURL,
                 itemId: item.id,
@@ -656,7 +659,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             // transcodeOffsetMs reserved for engines that report HLS time as 0-based
             // Currently disabled — KSPlayer appears to report absolute time on transcode
 
-            if isLiveTV { print("[LIVETV] Playing URL: \(url.absoluteString)") }
+            if isLiveTV { print("[LIVETV] Playing URL: \(JellyfinMediaRequestBuilder.masked(url))") }
 
             engine.play(url: url, startTimeMs: isLiveTV ? 0 : seekMs, options: [
                 "appState": appState,

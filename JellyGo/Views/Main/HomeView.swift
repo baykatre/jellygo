@@ -274,13 +274,11 @@ struct HomeView: View {
         let url: URL? = {
             if let local = DownloadManager.localUserAvatarURL(userId: appState.userId) { return local }
             guard !appState.manualOffline else { return nil }
-            var components = URLComponents(string: appState.serverURL)
-            components?.path += "/Users/\(appState.userId)/Images/Primary"
-            components?.queryItems = [
-                URLQueryItem(name: "maxWidth", value: "80"),
-                URLQueryItem(name: "api_key",  value: appState.token)
-            ]
-            return components?.url
+            // AsyncImage cannot send headers → token as `ApiKey` query.
+            return JellyfinMediaRequestBuilder.mediaURL(
+                serverURL: appState.serverURL, path: "Users/\(appState.userId)/Images/Primary",
+                queryItems: [URLQueryItem(name: "maxWidth", value: "80")],
+                token: appState.token)
         }()
         return AsyncImage(url: url) { phase in
             switch phase {

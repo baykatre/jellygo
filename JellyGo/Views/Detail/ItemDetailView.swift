@@ -1804,13 +1804,13 @@ struct CastCardView: View {
         if let local = DownloadManager.localPersonURL(personId: person.id) {
             return local
         }
-        guard var components = URLComponents(url: URL(string: serverURL)!.appendingPathComponent("Items/\(person.id)/Images/Primary"), resolvingAgainstBaseURL: false) else { return nil }
         var items = [URLQueryItem(name: "maxWidth", value: "200")]
         if imageVersion > 0 {
             items.append(URLQueryItem(name: "v", value: "\(imageVersion)"))
         }
-        components.queryItems = items
-        return components.url
+        // No force-unwrap: an invalid server address now yields nil instead of a crash.
+        return JellyfinMediaRequestBuilder.url(serverURL: serverURL,
+                                               path: "Items/\(person.id)/Images/Primary", queryItems: items)
     }
 
     private var placeholder: some View {

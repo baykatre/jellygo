@@ -255,10 +255,8 @@ final class JellyfinAPI {
     }
 
     func personImageURL(serverURL: String, person: JellyfinPerson, maxWidth: Int = 200) -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
-        var components = URLComponents(url: base.appendingPathComponent("Items/\(person.id)/Images/Primary"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
-        return components?.url
+        JellyfinMediaRequestBuilder.url(serverURL: serverURL, path: "Items/\(person.id)/Images/Primary",
+                                        queryItems: [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")])
     }
 
     // MARK: - Libraries
@@ -445,24 +443,26 @@ final class JellyfinAPI {
         let data = try await perform(req)
         if isLiveTV {
             let raw = String(data: data, encoding: .utf8) ?? ""
-            print("[LIVETV] PlaybackInfo raw: \(raw.prefix(2000))")
+            // PlaybackInfo carries server-issued TranscodingUrls with ApiKey — mask before logging.
+            let maskedRaw = JellyfinMediaRequestBuilder.masked(raw)
+            print("[LIVETV] PlaybackInfo raw: \(maskedRaw.prefix(2000))")
             // Dump to file for debugging
             let logPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("livetv_debug.json")
-            try? data.write(to: logPath)
+            try? Data(maskedRaw.utf8).write(to: logPath)
             print("[LIVETV] Wrote debug to: \(logPath.path)")
         }
         return try decode(JellyfinPlaybackInfo.self, from: data)
     }
 
+    /// Direct-play URL handed to the player engine → token travels as `ApiKey` query.
     func streamURL(serverURL: String, itemId: String, mediaSourceId: String, token: String) -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
-        var components = URLComponents(url: base.appendingPathComponent("Videos/\(itemId)/stream"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [
-            URLQueryItem(name: "static", value: "true"),
-            URLQueryItem(name: "mediaSourceId", value: mediaSourceId),
-            URLQueryItem(name: "api_key", value: token)
-        ]
-        return components?.url
+        JellyfinMediaRequestBuilder.mediaURL(
+            serverURL: serverURL, path: "Videos/\(itemId)/stream",
+            queryItems: [
+                URLQueryItem(name: "static", value: "true"),
+                URLQueryItem(name: "mediaSourceId", value: mediaSourceId),
+            ],
+            token: token)
     }
 
     // MARK: - Progress Reporting
@@ -537,8 +537,8 @@ final class JellyfinAPI {
     }
 
     func subtitleURL(serverURL: String, itemId: String, mediaSourceId: String, subtitleIndex: Int, format: String = "vtt") -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
-        return base.appendingPathComponent("Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(subtitleIndex)/Stream.\(format)")
+        JellyfinMediaRequestBuilder.url(serverURL: serverURL,
+                                        path: "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(subtitleIndex)/Stream.\(format)")
     }
 
     // MARK: - Image URLs
@@ -549,24 +549,21 @@ final class JellyfinAPI {
     }
 
     func imageURL(serverURL: String, itemId: String, imageType: String = "Primary", maxWidth: Int = 400) -> URL? {
-        guard !isOffline, let base = URL(string: serverURL) else { return nil }
-        var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/\(imageType)"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
-        return components?.url
+        guard !isOffline else { return nil }
+        return JellyfinMediaRequestBuilder.url(serverURL: serverURL, path: "Items/\(itemId)/Images/\(imageType)",
+                                               queryItems: [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")])
     }
 
     func backdropURL(serverURL: String, itemId: String, maxWidth: Int = 1280) -> URL? {
-        guard !isOffline, let base = URL(string: serverURL) else { return nil }
-        var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/Backdrop"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
-        return components?.url
+        guard !isOffline else { return nil }
+        return JellyfinMediaRequestBuilder.url(serverURL: serverURL, path: "Items/\(itemId)/Images/Backdrop",
+                                               queryItems: [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")])
     }
 
     func logoURL(serverURL: String, itemId: String, maxWidth: Int = 600) -> URL? {
-        guard !isOffline, let base = URL(string: serverURL) else { return nil }
-        var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/Logo"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")]
-        return components?.url
+        guard !isOffline else { return nil }
+        return JellyfinMediaRequestBuilder.url(serverURL: serverURL, path: "Items/\(itemId)/Images/Logo",
+                                               queryItems: [URLQueryItem(name: "maxWidth", value: "\(maxWidth)")])
     }
 
     func refreshItemMetadata(serverURL: String, itemId: String, token: String) async {

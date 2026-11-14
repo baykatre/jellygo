@@ -183,10 +183,8 @@ struct SearchResultCard: View {
     }
 
     private var posterURL: URL? {
-        guard let base = URL(string: serverURL) else { return nil }
-        var components = URLComponents(url: base.appendingPathComponent("Items/\(hint.itemId)/Images/Primary"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "maxWidth", value: "240")]
-        return components?.url
+        JellyfinMediaRequestBuilder.url(serverURL: serverURL, path: "Items/\(hint.itemId)/Images/Primary",
+                                        queryItems: [URLQueryItem(name: "maxWidth", value: "240")])
     }
 
     private var fallbackPoster: some View {
