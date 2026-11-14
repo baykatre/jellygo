@@ -2,6 +2,8 @@ import Foundation
 import Combine
 import os
 
+nonisolated private let log = Logger(subsystem: "JellyGo", category: "DownloadManager")
+
 // MARK: - Model
 
 struct DownloadedItem: Codable, Identifiable {
@@ -457,14 +459,19 @@ final class DownloadManager: NSObject, ObservableObject {
         guard let paused = pausedItems.first(where: { $0.id == itemId }) else { return }
         guard !isDownloading(itemId), !isQueued(itemId) else { return }
 
-        pausedItems.removeAll { $0.id == itemId }
-        savePausedItems()
+        // Credentials of the account that owns this download (may differ from the active one).
+        let creds = credentials(for: paused.meta, appState: appState)
 
         // Build request — use resume data if available, else reconstruct URL
         let urlString = paused.originalURLString
-        guard let url = URL(string: urlString.isEmpty ? "" : urlString) ?? nil else {
+        let storedURL = urlString.isEmpty ? nil : URL(string: urlString)
+        guard let storedURL else {
             // If no original URL, rebuild from quality + current token
-            guard let rebuilt = rebuildURL(meta: paused.meta, appState: appState) else { return }
+            guard let rebuilt = rebuildURL(meta: paused.meta,
+                                           serverURL: creds?.serverURL ?? appState.serverURL,
+                                           token: creds?.token ?? appState.token) else { return }
+            pausedItems.removeAll { $0.id == itemId }
+            savePausedItems()
             let req = URLRequest(url: rebuilt)
             let entry = QueuedDownload(id: paused.id, name: paused.name, seriesName: paused.seriesName,
                                        isDirect: paused.isDirect, isTranscoding: paused.isTranscoding,
@@ -473,6 +480,23 @@ final class DownloadManager: NSObject, ObservableObject {
             else { downloadQueue.append(entry) }
             return
         }
+
+        // Stored URLs (and the opaque resume data, which pins the same request) may still
+        // carry the legacy `api_key=<old token>` that Server 12 ignores. Re-issue the URL
+        // against the owning account's current server address + token as `ApiKey`.
+        let url = refreshedDownloadURL(storedURL, meta: paused.meta, creds: creds)
+        if url != storedURL {
+            // The resume data still targets the old URL/token; it cannot be edited safely,
+            // so drop it and restart this download from the beginning (controlled restart).
+            metaLock.lock()
+            let hadResumeData = resumeDataStore.removeValue(forKey: itemId) != nil
+            metaLock.unlock()
+            log.info("resume \(itemId, privacy: .public): URL refreshed (\(JellyfinMediaRequestBuilder.masked(storedURL), privacy: .public) → \(JellyfinMediaRequestBuilder.masked(url), privacy: .public)); resumeData discarded=\(hadResumeData)")
+        }
+
+        pausedItems.removeAll { $0.id == itemId }
+        savePausedItems()
+
         var req = URLRequest(url: url)
         req.timeoutInterval = 3600
         let estimatedBytes: Int64
@@ -489,14 +513,69 @@ final class DownloadManager: NSObject, ObservableObject {
         else { downloadQueue.append(entry) }
     }
 
-    private func rebuildURL(meta: DownloadedItem, appState: AppState) -> URL? {
+    /// Moves a task that ended with a non-2xx HTTP response back to the paused list so the
+    /// user can retry with "Resume" (which refreshes the URL/token). No automatic retry loop.
+    fileprivate func parkAfterHTTPFailure(itemId: String, meta: DownloadedItem?, originalURLString: String) {
+        let active = activeTasks.removeValue(forKey: itemId)
+        if !pausedItems.contains(where: { $0.id == itemId }), let meta {
+            let p = PausedDownload(id: itemId, name: active?.name ?? meta.name,
+                                   seriesName: active?.seriesName ?? meta.seriesName,
+                                   seriesId: active?.seriesId ?? meta.seriesId,
+                                   isDirect: active?.isDirect ?? (meta.quality == "Direct"),
+                                   isTranscoding: active?.isTranscoding ?? (meta.quality != "Direct"),
+                                   meta: meta, originalURLString: originalURLString)
+            pausedItems.append(p)
+            if !downloadOrder.contains(itemId) { downloadOrder.append(itemId) }
+        }
+        savePausedItems()
+        drainQueue()
+    }
+
+    private func rebuildURL(meta: DownloadedItem, serverURL: String, token: String) -> URL? {
         if meta.quality == "Direct" {
-            return Self.directURL(itemId: meta.id, serverURL: appState.serverURL, token: appState.token)
+            return Self.directURL(itemId: meta.id, serverURL: serverURL, token: token)
         } else if let bitrate = bitrateForLabel(meta.quality) {
-            return Self.transcodedURL(itemId: meta.id, serverURL: appState.serverURL,
-                                      token: appState.token, maxBitrate: bitrate)
+            return Self.transcodedURL(itemId: meta.id, serverURL: serverURL,
+                                      token: token, maxBitrate: bitrate)
         }
         return nil
+    }
+
+    /// Server address + token of the account that started the download (`meta.serverURL`,
+    /// `meta.userId`). The active session is preferred when it is the same user on the same
+    /// server (also via another saved URL of that server); otherwise the saved account's
+    /// Keychain token is used. Returns nil when no matching account is known.
+    private func credentials(for meta: DownloadedItem, appState: AppState) -> (serverURL: String, token: String)? {
+        let owner = appState.savedAccounts.first { $0.userId == meta.userId && $0.serverURL == meta.serverURL }
+        if meta.userId == appState.userId, !appState.token.isEmpty, !appState.serverURL.isEmpty {
+            if meta.serverURL == appState.serverURL {
+                return (appState.serverURL, appState.token)
+            }
+            if let sid = owner?.serverId, !sid.isEmpty, sid == appState.serverId {
+                return (appState.serverURL, appState.token)
+            }
+        }
+        if let owner, let token = KeychainService.shared.getToken(forAccountId: owner.tokenKey), !token.isEmpty {
+            return (owner.serverURL, token)
+        }
+        return nil
+    }
+
+    /// Re-issues a stored download URL with current credentials. Keeps every original query
+    /// parameter (quality, audio track …); only the server address and the token change.
+    private func refreshedDownloadURL(_ stored: URL, meta: DownloadedItem,
+                                      creds: (serverURL: String, token: String)?) -> URL {
+        guard let creds else {
+            // Owning account unknown: keep the stored URL but move a legacy `api_key`
+            // value to `ApiKey` (same token) so Server 12 accepts it.
+            return JellyfinMediaRequestBuilder.upgradingLegacyToken(stored)
+        }
+        let rebased = JellyfinMediaRequestBuilder.rebase(stored, from: meta.serverURL, to: creds.serverURL)
+            ?? JellyfinMediaRequestBuilder.rebase(stored, from: creds.serverURL, to: creds.serverURL)
+            ?? rebuildURL(meta: meta, serverURL: creds.serverURL, token: creds.token)
+        guard let rebased else { return JellyfinMediaRequestBuilder.upgradingLegacyToken(stored) }
+        return JellyfinMediaRequestBuilder.authorizedURL(rebased, serverURL: creds.serverURL,
+                                                         token: creds.token, replaceExisting: true)
     }
 
     // MARK: - Cancel / Delete
@@ -595,15 +674,15 @@ final class DownloadManager: NSObject, ObservableObject {
         Task {
             // Primary poster
             if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: itemId, imageType: "Primary", maxWidth: 400) {
-                await Self.downloadImage(url: url, destName: "\(itemId)_poster.jpg", token: token)
+                await Self.downloadImage(url: url, destName: "\(itemId)_poster.jpg", serverURL: serverURL, token: token)
             }
             // Backdrop
             if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: itemId, imageType: "Backdrop", maxWidth: 800) {
-                await Self.downloadImage(url: url, destName: "\(itemId)_backdrop.jpg", token: token)
+                await Self.downloadImage(url: url, destName: "\(itemId)_backdrop.jpg", serverURL: serverURL, token: token)
             }
             // Logo
             if let url = JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: itemId) {
-                await Self.downloadImage(url: url, destName: "\(itemId)_logo.png", token: token)
+                await Self.downloadImage(url: url, destName: "\(itemId)_logo.png", serverURL: serverURL, token: token)
             }
         }
     }
@@ -617,20 +696,20 @@ final class DownloadManager: NSObject, ObservableObject {
         guard !FileManager.default.fileExists(atPath: Self.downloadsDirectory.appendingPathComponent(posterDest).path) else { return }
         Task {
             if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: seriesId, imageType: "Primary", maxWidth: 400) {
-                await Self.downloadImage(url: url, destName: posterDest, token: token)
+                await Self.downloadImage(url: url, destName: posterDest, serverURL: serverURL, token: token)
             }
             if let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: seriesId, imageType: "Backdrop", maxWidth: 800) {
-                await Self.downloadImage(url: url, destName: backdropDest, token: token)
+                await Self.downloadImage(url: url, destName: backdropDest, serverURL: serverURL, token: token)
             }
             if let url = JellyfinAPI.shared.logoURL(serverURL: serverURL, itemId: seriesId) {
-                await Self.downloadImage(url: url, destName: logoDest, token: token)
+                await Self.downloadImage(url: url, destName: logoDest, serverURL: serverURL, token: token)
             }
         }
     }
 
-    private static func downloadImage(url: URL, destName: String, token: String) async {
-        var req = URLRequest(url: url)
-        req.setValue("MediaBrowser Token=\"\(token)\"", forHTTPHeaderField: "Authorization")
+    /// Foreground URLSession request → token travels only in the `Authorization` header.
+    private static func downloadImage(url: URL, destName: String, serverURL: String, token: String) async {
+        let req = JellyfinMediaRequestBuilder.authorizedRequest(url: url, serverURL: serverURL, token: token)
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
@@ -677,15 +756,11 @@ final class DownloadManager: NSObject, ObservableObject {
         let destName = "\(userId)_avatar.jpg"
         let dest = Self.downloadsDirectory.appendingPathComponent(destName)
         guard !FileManager.default.fileExists(atPath: dest.path) else { return }
-        var components = URLComponents(string: serverURL)
-        components?.path += "/Users/\(userId)/Images/Primary"
-        components?.queryItems = [
-            URLQueryItem(name: "maxWidth", value: "80"),
-            URLQueryItem(name: "api_key", value: token)
-        ]
-        guard let url = components?.url else { return }
+        guard let url = JellyfinMediaRequestBuilder.url(
+            serverURL: serverURL, path: "Users/\(userId)/Images/Primary",
+            queryItems: [URLQueryItem(name: "maxWidth", value: "80")]) else { return }
         Task {
-            await Self.downloadImage(url: url, destName: destName, token: token)
+            await Self.downloadImage(url: url, destName: destName, serverURL: serverURL, token: token)
         }
     }
 
@@ -697,7 +772,7 @@ final class DownloadManager: NSObject, ObservableObject {
                 let dest = "\(person.id)_person.jpg"
                 guard !FileManager.default.fileExists(atPath: Self.downloadsDirectory.appendingPathComponent(dest).path) else { continue }
                 if let url = JellyfinAPI.shared.personImageURL(serverURL: serverURL, person: person) {
-                    await Self.downloadImage(url: url, destName: dest, token: token)
+                    await Self.downloadImage(url: url, destName: dest, serverURL: serverURL, token: token)
                 }
             }
         }
@@ -747,8 +822,8 @@ final class DownloadManager: NSObject, ObservableObject {
                                         mediaSourceId: mediaSourceId,
                                         streamIndex: streamIndex, token: token,
                                         format: format) else { continue }
-            var req = URLRequest(url: url)
-            req.setValue("MediaBrowser Token=\"\(token)\"", forHTTPHeaderField: "Authorization")
+            // Foreground URLSession request → header only (subtitleURL carries no query token).
+            let req = JellyfinMediaRequestBuilder.authorizedRequest(url: url, serverURL: serverURL, token: token)
             do {
                 let (data, response) = try await URLSession.shared.data(for: req)
                 let status = (response as? HTTPURLResponse)?.statusCode ?? -1
@@ -766,30 +841,30 @@ final class DownloadManager: NSObject, ObservableObject {
 
     // MARK: - URL Builders
 
+    // Download URLs run in the *background* URLSession. The token stays in the query as
+    // `ApiKey` there (not a header): nsurlsessiond owns the request across app relaunches and
+    // the opaque resume data pins it, and `Authorization` is on Apple's list of headers the
+    // URL loading system may manage itself. Keeping the token in the URL also lets
+    // `resumeDownload` detect and refresh stale credentials from `originalURLString`.
+
     static func directURL(itemId: String, serverURL: String, token: String) -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
-        var c = URLComponents(url: base.appendingPathComponent("Videos/\(itemId)/stream"),
-                              resolvingAgainstBaseURL: false)
-        c?.queryItems = [URLQueryItem(name: "static", value: "true"),
-                         URLQueryItem(name: "api_key", value: token)]
-        return c?.url
+        JellyfinMediaRequestBuilder.mediaURL(
+            serverURL: serverURL, path: "Videos/\(itemId)/stream",
+            queryItems: [URLQueryItem(name: "static", value: "true")],
+            token: token)
     }
 
+    /// Subtitle file URL **without** a token. Both callers fetch it with URLSession and
+    /// authenticate via the `Authorization` header (`JellyfinMediaRequestBuilder.authorizedRequest`
+    /// / `SubtitleManager.load`). `token` is kept for source compatibility.
     static func subtitleURL(serverURL: String, itemId: String, mediaSourceId: String,
                             streamIndex: Int, token: String, format: String = "srt") -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
-        var c = URLComponents(
-            url: base.appendingPathComponent(
-                "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(streamIndex)/0/Stream.\(format)"),
-            resolvingAgainstBaseURL: false)
-        c?.queryItems = [URLQueryItem(name: "api_key", value: token)]
-        return c?.url
+        JellyfinMediaRequestBuilder.url(
+            serverURL: serverURL,
+            path: "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(streamIndex)/0/Stream.\(format)")
     }
 
     static func transcodedURL(itemId: String, serverURL: String, token: String, maxBitrate: Int, audioStreamIndex: Int? = nil) -> URL? {
-        guard let base = URL(string: serverURL) else { return nil }
-        var c = URLComponents(url: base.appendingPathComponent("Videos/\(itemId)/stream.mp4"),
-                              resolvingAgainstBaseURL: false)
         var items = [
             URLQueryItem(name: "VideoCodec",       value: "h264"),
             URLQueryItem(name: "AudioCodec",       value: "aac"),
@@ -797,13 +872,13 @@ final class DownloadManager: NSObject, ObservableObject {
             URLQueryItem(name: "AudioBitrate",     value: "128000"),
             URLQueryItem(name: "MaxAudioChannels", value: "2"),
             URLQueryItem(name: "Static",           value: "false"),
-            URLQueryItem(name: "api_key",          value: token)
         ]
         if let idx = audioStreamIndex {
             items.append(URLQueryItem(name: "AudioStreamIndex", value: "\(idx)"))
         }
-        c?.queryItems = items
-        return c?.url
+        return JellyfinMediaRequestBuilder.mediaURL(
+            serverURL: serverURL, path: "Videos/\(itemId)/stream.mp4",
+            queryItems: items, token: token)
     }
 
     // MARK: - Persistence
@@ -896,6 +971,26 @@ extension DownloadManager: URLSessionDownloadDelegate {
         didFinishDownloadingTo location: URL
     ) {
         guard let itemId = downloadTask.taskDescription else { return }
+
+        // URLSession delivers HTTP error bodies (e.g. 401 for a stale / legacy token after
+        // Server 12 disabled `api_key`) as a "finished" download. Never store such a body as
+        // the media file: drop it and the resume data, and park the item as paused so
+        // "Resume" re-issues the URL with current credentials (controlled restart).
+        if let http = downloadTask.response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            let status = http.statusCode
+            let failedURL = downloadTask.originalRequest?.url?.absoluteString ?? ""
+            log.error("download \(itemId, privacy: .public) HTTP \(status) for \(JellyfinMediaRequestBuilder.masked(failedURL), privacy: .public) — not saved, parked as paused")
+            try? FileManager.default.removeItem(at: location)
+            metaLock.lock()
+            let meta = pendingMeta.removeValue(forKey: itemId)
+            resumeDataStore.removeValue(forKey: itemId)
+            metaLock.unlock()
+            Task { @MainActor [weak self] in
+                self?.parkAfterHTTPFailure(itemId: itemId, meta: meta, originalURLString: failedURL)
+            }
+            return
+        }
+
         metaLock.lock()
         let meta = pendingMeta[itemId]
         metaLock.unlock()
