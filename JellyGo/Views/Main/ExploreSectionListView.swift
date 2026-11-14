@@ -37,6 +37,7 @@ struct ExploreSectionListView: View {
                     .padding()
             }
         }
+        .ambientPage()
         .navigationTitle(destination.title)
         .navigationDestination(for: JellyfinItem.self) { item in
             ItemDetailView(item: item)

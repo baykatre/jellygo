@@ -132,7 +132,7 @@ struct MediaBrowseView: View {
             }
             .animation(.easeInOut(duration: 0.25), value: isRefreshing)
             .ignoresSafeArea(edges: .top)
-            .background(Color(.systemBackground).ignoresSafeArea())
+            .ambientPage()
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }

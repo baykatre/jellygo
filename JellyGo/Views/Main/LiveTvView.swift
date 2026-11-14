@@ -132,7 +132,6 @@ struct LiveTvView: View {
         .padding(.horizontal, 20)
         .padding(.top, 4)
         .padding(.bottom, 8)
-        .background(Color(.systemBackground))
     }
 
     // MARK: - Main Content
@@ -164,40 +163,43 @@ struct LiveTvView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            List {
-                if searchText.isEmpty && !showFavoritesOnly, !heroChannels.isEmpty {
-                    liveHeroSlider
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
-
-                ForEach(filteredChannels) { channel in
-                    Button {
-                        selectChannel(channel)
-                    } label: {
-                        LiveChannelRow(
-                            channel: channel,
-                            serverURL: vm.serverURL,
-                            isPlaying: channel.id == currentChannel?.id
-                        )
+            ScrollView {
+                VStack(spacing: 14) {
+                    if searchText.isEmpty && !showFavoritesOnly, !heroChannels.isEmpty {
+                        liveHeroSlider
                     }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing) {
-                        Button {
-                            toggleFavorite(channel)
-                        } label: {
-                            if channel.userData?.isFavorite == true {
-                                Label(String(localized: "Remove from Favorites", bundle: AppState.currentBundle), systemImage: "heart.slash")
-                            } else {
-                                Label(String(localized: "Add to Favorites", bundle: AppState.currentBundle), systemImage: "heart")
+
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+                              spacing: 12) {
+                        ForEach(filteredChannels) { channel in
+                            Button {
+                                selectChannel(channel)
+                            } label: {
+                                LiveChannelTile(
+                                    channel: channel,
+                                    serverURL: vm.serverURL,
+                                    isPlaying: channel.id == currentChannel?.id
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button {
+                                    toggleFavorite(channel)
+                                } label: {
+                                    if channel.userData?.isFavorite == true {
+                                        Label(String(localized: "Remove from Favorites", bundle: AppState.currentBundle), systemImage: "heart.slash")
+                                    } else {
+                                        Label(String(localized: "Add to Favorites", bundle: AppState.currentBundle), systemImage: "heart")
+                                    }
+                                }
                             }
                         }
-                        .tint(.red)
                     }
+                    .padding(.horizontal, 16)
                 }
+                .padding(.bottom, 24)
             }
-            .listStyle(.plain)
+            .brandPage()
             .animation(.default, value: filteredChannels.map(\.id))
         }
     }
@@ -361,7 +363,7 @@ struct LiveTvView: View {
 
 // MARK: - Live Channel Row (Flat List)
 
-private struct LiveChannelRow: View {
+private struct LiveChannelTile: View {
     let channel: JellyfinItem
     let serverURL: String
     let isPlaying: Bool
@@ -369,76 +371,63 @@ private struct LiveChannelRow: View {
     private var isFavorite: Bool { channel.userData?.isFavorite == true }
 
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             // Channel logo
-            ZStack {
-                RoundedRectangle(cornerRadius: 8).fill(.quaternary)
+            FallbackAsyncImage(
+                primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 240),
+                fallbackURL: nil,
+                placeholder: Text(channel.name.prefix(2).uppercased())
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(.secondary),
+                contentMode: .fit
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .padding(.vertical, 4)
 
-                FallbackAsyncImage(
-                    primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 120),
-                    fallbackURL: nil,
-                    placeholder: Text(channel.name.prefix(2).uppercased())
-                        .font(.system(size: 14, weight: .black, design: .rounded))
-                        .foregroundStyle(.secondary),
-                    contentMode: .fit
-                )
-                .padding(6)
-            }
-            .frame(width: 52, height: 52)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // Info
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    if let num = channel.channelNumber {
-                        Text(num)
-                            .font(.system(size: 12, weight: .bold).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(channel.name)
-                        .font(.system(size: 15, weight: .semibold))
-                        .lineLimit(1)
-                    if isPlaying {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.tint)
-                    }
-                }
-
-                if let program = channel.currentProgram {
-                    Text(program.name)
-                        .font(.system(size: 13))
+            HStack(spacing: 6) {
+                if let num = channel.channelNumber {
+                    Text(num)
+                        .font(.system(size: 12, weight: .bold).monospacedDigit())
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
-
-                    if let progress = program.progress {
-                        GeometryReader { geo in
-                            Capsule()
-                                .fill(.quaternary)
-                                .overlay(alignment: .leading) {
-                                    Capsule()
-                                        .fill(.tint)
-                                        .frame(width: geo.size.width * progress)
-                                }
-                        }
-                        .frame(height: 3)
-                    }
-                } else {
-                    Text(String(localized: "No program info", bundle: AppState.currentBundle))
-                        .font(.system(size: 13))
-                        .foregroundStyle(.tertiary)
+                }
+                Text(channel.name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if isPlaying {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.tint)
                 }
             }
 
-            Spacer(minLength: 4)
+            Text(channel.currentProgram?.name ?? String(localized: "No program info", bundle: AppState.currentBundle))
+                .font(.system(size: 13))
+                .foregroundStyle(channel.currentProgram == nil ? .tertiary : .secondary)
+                .lineLimit(1)
 
+            GeometryReader { geo in
+                Capsule()
+                    .fill(.white.opacity(0.16))
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(.tint)
+                            .frame(width: geo.size.width * (channel.currentProgram?.progress ?? 0))
+                    }
+            }
+            .frame(height: 3)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(highlighted: isPlaying)
+        .overlay(alignment: .topTrailing) {
             if isFavorite {
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundStyle(.red)
+                    .padding(10)
             }
         }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
     }
 }

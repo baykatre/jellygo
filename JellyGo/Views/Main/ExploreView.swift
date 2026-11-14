@@ -166,7 +166,7 @@ struct ExploreView: View {
                 .padding(.top, 4)
                 .opacity(titleOpacity)
             }
-            .background(Color(.systemBackground).ignoresSafeArea())
+            .ambientPage()
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
             }

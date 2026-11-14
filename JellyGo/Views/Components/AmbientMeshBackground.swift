@@ -1,0 +1,329 @@
+import SwiftUI
+import Combine
+import UIKit
+
+/// Colours pulled from an artwork, as plain RGB so they can be compared and interpolated.
+struct AmbientPalette: Equatable, Sendable {
+    /// top-left, top-right, bottom-left, bottom-right of the artwork
+    var colors: [SIMD3<Double>]
+
+    static let neutral = AmbientPalette(colors: Array(repeating: SIMD3(0.10, 0.10, 0.12), count: 4))
+
+    /// App colours (bordo on black) for pages that are not about a specific title.
+    static let brand = AmbientPalette(colors: [
+        SIMD3(0.44, 0.05, 0.11), SIMD3(0.24, 0.02, 0.07),
+        SIMD3(0.30, 0.03, 0.08), SIMD3(0.52, 0.08, 0.13),
+    ])
+
+    func mixed(with other: AmbientPalette, _ t: Double) -> AmbientPalette {
+        AmbientPalette(colors: zip(colors, other.colors).map { $0 + ($1 - $0) * t })
+    }
+}
+
+extension UIImage {
+    /// Averages the four quadrants of the image and tunes them for use behind white text:
+    /// saturation is lifted so the colour reads on black, brightness is clamped so it never
+    /// washes out the content on top. Cheap (8×8 downsample); call off the main thread.
+    nonisolated func ambientPalette() -> AmbientPalette? {
+        guard let cg = cgImage else { return nil }
+        let side = 8
+        var px = [UInt8](repeating: 0, count: side * side * 4)
+        guard let ctx = CGContext(data: &px, width: side, height: side, bitsPerComponent: 8,
+                                  bytesPerRow: side * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.interpolationQuality = .medium
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: side, height: side))
+
+        func quadrant(_ xs: Range<Int>, _ ys: Range<Int>) -> SIMD3<Double> {
+            var sum = SIMD3<Double>(0, 0, 0)
+            var n = 0.0
+            for y in ys { for x in xs {
+                let i = (y * side + x) * 4
+                sum += SIMD3(Double(px[i]), Double(px[i + 1]), Double(px[i + 2])) / 255
+                n += 1
+            } }
+            return Self.tuned(sum / max(n, 1))
+        }
+        let h = side / 2
+        // Bitmap rows run top → bottom in this context.
+        return AmbientPalette(colors: [
+            quadrant(0..<h, 0..<h), quadrant(h..<side, 0..<h),
+            quadrant(0..<h, h..<side), quadrant(h..<side, h..<side),
+        ])
+    }
+
+    nonisolated private static func tuned(_ c: SIMD3<Double>) -> SIMD3<Double> {
+        var hue: CGFloat = 0, sat: CGFloat = 0, bri: CGFloat = 0, a: CGFloat = 0
+        UIColor(red: c.x, green: c.y, blue: c.z, alpha: 1).getHue(&hue, saturation: &sat, brightness: &bri, alpha: &a)
+        // Leave near-greys grey (boosting them invents a random hue).
+        if sat > 0.08 { sat = min(1, sat * 1.35 + 0.08) }
+        bri = min(max(bri, 0.22), 0.55)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
+        UIColor(hue: hue, saturation: sat, brightness: bri, alpha: 1).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return SIMD3(Double(r), Double(g), Double(b))
+    }
+}
+
+/// Black canvas with a slowly drifting mesh gradient tinted by the featured artwork.
+/// Colour sits at the top and melts into pure black toward the bottom.
+struct AmbientMeshBackground: View {
+    let palette: AmbientPalette
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
+    // Palette cross-fade state (interpolated by hand so it composes with the drift).
+    @State private var from = AmbientPalette.neutral
+    @State private var to = AmbientPalette.neutral
+    @State private var changedAt = Date.distantPast
+
+    private let fadeDuration = 1.2
+
+    private var isStill: Bool {
+        reduceMotion || scenePhase != .active || ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
+
+    var body: some View {
+        // 20 fps is plenty for a slow drift and keeps the GPU mostly idle.
+        TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: isStill)) { context in
+            mesh(at: context.date)
+        }
+        .background(Color.black)
+        .onAppear { from = palette; to = palette }
+        .onChange(of: palette) { _, new in
+            from = current(at: Date())
+            to = new
+            changedAt = Date()
+        }
+    }
+
+    private func current(at date: Date) -> AmbientPalette {
+        let t = min(max(date.timeIntervalSince(changedAt) / fadeDuration, 0), 1)
+        let eased = t * t * (3 - 2 * t)
+        return from.mixed(with: to, eased)
+    }
+
+    private func mesh(at date: Date) -> some View {
+        let p = current(at: date).colors
+        let t = isStill ? 0 : date.timeIntervalSinceReferenceDate
+        func wave(_ period: Double, _ phase: Double = 0) -> Float { Float(sin(t / period * 2 * .pi + phase)) }
+        func color(_ c: SIMD3<Double>, _ k: Double = 1) -> Color {
+            Color(red: c.x * k, green: c.y * k, blue: c.z * k)
+        }
+        let topMid = (p[0] + p[1]) / 2
+        let lowMid = (p[2] + p[3]) / 2
+
+        return MeshGradient(
+            width: 3, height: 3,
+            points: [
+                [0, 0], [0.5 + 0.16 * wave(11), 0], [1, 0],
+                [0, 0.46 + 0.07 * wave(9, 1.3)],
+                [0.5 + 0.14 * wave(13, 0.6), 0.42 + 0.09 * wave(7, 2.1)],
+                [1, 0.50 + 0.08 * wave(10, 3.0)],
+                [0, 1], [0.5, 1], [1, 1],
+            ],
+            colors: [
+                color(p[0]), color(topMid, 0.9), color(p[1]),
+                color(p[2], 0.55), color(lowMid, 0.7), color(p[3], 0.55),
+                .black, .black, .black,
+            ],
+            smoothsColors: true
+        )
+    }
+}
+
+/// One palette for the whole app. A page that shows a specific item (detail) pushes its
+/// artwork colours while it is on screen; so does the hero banner of the visible tab.
+final class AmbientStore: ObservableObject {
+    static let shared = AmbientStore()
+
+    @Published private(set) var palette = AmbientPalette.neutral
+    /// Number of detail pages currently open. Hero banners hold their slide while it is > 0.
+    private(set) var openDetailCount = 0
+    func detailDidAppear() { openDetailCount += 1 }
+    func detailDidDisappear() { openDetailCount = max(0, openDetailCount - 1) }
+    private var overrides: [(owner: UUID, palette: AmbientPalette)] = []
+
+    func push(_ palette: AmbientPalette, owner: UUID) {
+        overrides.removeAll { $0.owner == owner }
+        overrides.append((owner, palette))
+        refresh()
+    }
+
+    func pop(owner: UUID) {
+        overrides.removeAll { $0.owner == owner }
+        refresh()
+    }
+
+    private func refresh() {
+        // With no page claiming the background (Settings, lists …) keep the last colours
+        // instead of snapping back to neutral.
+        guard let new = overrides.last?.palette else { return }
+        if new != palette { palette = new }
+    }
+}
+
+/// The shared ambient background. Pages install it with
+/// `.containerBackground(for: .navigation) { AmbientBackdrop() }` so it belongs to the
+/// navigation container rather than to the sliding page.
+struct AmbientBackdrop: View {
+    @ObservedObject private var store = AmbientStore.shared
+    /// When set, the page ignores the current artwork colours and uses this palette.
+    var fixed: AmbientPalette? = nil
+
+    var body: some View {
+        AmbientMeshBackground(palette: fixed ?? store.palette)
+            .ignoresSafeArea()
+    }
+}
+
+extension View {
+    /// Puts the shared ambient background behind a page of a NavigationStack.
+    func ambientPage() -> some View {
+        containerBackground(for: .navigation) { AmbientBackdrop() }
+    }
+
+    /// Drifting gradient in the app's own colours, for pages that are not about a title
+    /// (Settings, Live TV, Search, Downloads).
+    func brandPage() -> some View {
+        containerBackground(for: .navigation) { BrandGlowBackground() }
+    }
+
+    /// For `List`/`Form` settings pages: brand background, opaque list background removed.
+    func ambientList() -> some View {
+        scrollContentBackground(.hidden).brandPage()
+    }
+}
+
+// MARK: - Zoom navigation (detail grows out of the tapped card)
+
+private struct ZoomNamespaceKey: EnvironmentKey {
+    static let defaultValue: Namespace.ID? = nil
+}
+
+extension EnvironmentValues {
+    var zoomNamespace: Namespace.ID? {
+        get { self[ZoomNamespaceKey.self] }
+        set { self[ZoomNamespaceKey.self] = newValue }
+    }
+}
+
+private struct ZoomScope: ViewModifier {
+    @Namespace private var namespace
+    func body(content: Content) -> some View {
+        content.environment(\.zoomNamespace, namespace)
+    }
+}
+
+private struct ZoomSource: ViewModifier {
+    let id: String
+    @Environment(\.zoomNamespace) private var namespace
+    func body(content: Content) -> some View {
+        if let namespace { content.matchedTransitionSource(id: id, in: namespace) } else { content }
+    }
+}
+
+private struct ZoomDestination: ViewModifier {
+    let id: String?
+    @Environment(\.zoomNamespace) private var namespace
+    func body(content: Content) -> some View {
+        if let namespace, let id { content.navigationTransition(.zoom(sourceID: id, in: namespace)) } else { content }
+    }
+}
+
+extension View {
+    /// Provides the namespace that links cards to the detail pages they open.
+    func zoomScope() -> some View { modifier(ZoomScope()) }
+    /// Marks a card as the origin of the zoom into the item with this id.
+    func zoomSource(_ id: String) -> some View { modifier(ZoomSource(id: id)) }
+    /// Makes this page open by growing out of the matching `zoomSource`.
+    func zoomDestination(_ id: String?) -> some View { modifier(ZoomDestination(id: id)) }
+}
+
+/// The ambient gradient as part of a page's scroll content: a fixed-height block at the top
+/// that scrolls away with the artwork and ends in black, instead of a layer that stays put.
+struct AmbientScrollingBackdrop: View {
+    @ObservedObject private var store = AmbientStore.shared
+    var height: CGFloat = 1200
+
+    var body: some View {
+        AmbientMeshBackground(palette: store.palette)
+            .frame(height: height)
+            .allowsHitTesting(false)
+    }
+}
+
+extension View {
+    /// Translucent card that sits on the ambient background.
+    func glassCard(cornerRadius: CGFloat = 16, highlighted: Bool = false) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return self
+            .background(.ultraThinMaterial, in: shape)
+            .background(highlighted ? Color.accentColor.opacity(0.22) : Color.white.opacity(0.04), in: shape)
+            .overlay(shape.strokeBorder(highlighted ? Color.accentColor.opacity(0.9) : Color.white.opacity(0.14),
+                                        lineWidth: highlighted ? 1.5 : 0.5))
+            .contentShape(shape)
+    }
+}
+
+/// Lets a tapped view name the zoom source for the detail page it is about to open.
+/// Needed when the same item is on screen twice (hero banner + a row card): matched ids
+/// must be unique, so the banner registers as "hero-<id>" and announces it here.
+enum ZoomContext {
+    nonisolated(unsafe) private static var pending: (itemId: String, sourceId: String, at: CFAbsoluteTime)?
+
+    static func announce(itemId: String, sourceId: String) {
+        pending = (itemId, sourceId, CFAbsoluteTimeGetCurrent())
+    }
+
+    /// The announced source for this item, or nil when nothing announced one (the page then
+    /// opens with the normal push).
+    static func sourceId(for itemId: String) -> String? {
+        defer { pending = nil }
+        if let p = pending, p.itemId == itemId, CFAbsoluteTimeGetCurrent() - p.at < 1 { return p.sourceId }
+        return nil
+    }
+}
+
+/// Background for pages that are not about a title: near-black canvas with a few soft
+/// bordo glows drifting near the top corners. Most of the page stays black so the cards
+/// carry the screen; the colour is an accent, not a wash.
+struct BrandGlowBackground: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
+    private var isStill: Bool {
+        reduceMotion || scenePhase != .active || ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: isStill)) { context in
+            let t = isStill ? 0 : context.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in
+                // A soft diagonal band of bordo light that slowly slides across a black page.
+                let phase = sin(t / 14 * 2 * .pi)
+                var c = ctx
+                c.translateBy(x: size.width / 2 + phase * size.width * 0.28,
+                              y: size.height / 2 + phase * size.height * 0.12)
+                c.rotate(by: .degrees(-28))
+                let length = hypot(size.width, size.height) * 1.6
+                let thickness = size.height * 0.46
+                let rect = CGRect(x: -length / 2, y: -thickness / 2, width: length, height: thickness)
+                let deep = Color(red: 0.47, green: 0.05, blue: 0.12)
+                let bright = Color(red: 0.80, green: 0.14, blue: 0.24)
+                c.fill(Path(rect), with: .linearGradient(
+                    Gradient(stops: [
+                        .init(color: deep.opacity(0), location: 0),
+                        .init(color: deep.opacity(0.55), location: 0.36),
+                        .init(color: bright.opacity(0.55), location: 0.5),
+                        .init(color: deep.opacity(0.55), location: 0.64),
+                        .init(color: deep.opacity(0), location: 1),
+                    ]),
+                    startPoint: CGPoint(x: 0, y: -thickness / 2),
+                    endPoint: CGPoint(x: 0, y: thickness / 2)))
+            }
+        }
+        .background(Color.black)
+        .ignoresSafeArea()
+    }
+}

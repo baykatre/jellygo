@@ -70,6 +70,9 @@ struct HeroBannerView: View {
     var scrollOffset: CGFloat = 0
     var onPlay: (JellyfinItem) -> Void = { _ in }
     var onTap: ((JellyfinItem) -> Void)? = nil
+    /// Fades the bottom of the artwork to transparent so it melts into the page background
+    /// instead of ending in a hard edge.
+    var fadesIntoBackground = true
 
     // Two stable layers: A and B. One is "current", the other is "next".
     // On commit we toggle which is current — NO AsyncImage URL changes at snap time.
@@ -82,6 +85,8 @@ struct HeroBannerView: View {
     @State private var pauseUntil: Date = .distantPast
     @State private var dominantColor: Color = Color(white: 0.12)
     @State private var isVisible = false
+    @State private var ambientOwner = UUID()
+    @State private var heldForDetail = false
 
     private let autoTimer = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
 
@@ -115,18 +120,30 @@ struct HeroBannerView: View {
         let inBtn  = -dir * size.width * 0.7 * (1.0 - fadeProg)
 
         ZStack(alignment: .bottom) {
-            // Layer A — backdrop
-            backdropLayer(item: items[indexA], size: size,
-                          parallaxOffset: aIsCurrent ? outBg : inBg)
-                .opacity(Double(aIsCurrent ? 1.0 - fadeProg : fadeProg))
+            ZStack(alignment: .bottom) {
+                // Layer A — backdrop
+                backdropLayer(item: items[indexA], size: size,
+                              parallaxOffset: aIsCurrent ? outBg : inBg)
+                    .opacity(Double(aIsCurrent ? 1.0 - fadeProg : fadeProg))
 
-            // Layer B — backdrop
-            backdropLayer(item: items[indexB], size: size,
-                          parallaxOffset: aIsCurrent ? inBg : outBg)
-                .opacity(Double(aIsCurrent ? fadeProg : 1.0 - fadeProg))
+                // Layer B — backdrop
+                backdropLayer(item: items[indexB], size: size,
+                              parallaxOffset: aIsCurrent ? inBg : outBg)
+                    .opacity(Double(aIsCurrent ? fadeProg : 1.0 - fadeProg))
 
-            // Progressive blur + subtle gradient
-            gradientOverlay(size: size)
+                // Progressive blur + subtle gradient
+                gradientOverlay(size: size)
+            }
+            .mask {
+                // Artwork (not the logo/buttons on top) dissolves into the page background.
+                LinearGradient(
+                    stops: fadesIntoBackground
+                        ? [.init(color: .white, location: 0), .init(color: .white, location: 0.66),
+                           .init(color: .clear, location: 1)]
+                        : [.init(color: .white, location: 0), .init(color: .white, location: 1)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            }
 
             // Content A
             contentOverlay(item: items[indexA], size: size,
@@ -159,10 +176,22 @@ struct HeroBannerView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             let item = items[currentItemIndex]
+            ZoomContext.announce(itemId: item.id, sourceId: "hero-info-" + item.id)
             if let onTap { onTap(item) } else { onPlay(item) }
         }
         .gesture(items.count > 1 ? dragGesture(size: size) : nil)
         .onReceive(autoTimer) { now in
+            // Hold the slide while a detail page is open, and after coming back give the
+            // current slide its full time again instead of flipping right away.
+            if AmbientStore.shared.openDetailCount > 0 {
+                heldForDetail = true
+                return
+            }
+            if heldForDetail {
+                heldForDetail = false
+                pauseUntil = now.addingTimeInterval(5.5)
+                return
+            }
             guard isVisible, items.count > 1, now >= pauseUntil, !isTransitioning, !isDragging else { return }
             commitTransition(direction: -1, size: size)
         }
@@ -170,7 +199,10 @@ struct HeroBannerView: View {
             isVisible = true
             extractDominantColor(for: items[currentItemIndex])
         }
-        .onDisappear { isVisible = false }
+        .onDisappear {
+            isVisible = false
+            AmbientStore.shared.pop(owner: ambientOwner)
+        }
         .onChange(of: currentItemIndex) { _, newIndex in
             extractDominantColor(for: items[newIndex])
         }
@@ -337,14 +369,24 @@ struct HeroBannerView: View {
                 .offset(x: logoOffset)
 
             HStack(spacing: 10) {
-                Button { onPlay(item) } label: { bannerPlayLabel }
+                Button {
+                    ZoomContext.announce(itemId: item.id, sourceId: "hero-info-" + item.id)
+                    onPlay(item)
+                } label: { bannerPlayLabel }
 
-                Button { onPlay(item) } label: {
+                Button {
+                    ZoomContext.announce(itemId: item.id, sourceId: "hero-info-" + item.id)
+                    // Info opens the detail page (same as tapping the banner); only where a
+                    // screen gives no detail action does it fall back to the play action.
+                    if let onTap { onTap(item) } else { onPlay(item) }
+                } label: {
                     Image(systemName: "info.circle")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
                         .background(.ultraThinMaterial, in: Circle())
+                        // The detail page grows out of this button and shrinks back into it.
+                        .zoomSource("hero-info-" + item.id)
                 }
                 .buttonStyle(.plain)
             }
@@ -385,13 +427,27 @@ struct HeroBannerView: View {
 
     private func extractDominantColor(for item: JellyfinItem) {
         guard let url = bannerBackdropURL(item: item) else { return }
+        let itemId = item.id
         Task {
-            guard let (data, _) = try? await URLSession.shared.data(from: url),
-                  let uiImage = UIImage(data: data) else { return }
-            let color = await Task.detached(priority: .utility) { uiImage.averageBottomColor() }.value
+            // Local (downloaded) artwork is a file URL; remote goes through the image cache,
+            // which the banner has already warmed, so this rarely hits the network.
+            let uiImage: UIImage?
+            if url.isFileURL {
+                uiImage = UIImage(contentsOfFile: url.path)
+            } else {
+                uiImage = await ImageCache.shared.fetch(url: url)
+            }
+            guard let uiImage else { return }
+            let (color, palette) = await Task.detached(priority: .utility) {
+                (uiImage.averageBottomColor(), uiImage.ambientPalette())
+            }.value
+            // The banner may have moved on while this was loading.
+            guard items.indices.contains(currentItemIndex), items[currentItemIndex].id == itemId else { return }
             withAnimation(.easeInOut(duration: 0.5)) {
                 dominantColor = Color(color)
             }
+            // Tint the shared background while this banner is the page on screen.
+            if let palette, isVisible { AmbientStore.shared.push(palette, owner: ambientOwner) }
         }
     }
 
@@ -509,6 +565,7 @@ struct PosterCardView: View {
                 posterImage
                     .frame(width: width, height: height)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .zoomSource(item.id)
 
                 // Gradient title overlay
                 LinearGradient(
@@ -626,6 +683,7 @@ extension BackdropCardView {
                 backdropImage
                     .frame(width: width, height: height)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .zoomSource(item.id)
                     .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
 
                 if showPlayOverlay {

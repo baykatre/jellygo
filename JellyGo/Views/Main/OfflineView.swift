@@ -189,6 +189,7 @@ struct OfflineView: View {
                 DownloadsView()
             }
         }
+        .zoomScope()
     }
 
     private var offlineHomeTab: some View {
@@ -248,7 +249,7 @@ struct OfflineView: View {
                     .coordinateSpace(name: "homeScroll")
                 }
             }
-            .background(Color(.systemBackground).ignoresSafeArea())
+            .ambientPage()
             .navigationBarHidden(true)
             .overlay(alignment: .top) {
                 HStack {

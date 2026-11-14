@@ -52,6 +52,7 @@ struct HomeView: View {
                 SearchView(isTab: true)
             }
         }
+        .zoomScope()
         // Selecting the search tab activates the field (and cancel returns to the previous tab).
         // On iOS 27 this is also what makes the search tab get the separate prominent slot.
         .tabViewSearchActivation(.searchTabSelection)
@@ -197,7 +198,9 @@ struct HomeView: View {
                     withAnimation(.easeOut(duration: 0.25)) { showOverlay = true }
                 }
             }
-            .background(Color(.systemBackground).ignoresSafeArea())
+            // Black canvas + drifting mesh tinted by the featured artwork, owned by the
+            // navigation container so it stays put while pages slide.
+            .ambientPage()
             .coordinateSpace(name: "homeScroll")
             .navigationBarHidden(true)
             .overlay(alignment: .top) {
@@ -577,6 +580,34 @@ struct SettingsView: View {
         }
     }
 
+    private func settingsTileLabel(_ key: String.LocalizationValue, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            Text(String(localized: key, bundle: AppState.currentBundle))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+        }
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+        .padding(14)
+        .glassCard()
+    }
+
+    private func settingsTile<Destination: View>(_ key: String.LocalizationValue, icon: String, color: Color,
+                                                 @ViewBuilder destination: @escaping () -> Destination) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            settingsTileLabel(key, icon: icon, color: color)
+        }
+        .buttonStyle(.plain)
+    }
+
     /// Opens the paywall only while Pro is not owned; when active it is a plain status row.
     @ViewBuilder private var proRow: some View {
         if appState.isPro {
@@ -603,118 +634,97 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        List {
-            // Upsell stays on top; once Pro is active the status moves to the bottom.
-            if !appState.isPro {
-                Section { proRow }
-            }
+        ScrollView {
+            VStack(spacing: 12) {
+                // Accounts scroll with the page as its first card (was a pinned opaque header).
+                accountsBubbles
 
-            if quickConnectAvailable {
-                Section {
-                    NavigationLink {
-                        QuickConnectView()
-                            .environmentObject(appState)
-                    } label: {
-                        Label(String(localized: "Quick Connect", bundle: AppState.currentBundle), systemImage: "bolt.fill")
+                // Upsell stays on top; once Pro is active the status moves to the bottom.
+                if !appState.isPro {
+                    proRow.padding(14).glassCard()
+                }
+
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+                          spacing: 12) {
+                    settingsTile("Playback", icon: "play.fill", color: .orange) {
+                        PlaybackSettingsView().environmentObject(appState)
                     }
-                }
-            }
-
-            Section {
-                NavigationLink {
-                    PlaybackSettingsView()
-                        .environmentObject(appState)
-                } label: {
-                    Label(String(localized: "Playback", bundle: AppState.currentBundle), systemImage: "play.circle")
-                }
-
-                NavigationLink {
-                    AudioSubtitleSettingsView()
-                        .environmentObject(appState)
-                } label: {
-                    Label(String(localized: "Audio & Subtitles", bundle: AppState.currentBundle), systemImage: "captions.bubble")
-                }
-
-                if pathBased {
-                    NavigationLink(value: SettingsRoute.downloadSettings) {
-                        Label(String(localized: "Download Settings", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
+                    settingsTile("Audio & Subtitles", icon: "captions.bubble.fill", color: .purple) {
+                        AudioSubtitleSettingsView().environmentObject(appState)
                     }
-                } else {
-                    NavigationLink {
-                        StorageSettingsView()
-                            .environmentObject(appState)
-                    } label: {
-                        Label(String(localized: "Download Settings", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
-                    }
-                }
-
-                NavigationLink {
-                    AppearanceSettingsView()
-                        .environmentObject(appState)
-                } label: {
-                    Label(String(localized: "Appearance", bundle: AppState.currentBundle), systemImage: "paintbrush")
-                }
-
-                NavigationLink {
-                    HomeSectionsSettingsView()
-                        .environmentObject(appState)
-                } label: {
-                    Label(String(localized: "Home Screen", bundle: AppState.currentBundle), systemImage: "house")
-                }
-
-                NavigationLink {
-                    AppSettingsView()
-                        .environmentObject(appState)
-                } label: {
-                    Label(String(localized: "App Language", bundle: AppState.currentBundle), systemImage: "globe")
-                }
-            }
-
-            Section {
-                NavigationLink {
-                    AboutSettingsView()
-                } label: {
-                    Label(String(localized: "About", bundle: AppState.currentBundle), systemImage: "info.circle")
-                }
-            }
-
-            Section {
-                Toggle(isOn: Binding(
-                    get: { appState.experimentalLiveTv },
-                    set: { newValue in
-                        if newValue && !appState.isPro {
-                            appState.showPaywall = true
-                        } else {
-                            appState.experimentalLiveTv = newValue
+                    if pathBased {
+                        NavigationLink(value: SettingsRoute.downloadSettings) {
+                            settingsTileLabel("Download Settings", icon: "arrow.down", color: .blue)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        settingsTile("Download Settings", icon: "arrow.down", color: .blue) {
+                            StorageSettingsView().environmentObject(appState)
                         }
                     }
-                )) {
-                    Label(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv")
+                    settingsTile("Home Screen", icon: "house.fill", color: .green) {
+                        HomeSectionsSettingsView().environmentObject(appState)
+                    }
+                    settingsTile("App Language", icon: "globe", color: .teal) {
+                        AppSettingsView().environmentObject(appState)
+                    }
+                    if quickConnectAvailable {
+                        settingsTile("Quick Connect", icon: "bolt.fill", color: .yellow) {
+                            QuickConnectView().environmentObject(appState)
+                        }
+                    }
+                    settingsTile("About", icon: "info", color: .gray) {
+                        AboutSettingsView()
+                    }
                 }
-            }
 
-            Section {
-                Toggle(isOn: $appState.manualOffline) {
-                    Label(String(localized: "Offline", bundle: AppState.currentBundle), systemImage: "wifi.slash")
+                VStack(spacing: 0) {
+                    Toggle(isOn: Binding(
+                        get: { appState.experimentalLiveTv },
+                        set: { newValue in
+                            if newValue && !appState.isPro {
+                                appState.showPaywall = true
+                            } else {
+                                appState.experimentalLiveTv = newValue
+                            }
+                        }
+                    )) {
+                        Label(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+
+                    Divider().padding(.leading, 16)
+
+                    Toggle(isOn: $appState.manualOffline) {
+                        Label(String(localized: "Offline", bundle: AppState.currentBundle), systemImage: "wifi.slash")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-            }
+                .glassCard()
 
-            Section {
                 Button(role: .destructive) {
                     showLogoutAlert = true
                 } label: {
                     Label(String(localized: "Sign Out", bundle: AppState.currentBundle), systemImage: "rectangle.portrait.and.arrow.right")
                         .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .glassCard()
+                }
+                .buttonStyle(.plain)
+
+                if appState.isPro {
+                    proRow.padding(14).glassCard()
                 }
             }
-
-            if appState.isPro {
-                Section { proRow }
-            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            accountsBubbles
-        }
+        .brandPage()
         .navigationTitle(String(localized: "Settings", bundle: AppState.currentBundle))
         .task { quickConnectAvailable = (try? await JellyfinAPI.shared.quickConnectEnabled(serverURL: appState.serverURL)) ?? false }
         .toolbar(.hidden, for: .tabBar)
@@ -792,10 +802,8 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
-
-            Divider()
         }
-        .background(Color(.systemGroupedBackground))
+        .glassCard()
     }
 
     private struct UserGroup: Identifiable {
@@ -947,6 +955,7 @@ struct QuickConnectView: View {
                 Text(String(localized: "Enter the code shown on the device you want to authorize.", bundle: AppState.currentBundle))
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "Quick Connect", bundle: AppState.currentBundle))
         .toolbar(.hidden, for: .tabBar)
     }
@@ -1004,6 +1013,7 @@ struct PlaybackSettingsView: View {
                 .labelsHidden()
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "Playback", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1046,6 +1056,7 @@ struct AudioSubtitleSettingsView: View {
                 }
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "Audio & Subtitles", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1062,6 +1073,7 @@ struct AppSettingsView: View {
                 AppLanguagePicker(selection: $appState.appLanguage)
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "App Language", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1098,33 +1110,12 @@ struct AboutSettingsView: View {
                 .padding(.vertical, 4)
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "About", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-
-// MARK: - Appearance Settings
-
-struct AppearanceSettingsView: View {
-    @EnvironmentObject private var appState: AppState
-
-    var body: some View {
-        List {
-            Section(String(localized: "Theme", bundle: AppState.currentBundle)) {
-                Picker(String(localized: "Theme", bundle: AppState.currentBundle), selection: $appState.appTheme) {
-                    Text(String(localized: "System Default", bundle: AppState.currentBundle)).tag("system")
-                    Text(String(localized: "Light", bundle: AppState.currentBundle)).tag("light")
-                    Text(String(localized: "Dark", bundle: AppState.currentBundle)).tag("dark")
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            }
-        }
-        .navigationTitle(String(localized: "Appearance", bundle: AppState.currentBundle))
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
 
 // MARK: - Home Sections Settings
 
@@ -1142,6 +1133,7 @@ struct HomeSectionsSettingsView: View {
                 Text(String(localized: "Choose which sections appear on the home screen.", bundle: AppState.currentBundle))
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "Home Screen", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1270,6 +1262,7 @@ struct StorageSettingsView: View {
                 }
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "Download Settings", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { recalculate() }
@@ -1616,6 +1609,7 @@ struct SubtitleAppearanceView: View {
                 }
             }
         }
+        .ambientList()
         .navigationTitle(String(localized: "Subtitle Appearance", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)

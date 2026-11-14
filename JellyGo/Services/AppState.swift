@@ -367,6 +367,12 @@ final class AppState: ObservableObject {
         persistAccount(serverURL: serverURL, serverName: serverName,
                        userId: userId, username: username, token: token, serverId: serverId)
 
+        // The server just answered the sign-in, so it is reachable. Nothing else validates
+        // after a fresh login (the startup check only runs when already signed in), and
+        // without this Home waits on `serverValidated` forever and never loads its content.
+        serverUnreachable = false
+        serverValidated = true
+
         if userChanged { sessionId = UUID() }
         if !isAuthenticated { withAnimation { isAuthenticated = true } }
     }

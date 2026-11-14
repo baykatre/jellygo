@@ -165,6 +165,7 @@ struct DownloadedSeriesDetailView: View {
                 }
             }
         }
+        .brandPage()
         .navigationDestination(item: $navigationTarget) { item in
             ItemDetailView(item: item, isFromDownloads: true)
         }

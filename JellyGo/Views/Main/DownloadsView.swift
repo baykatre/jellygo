@@ -119,7 +119,7 @@ struct DownloadsView: View {
                 let name = dm.downloads.first { $0.id == showDeleteMovieConfirm }?.name ?? ""
                 Text(String(format: String(localized: "Remove \"%@\" from your downloads?", bundle: AppState.currentBundle), name))
             }
-            .background(Color(.systemBackground).ignoresSafeArea())
+            .brandPage()
         }
     }
 

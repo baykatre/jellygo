@@ -30,6 +30,10 @@ struct ItemDetailView: View {
     private let backdropHeight: CGFloat = 680
     private let imageHeight: CGFloat = 520
     @State private var backdropDominantColor: Color = Color(white: 0.12)
+    @State private var ambientPalette: AmbientPalette?
+    @State private var ambientOwner = UUID()
+    /// Set when the page was opened from a view that announced itself as the zoom source.
+    @State private var zoomSourceId: String?
     @State private var showPlayQualityDialog = false
     @State private var playQualityOverride: VideoQuality?
     private let qualities: [(label: String, bitrate: Int?)] = [
@@ -44,6 +48,7 @@ struct ItemDetailView: View {
         self.isFromDownloads = isFromDownloads
         self.autoPlay = autoPlay
         _activeItem = State(initialValue: item)
+        _zoomSourceId = State(initialValue: ZoomContext.sourceId(for: item.id))
     }
 
     private var displayItem: JellyfinItem { vm.fullItem ?? activeItem }
@@ -302,7 +307,16 @@ struct ItemDetailView: View {
         .coordinateSpace(name: "detailScroll")
         .ignoresSafeArea(edges: .top)
         .scrollEdgeEffectStyle(.none, for: .top)
-        .background(Color(.systemBackground).ignoresSafeArea())
+        .ambientPage()
+        .zoomDestination(zoomSourceId)
+        .onAppear {
+            AmbientStore.shared.detailDidAppear()
+            if let ambientPalette { AmbientStore.shared.push(ambientPalette, owner: ambientOwner) }
+        }
+        .onDisappear {
+            AmbientStore.shared.detailDidDisappear()
+            AmbientStore.shared.pop(owner: ambientOwner)
+        }
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationTitle("")
         .toolbar { detailToolbarContent }
@@ -315,6 +329,7 @@ struct ItemDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: 0).id("detailTop")
             ZStack(alignment: .bottom) {
+                ZStack(alignment: .bottom) {
                 // Reflection (behind original, bottom area)
                 GeometryReader { geo in
                     backdropImage
@@ -326,26 +341,35 @@ struct ItemDetailView: View {
                 .frame(height: backdropHeight)
                 .clipped()
 
-                // Original with parallax — top aligned
+                // Original — moves with the page, no parallax and no pull-down stretch
                 GeometryReader { geo in
-                    let minY = geo.frame(in: .named("detailScroll")).minY
-                    let stretch = max(0, minY)
                     backdropImage
-                        .frame(width: geo.size.width, height: imageHeight + stretch)
+                        .frame(width: geo.size.width, height: imageHeight)
                         .clipped()
-                        .offset(y: minY > 0 ? -minY : -minY * 0.4)
                 }
                 .frame(height: imageHeight)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+                backdropScrim
+                }
+                .frame(height: backdropHeight)
+                .mask {
+                    // Same recipe as the Home hero: picture, mirrored strip, blur and dark
+                    // fade dissolve into the page background together (title/buttons stay solid).
+                    LinearGradient(
+                        stops: [.init(color: .white, location: 0), .init(color: .white, location: 0.66),
+                                .init(color: .clear, location: 1)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
 
                 // Title + buttons overlay
                 backdropOverlayContent
             }
             .frame(height: backdropHeight)
-            Color(.systemBackground).frame(height: 24)
+            Color.clear.frame(height: 24)
             mainContent
-                .background(Color(.systemBackground))
-            Color(.systemBackground).frame(height: 100)
+            Color.clear.frame(height: 100)
         }
     }
 
@@ -380,9 +404,15 @@ struct ItemDetailView: View {
             guard let data = try? Data(contentsOf: url),
                   let uiImage = UIImage(data: data) else { return }
             let color = uiImage.averageBottomColor()
+            let palette = uiImage.ambientPalette()
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.4)) {
                     backdropDominantColor = Color(color)
+                }
+                // Tint the shared background with this item's artwork while it is on screen.
+                if let palette {
+                    ambientPalette = palette
+                    AmbientStore.shared.push(palette, owner: ambientOwner)
                 }
             }
         }
@@ -390,15 +420,16 @@ struct ItemDetailView: View {
 
     // MARK: - Backdrop Overlay (gradient + title + buttons, scrolls with content)
 
-    private var backdropOverlayContent: some View {
+    /// Progressive blur + dark fade over the lower part of the artwork (Home hero values).
+    private var backdropScrim: some View {
         ZStack(alignment: .bottom) {
-            // Camsı blur
             Rectangle()
                 .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
                 .mask(
                     LinearGradient(
                         stops: [
-                            .init(color: .clear, location: 0.35),
+                            .init(color: .clear, location: 0.48),
                             .init(color: .white, location: 0.75),
                         ],
                         startPoint: .top,
@@ -406,17 +437,22 @@ struct ItemDetailView: View {
                     )
                 )
 
-            // Hafif siyah fade (alttan)
             LinearGradient(
                 stops: [
-                    .init(color: .clear, location: 0.6),
-                    .init(color: .black.opacity(0.4), location: 0.85),
+                    .init(color: .clear, location: 0.65),
+                    .init(color: .black.opacity(0.4), location: 0.82),
                     .init(color: .black.opacity(0.6), location: 1.0),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
+        }
+        .frame(height: backdropHeight)
+        .allowsHitTesting(false)
+    }
 
+    private var backdropOverlayContent: some View {
+        ZStack(alignment: .bottom) {
             VStack(alignment: .center, spacing: 10) {
                 let logoItemId = activeItem.isEpisode ? (activeItem.seriesId ?? activeItem.id) : activeItem.id
                 LogoTitleView(
@@ -450,7 +486,11 @@ struct ItemDetailView: View {
             .padding(.bottom, 20)
             .frame(maxWidth: .infinity, alignment: .center)
         }
-        .frame(height: backdropHeight)
+        // Pinned to the bottom of the artwork block. (The blur layers that used to fill this
+        // stack moved to backdropScrim; without an explicit alignment the text floated up
+        // to the middle.)
+        .frame(maxWidth: .infinity)
+        .frame(height: backdropHeight, alignment: .bottom)
     }
 
     // MARK: - Overlay Genre Line

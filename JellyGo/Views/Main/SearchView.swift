@@ -30,6 +30,7 @@ struct SearchView: View {
                 resultsGrid
             }
         }
+        .brandPage()
         .navigationTitle(String(localized: "Search", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $query, isPresented: $isSearchFocused,

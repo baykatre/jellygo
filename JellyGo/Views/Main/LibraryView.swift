@@ -44,6 +44,7 @@ struct LibraryView: View {
                 }
             }
         }
+        .ambientPage()
         .navigationTitle(title ?? library?.name ?? "")
         .navigationBarTitleDisplayMode(.large)
         .navigationDestination(for: JellyfinItem.self) { item in

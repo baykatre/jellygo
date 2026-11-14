@@ -40,10 +40,8 @@ struct JellyGoApp: App {
                         .zIndex(1)
                 }
             }
-            .preferredColorScheme(
-                appState.appTheme == "dark" ? .dark :
-                appState.appTheme == "light" ? .light : nil
-            )
+            // The app is dark-only: every page sits on the black ambient background.
+            .preferredColorScheme(.dark)
             .task {
                 try? await Task.sleep(for: .seconds(1.2))
                 withAnimation(.easeOut(duration: 0.4)) { showSplash = false }

@@ -19,7 +19,7 @@ struct PersonDetailView: View {
                         .padding(.bottom, 60)
                 }
             }
-            .background(Color(.systemBackground))
+            .ambientPage()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
