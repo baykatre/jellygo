@@ -35,8 +35,13 @@ struct HomeView: View {
                 }
             }
 
-            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 3, role: .search) {
+            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 3) {
                 DownloadsView()
+            }
+
+            // Real search tab: the `.search` role gives it the separate trailing button.
+            Tab(String(localized: "Search", bundle: AppState.currentBundle), systemImage: "magnifyingglass", value: 4, role: .search) {
+                SearchView(isTab: true)
             }
         }
         .overlay(alignment: .top) {

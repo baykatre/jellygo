@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SearchView: View {
+    /// true when hosted as the tab bar's search tab (no close button, system-placed field).
+    var isTab = false
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = SearchViewModel()
@@ -30,20 +32,24 @@ struct SearchView: View {
         }
         .navigationTitle(String(localized: "Search", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $query, isPresented: $isSearchFocused, placement: .navigationBarDrawer(displayMode: .always), prompt: String(localized: "Movies, series...", bundle: AppState.currentBundle))
+        .searchable(text: $query, isPresented: $isSearchFocused,
+                    placement: isTab ? .automatic : .navigationBarDrawer(displayMode: .always),
+                    prompt: String(localized: "Movies, series...", bundle: AppState.currentBundle))
         .onAppear {
-            guard !hasAppeared else { return }
+            guard !isTab, !hasAppeared else { return }
             hasAppeared = true
             isSearchFocused = true
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            if !isTab {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
