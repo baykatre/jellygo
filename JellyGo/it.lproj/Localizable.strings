@@ -361,9 +361,6 @@
 "Add to Favorites" = "Aggiungi ai Preferiti";
 "Remove from Favorites" = "Rimuovi dai Preferiti";
 
-/* Experimental */
-"Experimental" = "Sperimentale";
-"Experimental features may be unstable." = "Le funzionalità sperimentali potrebbero essere instabili.";
 
 /* Pro Paywall */
 "Restore" = "Ripristina";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "Acquisto in attesa di approvazione.";
 "Pro Active" = "Pro attivo";
 "Upgrade to Pro" = "Aggiorna a Pro";
+"Download Settings" = "Impostazioni download";
+"Downloads Tab" = "Pannello Download";
+"Shows Downloads as a tab at the bottom of the screen." = "Mostra Download come pannello nella parte inferiore dello schermo.";

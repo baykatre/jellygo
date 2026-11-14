@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// Settings pages that live on the Home stack's *path*. They must be value-based: a page
+/// pushed with `isPresented`/destination links stays on top of later path pushes, so item
+/// links opened from Downloads would land underneath it.
+enum SettingsRoute: Hashable {
+    case settings, downloadSettings, downloads
+}
+
 struct HomeView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
@@ -9,7 +16,6 @@ struct HomeView: View {
     @StateObject private var liveTvPlayerVM = PlayerViewModel()
     @State private var heroPlayItem: JellyfinItem?
     @State private var autoPlayItem: JellyfinItem?
-    @State private var showSettings = false
     @State private var downloadBanner: PausedDownload?
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedTab: Int = 0
@@ -35,15 +41,20 @@ struct HomeView: View {
                 }
             }
 
-            Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 3) {
-                DownloadsView()
+            if appState.showDownloadsTab {
+                Tab(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down.fill", value: 3) {
+                    DownloadsView()
+                }
             }
 
-            // Real search tab: the `.search` role gives it the separate trailing button.
+            // System search tab: separate round button that expands into the search field.
             Tab(String(localized: "Search", bundle: AppState.currentBundle), systemImage: "magnifyingglass", value: 4, role: .search) {
                 SearchView(isTab: true)
             }
         }
+        // Selecting the search tab activates the field (and cancel returns to the previous tab).
+        // On iOS 27 this is also what makes the search tab get the separate prominent slot.
+        .tabViewSearchActivation(.searchTabSelection)
         .overlay(alignment: .top) {
             if let banner = downloadBanner {
                 downloadBannerView(banner)
@@ -55,6 +66,9 @@ struct HomeView: View {
         .sheet(isPresented: $appState.showPaywall) {
             PaywallView()
                 .environmentObject(appState)
+        }
+        .onChange(of: appState.showDownloadsTab) { _, shown in
+            if !shown && selectedTab == 3 { selectedTab = 0 }
         }
         .onChange(of: selectedTab) { oldTab, newTab in
             // Leaving Live TV → start PiP if playing
@@ -94,7 +108,7 @@ struct HomeView: View {
         Button {
             withAnimation { downloadBanner = nil }
             bannerTask?.cancel()
-            selectedTab = 3
+            if appState.showDownloadsTab { selectedTab = 3 } else { selectedTab = 0; homePath.append(SettingsRoute.downloads) }
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "arrow.down.circle.fill")
@@ -198,7 +212,7 @@ struct HomeView: View {
                     serverBadge
                         .scaleEffect(badgeBounce ? 0.85 : 1.0)
                         .animation(.spring(response: 0.3, dampingFraction: 0.4), value: badgeBounce)
-                        .onTapGesture { showSettings = true }
+                        .onTapGesture { homePath.append(SettingsRoute.settings) }
                         .onLongPressGesture(minimumDuration: 0.5, pressing: { pressing in
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 badgeBounce = pressing
@@ -215,8 +229,16 @@ struct HomeView: View {
                 .opacity(showOverlay ? 1 : 0)
                 .offset(y: showOverlay ? 0 : -20)
             }
-            .navigationDestination(isPresented: $showSettings) {
-                SettingsView()
+            .navigationDestination(for: SettingsRoute.self) { route in
+                switch route {
+                case .settings:
+                    SettingsView(pathBased: true)
+                case .downloadSettings:
+                    StorageSettingsView(showsDownloadsLink: true)
+                        .environmentObject(appState)
+                case .downloads:
+                    DownloadsView(embedded: true)
+                }
             }
             .navigationDestination(for: JellyfinItem.self) { item in
                 ItemDetailView(item: item)
@@ -526,6 +548,8 @@ struct ShimmerRowView: View {
 // MARK: - Settings View
 
 struct SettingsView: View {
+    /// true on the Home stack, where settings pages are path values (see `SettingsRoute`).
+    var pathBased = false
     @EnvironmentObject private var appState: AppState
     @State private var showAddAccountSheet = false
     @State private var showLogoutAlert = false
@@ -538,37 +562,51 @@ struct SettingsView: View {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
 
+    private var proLabel: some View {
+        Label {
+            Text(appState.isPro
+                 ? String(localized: "Pro Active", bundle: AppState.currentBundle)
+                 : String(localized: "Upgrade to Pro", bundle: AppState.currentBundle))
+                .foregroundStyle(.primary)
+        } icon: {
+            Image(systemName: "crown.fill")
+                .foregroundStyle(LinearGradient(
+                    colors: [Color(red: 1.0, green: 0.78, blue: 0.32), Color(red: 0.95, green: 0.55, blue: 0.20)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+        }
+    }
+
+    /// Opens the paywall only while Pro is not owned; when active it is a plain status row.
+    @ViewBuilder private var proRow: some View {
+        if appState.isPro {
+            HStack {
+                proLabel
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
+        } else {
+            Button {
+                appState.showPaywall = true
+            } label: {
+                HStack {
+                    proLabel
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     var body: some View {
         List {
-            Section {
-                Button {
-                    appState.showPaywall = true
-                } label: {
-                    HStack {
-                        Label {
-                            Text(appState.isPro
-                                 ? String(localized: "Pro Active", bundle: AppState.currentBundle)
-                                 : String(localized: "Upgrade to Pro", bundle: AppState.currentBundle))
-                                .foregroundStyle(.primary)
-                        } icon: {
-                            Image(systemName: "crown.fill")
-                                .foregroundStyle(LinearGradient(
-                                    colors: [Color(red: 1.0, green: 0.78, blue: 0.32), Color(red: 0.95, green: 0.55, blue: 0.20)],
-                                    startPoint: .topLeading, endPoint: .bottomTrailing
-                                ))
-                        }
-                        Spacer()
-                        if appState.isPro {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
+            // Upsell stays on top; once Pro is active the status moves to the bottom.
+            if !appState.isPro {
+                Section { proRow }
             }
 
             if quickConnectAvailable {
@@ -597,6 +635,19 @@ struct SettingsView: View {
                     Label(String(localized: "Audio & Subtitles", bundle: AppState.currentBundle), systemImage: "captions.bubble")
                 }
 
+                if pathBased {
+                    NavigationLink(value: SettingsRoute.downloadSettings) {
+                        Label(String(localized: "Download Settings", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
+                    }
+                } else {
+                    NavigationLink {
+                        StorageSettingsView()
+                            .environmentObject(appState)
+                    } label: {
+                        Label(String(localized: "Download Settings", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
+                    }
+                }
+
                 NavigationLink {
                     AppearanceSettingsView()
                         .environmentObject(appState)
@@ -621,13 +672,6 @@ struct SettingsView: View {
 
             Section {
                 NavigationLink {
-                    StorageSettingsView()
-                        .environmentObject(appState)
-                } label: {
-                    Label(String(localized: "Storage", bundle: AppState.currentBundle), systemImage: "internaldrive")
-                }
-
-                NavigationLink {
                     AboutSettingsView()
                 } label: {
                     Label(String(localized: "About", bundle: AppState.currentBundle), systemImage: "info.circle")
@@ -647,10 +691,6 @@ struct SettingsView: View {
                 )) {
                     Label(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv")
                 }
-            } header: {
-                Text(String(localized: "Experimental", bundle: AppState.currentBundle))
-            } footer: {
-                Text(String(localized: "Experimental features may be unstable.", bundle: AppState.currentBundle))
             }
 
             Section {
@@ -666,6 +706,10 @@ struct SettingsView: View {
                     Label(String(localized: "Sign Out", bundle: AppState.currentBundle), systemImage: "rectangle.portrait.and.arrow.right")
                         .foregroundStyle(.red)
                 }
+            }
+
+            if appState.isPro {
+                Section { proRow }
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -1106,6 +1150,7 @@ struct HomeSectionsSettingsView: View {
 // MARK: - Storage Settings
 
 struct StorageSettingsView: View {
+    var showsDownloadsLink = false
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
     @State private var totalDownloadSize: String = "—"
@@ -1141,6 +1186,22 @@ struct StorageSettingsView: View {
 
     var body: some View {
         List {
+            // Where Downloads lives
+            // Offline mode keeps its own Downloads tab, so the link only exists on the Home stack.
+            if showsDownloadsLink {
+                Section {
+                    NavigationLink(value: SettingsRoute.downloads) {
+                        Label(String(localized: "Downloads", bundle: AppState.currentBundle), systemImage: "tray.and.arrow.down")
+                    }
+                }
+            }
+
+            Section {
+                Toggle(String(localized: "Downloads Tab", bundle: AppState.currentBundle), isOn: $appState.showDownloadsTab)
+            } footer: {
+                Text(String(localized: "Shows Downloads as a tab at the bottom of the screen.", bundle: AppState.currentBundle))
+            }
+
             // Summary
             Section {
                 LabeledContent(String(localized: "Downloaded Content", bundle: AppState.currentBundle), value: totalDownloadSize)
@@ -1209,7 +1270,7 @@ struct StorageSettingsView: View {
                 }
             }
         }
-        .navigationTitle(String(localized: "Storage", bundle: AppState.currentBundle))
+        .navigationTitle(String(localized: "Download Settings", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { recalculate() }
         .alert(String(localized: "Delete Download?", bundle: AppState.currentBundle),

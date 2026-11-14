@@ -361,9 +361,6 @@
 "Add to Favorites" = "Lägg till i favoriter";
 "Remove from Favorites" = "Ta bort från favoriter";
 
-/* Experimental */
-"Experimental" = "Experimentell";
-"Experimental features may be unstable." = "Experimentella funktioner kan vara instabila.";
 
 /* Pro Paywall */
 "Restore" = "Återställ";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "Köpet väntar på godkännande.";
 "Pro Active" = "Pro aktiv";
 "Upgrade to Pro" = "Uppgradera till Pro";
+"Download Settings" = "Nedladdningsinställningar";
+"Downloads Tab" = "Fliken Nedladdningar";
+"Shows Downloads as a tab at the bottom of the screen." = "Visar Nedladdningar som en flik längst ned på skärmen.";

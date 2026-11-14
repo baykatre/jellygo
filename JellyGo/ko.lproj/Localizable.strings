@@ -361,9 +361,6 @@
 "Add to Favorites" = "즐겨찾기에 추가";
 "Remove from Favorites" = "즐겨찾기에서 제거";
 
-/* Experimental */
-"Experimental" = "실험적";
-"Experimental features may be unstable." = "실험적 기능은 불안정할 수 있습니다.";
 
 /* Pro Paywall */
 "Restore" = "복원";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "구매가 승인 대기 중입니다.";
 "Pro Active" = "Pro 활성";
 "Upgrade to Pro" = "Pro로 업그레이드";
+"Download Settings" = "다운로드 설정";
+"Downloads Tab" = "다운로드 탭";
+"Shows Downloads as a tab at the bottom of the screen." = "화면 하단에 다운로드를 탭으로 표시합니다.";

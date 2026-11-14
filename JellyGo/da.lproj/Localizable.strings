@@ -361,9 +361,6 @@
 "Add to Favorites" = "Føj til favoritter";
 "Remove from Favorites" = "Fjern fra favoritter";
 
-/* Experimental */
-"Experimental" = "Eksperimentel";
-"Experimental features may be unstable." = "Eksperimentelle funktioner kan være ustabile.";
 
 /* Pro Paywall */
 "Restore" = "Gendan";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "Køb afventer godkendelse.";
 "Pro Active" = "Pro aktiv";
 "Upgrade to Pro" = "Opgrader til Pro";
+"Download Settings" = "Downloadindstillinger";
+"Downloads Tab" = "Downloads-fane";
+"Shows Downloads as a tab at the bottom of the screen." = "Viser Downloads som en fane nederst på skærmen.";

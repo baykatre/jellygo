@@ -33,7 +33,7 @@ struct SearchView: View {
         .navigationTitle(String(localized: "Search", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $query, isPresented: $isSearchFocused,
-                    placement: isTab ? .automatic : .navigationBarDrawer(displayMode: .always),
+                    placement: searchPlacement,
                     prompt: String(localized: "Movies, series...", bundle: AppState.currentBundle))
         .onAppear {
             guard !isTab, !hasAppeared else { return }
@@ -63,6 +63,12 @@ struct SearchView: View {
             ItemDetailView(item: item)
         }
         }
+    }
+
+    /// As the search tab the system places the field (it morphs out of the tab bar button);
+    /// in the full-screen cover it stays pinned under the title.
+    private var searchPlacement: SearchFieldPlacement {
+        isTab ? .automatic : .navigationBarDrawer(displayMode: .always)
     }
 
     // MARK: - Filter Menu

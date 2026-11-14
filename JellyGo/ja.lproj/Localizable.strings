@@ -361,9 +361,6 @@
 "Add to Favorites" = "お気に入りに追加";
 "Remove from Favorites" = "お気に入りから削除";
 
-/* Experimental */
-"Experimental" = "実験的";
-"Experimental features may be unstable." = "実験的な機能は不安定な場合があります。";
 
 /* Pro Paywall */
 "Restore" = "復元";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "購入は承認待ちです。";
 "Pro Active" = "Pro 有効";
 "Upgrade to Pro" = "Pro にアップグレード";
+"Download Settings" = "ダウンロード設定";
+"Downloads Tab" = "ダウンロードタブ";
+"Shows Downloads as a tab at the bottom of the screen." = "画面下部にダウンロードをタブとして表示します。";

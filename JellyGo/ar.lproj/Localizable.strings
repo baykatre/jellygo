@@ -361,9 +361,6 @@
 "Add to Favorites" = "إضافة إلى المفضلة";
 "Remove from Favorites" = "إزالة من المفضلة";
 
-/* Experimental */
-"Experimental" = "تجريبي";
-"Experimental features may be unstable." = "قد تكون الميزات التجريبية غير مستقرة.";
 
 /* Pro Paywall */
 "Restore" = "استعادة";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "الشراء في انتظار الموافقة.";
 "Pro Active" = "Pro نشط";
 "Upgrade to Pro" = "الترقية إلى Pro";
+"Download Settings" = "إعدادات التنزيل";
+"Downloads Tab" = "تبويب التنزيلات";
+"Shows Downloads as a tab at the bottom of the screen." = "يعرض التنزيلات كتبويب أسفل الشاشة.";

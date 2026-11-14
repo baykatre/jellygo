@@ -361,9 +361,6 @@
 "Add to Favorites" = "Добавить в избранное";
 "Remove from Favorites" = "Удалить из избранного";
 
-/* Experimental */
-"Experimental" = "Экспериментальное";
-"Experimental features may be unstable." = "Экспериментальные функции могут быть нестабильными.";
 
 /* Pro Paywall */
 "Restore" = "Восстановить";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "Покупка ожидает одобрения.";
 "Pro Active" = "Pro активен";
 "Upgrade to Pro" = "Перейти на Pro";
+"Download Settings" = "Настройки загрузок";
+"Downloads Tab" = "Вкладка «Загрузки»";
+"Shows Downloads as a tab at the bottom of the screen." = "Показывает «Загрузки» отдельной вкладкой внизу экрана.";

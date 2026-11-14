@@ -359,9 +359,6 @@
 "Add to Favorites" = "Add to Favorites";
 "Remove from Favorites" = "Remove from Favorites";
 
-/* Experimental */
-"Experimental" = "Experimental";
-"Experimental features may be unstable." = "Experimental features may be unstable.";
 
 /* Pro Paywall */
 "Restore" = "Restore";
@@ -380,3 +377,6 @@
 "Purchase pending approval." = "Purchase pending approval.";
 "Pro Active" = "Pro Active";
 "Upgrade to Pro" = "Upgrade to Pro";
+"Download Settings" = "Download Settings";
+"Downloads Tab" = "Downloads Tab";
+"Shows Downloads as a tab at the bottom of the screen." = "Shows Downloads as a tab at the bottom of the screen.";

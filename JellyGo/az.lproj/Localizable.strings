@@ -361,9 +361,6 @@
 "Add to Favorites" = "Favorilərə Əlavə Et";
 "Remove from Favorites" = "Favorilərədn Sil";
 
-/* Experimental */
-"Experimental" = "Eksperimental";
-"Experimental features may be unstable." = "Eksperimental funksiyalar qeyri-sabit ola bilər.";
 
 /* Pro Paywall */
 "Restore" = "Bərpa et";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "Alış təsdiq gözləyir.";
 "Pro Active" = "Pro Aktivdir";
 "Upgrade to Pro" = "Pro-ya Yüksəlt";
+"Download Settings" = "Yükləmə ayarları";
+"Downloads Tab" = "Yükləmələr bölməsi";
+"Shows Downloads as a tab at the bottom of the screen." = "Yükləmələri ekranın aşağısında ayrıca bölmə kimi göstərir.";

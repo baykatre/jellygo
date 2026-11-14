@@ -361,9 +361,6 @@
 "Add to Favorites" = "Toevoegen aan favorieten";
 "Remove from Favorites" = "Verwijderen uit favorieten";
 
-/* Experimental */
-"Experimental" = "Experimenteel";
-"Experimental features may be unstable." = "Experimentele functies kunnen instabiel zijn.";
 
 /* Pro Paywall */
 "Restore" = "Herstellen";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "Aankoop wacht op goedkeuring.";
 "Pro Active" = "Pro actief";
 "Upgrade to Pro" = "Upgrade naar Pro";
+"Download Settings" = "Downloadinstellingen";
+"Downloads Tab" = "Tabblad Downloads";
+"Shows Downloads as a tab at the bottom of the screen." = "Toont Downloads als tabblad onder in het scherm.";

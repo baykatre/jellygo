@@ -359,9 +359,6 @@
 "Retry" = "Tekrar Dene";
 "LIVE" = "CANLI";
 
-/* Experimental */
-"Experimental" = "Deneysel";
-"Experimental features may be unstable." = "Deneysel özellikler kararsız olabilir.";
 
 /* Pro Paywall */
 "Restore" = "Geri Yükle";
@@ -380,3 +377,6 @@
 "Purchase pending approval." = "Satın alma onay bekliyor.";
 "Pro Active" = "Pro Aktif";
 "Upgrade to Pro" = "Pro'ya Yükselt";
+"Download Settings" = "İndirme Ayarları";
+"Downloads Tab" = "İndirilenler Sekmesi";
+"Shows Downloads as a tab at the bottom of the screen." = "İndirilenler'i ekranın altında ayrı bir sekme olarak gösterir.";

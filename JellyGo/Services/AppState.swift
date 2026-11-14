@@ -231,7 +231,16 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(showLatestShows, forKey: "jellygo.showLatestShows") }
     }
 
-    // MARK: Experimental Features
+    // MARK: Tab Bar
+    /// Whether Downloads has its own tab. When off it is reached from Settings → Downloads.
+    @Published var showDownloadsTab: Bool = {
+        let key = "jellygo.showDownloadsTab"
+        return UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
+    }() {
+        didSet { UserDefaults.standard.set(showDownloadsTab, forKey: "jellygo.showDownloadsTab") }
+    }
+
+    // MARK: Live TV (property/key keep the old "experimental" name so the saved setting survives)
     @Published var experimentalLiveTv: Bool = UserDefaults.standard.bool(forKey: "jellygo.experimentalLiveTv") {
         didSet { UserDefaults.standard.set(experimentalLiveTv, forKey: "jellygo.experimentalLiveTv") }
     }

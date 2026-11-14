@@ -361,9 +361,6 @@
 "Add to Favorites" = "افزودن به علاقه‌مندی‌ها";
 "Remove from Favorites" = "حذف از علاقه‌مندی‌ها";
 
-/* Experimental */
-"Experimental" = "آزمایشی";
-"Experimental features may be unstable." = "ویژگی‌های آزمایشی ممکن است ناپایدار باشند.";
 
 /* Pro Paywall */
 "Restore" = "بازیابی";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "خرید در انتظار تأیید است.";
 "Pro Active" = "Pro فعال";
 "Upgrade to Pro" = "ارتقا به Pro";
+"Download Settings" = "تنظیمات دانلود";
+"Downloads Tab" = "زبانه دانلودها";
+"Shows Downloads as a tab at the bottom of the screen." = "دانلودها را به‌صورت زبانه در پایین صفحه نشان می‌دهد.";

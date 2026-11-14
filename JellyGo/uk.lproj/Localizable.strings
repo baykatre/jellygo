@@ -361,9 +361,6 @@
 "Add to Favorites" = "Додати до обраного";
 "Remove from Favorites" = "Видалити з обраного";
 
-/* Experimental */
-"Experimental" = "Експериментальне";
-"Experimental features may be unstable." = "Експериментальні функції можуть бути нестабільними.";
 
 /* Pro Paywall */
 "Restore" = "Відновити";
@@ -382,3 +379,6 @@
 "Purchase pending approval." = "Покупка очікує підтвердження.";
 "Pro Active" = "Pro активний";
 "Upgrade to Pro" = "Перейти на Pro";
+"Download Settings" = "Параметри завантажень";
+"Downloads Tab" = "Вкладка «Завантаження»";
+"Shows Downloads as a tab at the bottom of the screen." = "Показує «Завантаження» окремою вкладкою внизу екрана.";

@@ -4,7 +4,16 @@ struct DownloadedSeriesNav: Hashable {
     let seriesId: String
 }
 
+/// Wraps a downloaded item so its link never resolves through the host stack's generic
+/// `JellyfinItem` destination (which would open the online detail).
+struct DownloadedItemNav: Hashable {
+    let item: JellyfinItem
+}
+
 struct DownloadsView: View {
+    /// true when pushed onto the Home stack (Settings → Download Settings → Downloads)
+    /// instead of owning its own NavigationStack as a tab.
+    var embedded = false
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dm: DownloadManager
     @State private var showDeleteSeriesConfirm: String? = nil
@@ -20,11 +29,15 @@ struct DownloadsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        if embedded { content } else { NavigationStack { content } }
+    }
+
+    private var content: some View {
+        Group {
             Group {
                 if dm.downloads.isEmpty && dm.downloadOrder.isEmpty {
                     ScrollView {
-                        Color.clear.frame(height: 44)
+                        Color.clear.frame(height: embedded ? 0 : 44)
                         VStack(spacing: 16) {
                             Image(systemName: "arrow.down.circle")
                                 .font(.system(size: 48))
@@ -40,9 +53,11 @@ struct DownloadsView: View {
                     downloadsList
                 }
             }
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .navigationTitle("")
+            .toolbarBackground(embedded ? .automatic : .hidden, for: .navigationBar)
+            .navigationTitle(embedded ? String(localized: "Downloads", bundle: AppState.currentBundle) : "")
+            .navigationBarTitleDisplayMode(embedded ? .inline : .automatic)
             .overlay(alignment: .top) {
+                if !embedded {
                 HStack {
                     Text(String(localized: "Downloads", bundle: AppState.currentBundle))
                         .font(.largeTitle.bold())
@@ -65,10 +80,12 @@ struct DownloadsView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
                 .opacity(max(0.0, 1.0 - (scrollOffset / 100.0)))
+                }
             }
-            .navigationDestination(for: JellyfinItem.self) { item in
-                ItemDetailView(item: item, isFromDownloads: true)
+            .navigationDestination(for: DownloadedItemNav.self) { nav in
+                ItemDetailView(item: nav.item, isFromDownloads: true)
             }
+            .modifier(OwnItemDestination(enabled: !embedded))
             .navigationDestination(for: DownloadedSeriesNav.self) { nav in
                 DownloadedSeriesDetailView(seriesId: nav.seriesId, isSheet: false)
             }
@@ -110,7 +127,7 @@ struct DownloadsView: View {
 
     private var downloadsList: some View {
         ScrollView(showsIndicators: false) {
-            Color.clear.frame(height: 44)
+            Color.clear.frame(height: embedded ? 0 : 44)
 
             VStack(alignment: .leading, spacing: 32) {
 
@@ -312,7 +329,7 @@ struct DownloadsView: View {
         )
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                NavigationLink(value: navItem) {
+                NavigationLink(value: DownloadedItemNav(item: navItem)) {
                     HStack(spacing: 12) {
                         FallbackAsyncImage(
                             primaryURL: activeThumbnailURL(task),
@@ -410,7 +427,7 @@ struct DownloadsView: View {
     private func pausedRow(_ entry: PausedDownload) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                NavigationLink(value: entry.meta.toJellyfinItem()) {
+                NavigationLink(value: DownloadedItemNav(item: entry.meta.toJellyfinItem())) {
                     HStack(spacing: 12) {
                         Color(.systemGray5)
                             .overlay(Image(systemName: "pause.fill").foregroundStyle(.secondary).font(.caption))
@@ -475,7 +492,7 @@ struct DownloadsView: View {
 
     private func queuedRow(_ entry: QueuedDownload) -> some View {
         HStack(spacing: 12) {
-            NavigationLink(value: entry.meta.toJellyfinItem()) {
+            NavigationLink(value: DownloadedItemNav(item: entry.meta.toJellyfinItem())) {
                 HStack(spacing: 12) {
                     Color(.systemGray5)
                         .overlay(Image(systemName: "clock").foregroundStyle(.secondary).font(.caption))
@@ -528,5 +545,20 @@ struct DownloadsView: View {
             serverURL: appState.serverURL, path: path,
             queryItems: [URLQueryItem(name: "maxWidth", value: "320")],
             token: appState.token)
+    }
+}
+
+/// Registers the `JellyfinItem` destination only when DownloadsView owns its stack;
+/// when pushed, the host stack already provides one.
+private struct OwnItemDestination: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled {
+            content.navigationDestination(for: JellyfinItem.self) { item in
+                ItemDetailView(item: item, isFromDownloads: true)
+            }
+        } else {
+            content
+        }
     }
 }
