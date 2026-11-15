@@ -380,3 +380,9 @@
 "Download Settings" = "Download Settings";
 "Downloads Tab" = "Downloads Tab";
 "Shows Downloads as a tab at the bottom of the screen." = "Shows Downloads as a tab at the bottom of the screen.";
+
+/* Playback bitrate estimates */
+"≈ %.1f GB/h" = "≈ %.1f GB/h";
+"Selected playback quality is unavailable" = "Selected playback quality is unavailable";
+"Restart Download" = "Restart Download";
+"Interrupted" = "Interrupted";

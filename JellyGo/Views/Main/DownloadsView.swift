@@ -391,7 +391,7 @@ struct DownloadsView: View {
 
                 Spacer()
 
-                if !task.isFailed {
+                if !task.isFailed && !task.isTranscoding {
                     Button { dm.pauseDownload(task.id) } label: {
                         Image(systemName: "pause.circle.fill")
                             .foregroundStyle(.secondary)
@@ -466,9 +466,14 @@ struct DownloadsView: View {
                 Spacer()
 
                 Button { dm.resumeDownload(entry.id, appState: appState) } label: {
-                    Image(systemName: "play.circle.fill")
-                        .foregroundStyle(.tint)
-                        .font(.title3)
+                    if entry.isTranscoding {
+                        Label(String(localized: "Restart Download", bundle: AppState.currentBundle), systemImage: "arrow.clockwise")
+                            .font(.caption)
+                    } else {
+                        Image(systemName: "play.circle.fill")
+                            .foregroundStyle(.tint)
+                            .font(.title3)
+                    }
                 }
                 .buttonStyle(.plain)
 

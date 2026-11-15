@@ -306,6 +306,7 @@ struct JellyfinMediaSource: Codable, Identifiable, Hashable {
     let transcodeReasons: [String]?
     let liveStreamId: String?
     let openToken: String?
+    let defaultAudioStreamIndex: Int?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -320,6 +321,7 @@ struct JellyfinMediaSource: Codable, Identifiable, Hashable {
         case transcodeReasons = "TranscodeReasons"
         case liveStreamId = "LiveStreamId"
         case openToken = "OpenToken"
+        case defaultAudioStreamIndex = "DefaultAudioStreamIndex"
     }
 }
 

@@ -1006,7 +1006,7 @@ struct PlaybackSettingsView: View {
             Section(String(localized: "Default Quality", bundle: AppState.currentBundle)) {
                 Picker(String(localized: "Default Quality", bundle: AppState.currentBundle), selection: $appState.defaultVideoQuality) {
                     ForEach(VideoQuality.allCases) { quality in
-                        Text(quality.rawValue).tag(quality)
+                        Text(quality.displayName).tag(quality)
                     }
                 }
                 .pickerStyle(.inline)
@@ -1207,7 +1207,7 @@ struct StorageSettingsView: View {
                     ForEach(movies) { movie in
                         storageRow(
                             title: movie.name,
-                            subtitle: [movie.productionYear.map { String($0) }, movie.quality, movie.formattedSize.isEmpty ? nil : movie.formattedSize]
+                            subtitle: [movie.productionYear.map { String($0) }, movie.qualityDisplayName, movie.formattedSize.isEmpty ? nil : movie.formattedSize]
                                 .compactMap { $0 }.joined(separator: " · "),
                             itemId: movie.id,
                             isMovie: true
@@ -1229,7 +1229,7 @@ struct StorageSettingsView: View {
                                 }
                                 return ep.name
                             }(),
-                            subtitle: [ep.quality, ep.formattedSize.isEmpty ? nil : ep.formattedSize]
+                            subtitle: [ep.qualityDisplayName, ep.formattedSize.isEmpty ? nil : ep.formattedSize]
                                 .compactMap { $0 }.joined(separator: " · "),
                             itemId: ep.id,
                             isMovie: false

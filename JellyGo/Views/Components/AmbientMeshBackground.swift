@@ -289,6 +289,7 @@ enum ZoomContext {
 /// bordo glows drifting near the top corners. Most of the page stays black so the cards
 /// carry the screen; the colour is an accent, not a wash.
 struct BrandGlowBackground: View {
+    @State private var animationStartedAt = Date()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
@@ -298,13 +299,14 @@ struct BrandGlowBackground: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: isStill)) { context in
-            let t = isStill ? 0 : context.date.timeIntervalSinceReferenceDate
+            let t = isStill ? 0 : max(0, context.date.timeIntervalSince(animationStartedAt))
             Canvas { ctx, size in
                 // A soft diagonal band of bordo light that slowly slides across a black page.
-                let phase = sin(t / 14 * 2 * .pi)
+                // Begin near the lower-right corner, then drift slowly across the page.
+                let phase = cos(t / 90 * 2 * .pi)
                 var c = ctx
                 c.translateBy(x: size.width / 2 + phase * size.width * 0.28,
-                              y: size.height / 2 + phase * size.height * 0.12)
+                              y: size.height / 2 + phase * size.height * 0.28)
                 c.rotate(by: .degrees(-28))
                 let length = hypot(size.width, size.height) * 1.6
                 let thickness = size.height * 0.46

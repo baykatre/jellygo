@@ -165,6 +165,8 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     @Published var videoSize: CGSize = .zero
     @Published var subtitleTracks: [(index: Int32, name: String)] = []
     @Published var audioTracks: [(index: Int32, name: String)] = []
+    @Published private(set) var serverAudioStreams: [JellyfinMediaStream] = []
+    @Published private(set) var usesServerAudioTracks = false
     @Published var currentSubtitleIndex: Int32 = -1
     @Published var currentAudioIndex: Int32 = -1
 
@@ -257,14 +259,36 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         } else {
             currentSubtitleIndex = engine.currentSubtitleTrackIndex
         }
-        currentAudioIndex = engine.currentAudioTrackIndex
+        if !usesServerAudioTracks {
+            // Engine indexes and Jellyfin stream indexes are different namespaces.
+            let playable = audio.filter { $0.0 >= 0 }
+            if let selectedAudioStreamIndex,
+               let offset = serverAudioStreams.firstIndex(where: { $0.index == selectedAudioStreamIndex }),
+               playable.indices.contains(offset), engine.currentAudioTrackIndex != playable[offset].0 {
+                engine.setAudioTrack(playable[offset].0)
+            }
+            currentAudioIndex = engine.currentAudioTrackIndex
+        }
     }
 
     func engineVideoSizeChanged(_ size: CGSize) {
-        if size.width > 0, size != videoSize { videoSize = size }
+        if size.width > 0 && size.height > 0 {
+            if size != videoSize { videoSize = size }
+            let resolution = "\(Int(size.width))×\(Int(size.height))"
+            if statsVideoResolution != resolution { statsVideoResolution = resolution }
+        }
     }
 
     func engineStatsUpdated(_ stats: EngineStats) {
+        if let video = stats.videoInfo {
+            if !video.codec.isEmpty && statsVideoCodec != video.codec { statsVideoCodec = video.codec }
+            if statsVideoProfile != video.profile { statsVideoProfile = video.profile }
+            if !video.resolution.isEmpty && statsVideoResolution != video.resolution {
+                statsVideoResolution = video.resolution
+            }
+            if statsVideoBitDepth != video.bitDepth { statsVideoBitDepth = video.bitDepth }
+            if statsVideoRange != video.range { statsVideoRange = video.range }
+        }
         if abs(statsBitrateMbps - stats.inputBitrateMbps) > 0.01 { statsBitrateMbps = stats.inputBitrateMbps }
         if abs(statsDemuxBitrateMbps - stats.demuxBitrateMbps) > 0.01 { statsDemuxBitrateMbps = stats.demuxBitrateMbps }
         if statsReadBytes != stats.readBytes { statsReadBytes = stats.readBytes }
@@ -421,6 +445,10 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         self.item = item
         self.appState = appState
         selectedQuality = qualityOverride ?? appState.defaultVideoQuality
+        selectedAudioStreamIndex = nil
+        usesServerAudioTracks = false
+        serverAudioStreams = (item.mediaStreams ?? item.mediaSources?.first?.mediaStreams ?? []).filter(\.isAudio)
+        mediaSourceId = item.mediaSources?.first?.id
         DispatchQueue.main.async { self.isLoading = true; self.error = nil; self.statsReadBytes = 0 }
 
         guard !item.isSeries && !item.isSeason else {
@@ -433,7 +461,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         await startPlayback(jellyfinStartTicks: resumeTicks, seekMs: seekMs)
     }
 
-    private var pendingAudioStreamIndex: Int? = nil
+    private var selectedAudioStreamIndex: Int? = nil
 
     private func startPlayback(jellyfinStartTicks: Int64, seekMs: Int32) async {
         guard let item, let appState else { return }
@@ -456,6 +484,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         // Direct mode: skip PlaybackInfo, stream the file as-is
         // Live TV always uses PlaybackInfo (needs AutoOpenLiveStream)
         if selectedQuality.resolved.forceDirectPlay && !doviNeedsTranscode && !isLiveTV {
+            usesServerAudioTracks = false
             guard let directURL = JellyfinAPI.shared.streamURL(
                 serverURL: appState.serverURL,
                 itemId: item.id,
@@ -510,8 +539,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         }
 
         do {
-            let audioIdx = pendingAudioStreamIndex
-            pendingAudioStreamIndex = nil
+            let audioIdx = selectedAudioStreamIndex
             let info = try await JellyfinAPI.shared.getPlaybackInfo(
                 serverURL: appState.serverURL,
                 itemId: item.id,
@@ -521,6 +549,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 maxBitrate: selectedQuality.resolved.maxBitrate,
                 externalSubtitles: disableEngineSubtitlesFlag,
                 audioStreamIndex: audioIdx,
+                mediaSourceId: audioIdx == nil ? nil : self.mediaSourceId,
                 forceTranscode: doviNeedsTranscode,
                 isLiveTV: isLiveTV
             )
@@ -538,6 +567,22 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
             self.liveStreamId = source.liveStreamId
             self.mediaSourceId = source.id
+
+            let transcodeURL = source.transcodingUrl.flatMap { path in
+                path.isEmpty ? nil : JellyfinMediaRequestBuilder.resolve(serverURL: appState.serverURL, pathOrURL: path)
+            }
+            let requiresTranscode = doviNeedsTranscode || !selectedQuality.resolved.forceDirectPlay
+            if requiresTranscode && transcodeURL == nil {
+                // Do not silently ignore the selected bitrate by playing the original.
+                if let lsid = source.liveStreamId {
+                    await JellyfinAPI.shared.closeLiveStream(
+                        serverURL: appState.serverURL, liveStreamId: lsid, token: appState.token)
+                    self.liveStreamId = nil
+                }
+                self.error = String(localized: "Selected playback quality is unavailable", bundle: AppState.currentBundle)
+                self.isLoading = false
+                return
+            }
 
             var url: URL
 
@@ -563,9 +608,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                     url = directURL
                 }
                 print("[LIVETV] Direct stream URL: \(JellyfinMediaRequestBuilder.masked(url))")
-            } else if let transcodePath = source.transcodingUrl,
-               let transURL = JellyfinMediaRequestBuilder.resolve(serverURL: appState.serverURL,
-                                                                  pathOrURL: transcodePath) {
+            } else if let transURL = transcodeURL {
                 var adjusted = transURL
                 // Strip embedded subtitles from transcode URL when we manage subs externally
                 if disableEngineSubtitlesFlag,
@@ -575,6 +618,16 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                     items.append(URLQueryItem(name: "SubtitleStreamIndex", value: "-1"))
                     comps.percentEncodedQueryItems = items
                     adjusted = comps.url ?? transURL
+                }
+                // The live-open path can reset AllowVideoStreamCopy. Preserve the
+                // manual bitrate choice on the returned HLS request as well.
+                if requiresTranscode,
+                   var comps = URLComponents(url: adjusted, resolvingAgainstBaseURL: false) {
+                    var items = comps.percentEncodedQueryItems ?? []
+                    items.removeAll { $0.name.caseInsensitiveCompare("AllowVideoStreamCopy") == .orderedSame }
+                    items.append(URLQueryItem(name: "AllowVideoStreamCopy", value: "false"))
+                    comps.percentEncodedQueryItems = items
+                    adjusted = comps.url ?? adjusted
                 }
                 // Player engines (and HLS segment requests) cannot send our auth header, so the
                 // token goes in the query as `ApiKey`. The server-issued URL normally already has
@@ -595,8 +648,19 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
             let streams = source.mediaStreams ?? []
             let videoStream = streams.first(where: { $0.isVideo })
-            let audioStream = streams.first(where: { $0.isAudio })
-            let isTranscoding = source.transcodingUrl != nil
+            let sourceAudio = streams.filter(\.isAudio)
+            if !sourceAudio.isEmpty { serverAudioStreams = sourceAudio }
+            let isTranscoding = transcodeURL != nil
+            usesServerAudioTracks = isTranscoding && !serverAudioStreams.isEmpty
+            if usesServerAudioTracks {
+                let selected = audioIdx ?? source.defaultAudioStreamIndex
+                    ?? serverAudioStreams.first(where: { $0.isDefault == true })?.index
+                    ?? serverAudioStreams.first?.index
+                selectedAudioStreamIndex = selected
+                currentAudioIndex = selected.map(Int32.init) ?? -1
+            }
+            let audioStream = serverAudioStreams.first(where: { $0.index == selectedAudioStreamIndex })
+                ?? sourceAudio.first
 
             // Get transcode reasons from source field or parse from URL
             var reasons = source.transcodeReasons ?? []
@@ -625,8 +689,6 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                         let outH = min(maxH, srcH)
                         let outW = Int(Double(outH) * Double(srcW) / Double(srcH)) & ~1
                         displayRes = "\(outW)\u{00D7}\(outH)"
-                    } else {
-                        displayRes = self.selectedQuality.resolved.rawValue
                     }
                 }
             }
@@ -636,11 +698,13 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             let vRange = videoStream?.videoRangeType ?? videoStream?.videoRange ?? "SDR"
             let aLabel = audioStream?.audioLabel ?? audioStream?.language ?? ""
             DispatchQueue.main.async {
-                self.statsVideoCodec = videoStream?.codec?.uppercased() ?? "\u{2014}"
-                self.statsVideoProfile = vProfile
-                self.statsVideoResolution = displayRes
-                self.statsVideoBitDepth = vBitDepth
-                self.statsVideoRange = vRange
+                // PlaybackInfo describes the original file, not the encoded output.
+                // Wait for decoder metadata instead of displaying source HDR/codec as output.
+                self.statsVideoCodec = isTranscoding ? "\u{2014}" : (videoStream?.codec?.uppercased() ?? "\u{2014}")
+                self.statsVideoProfile = isTranscoding ? "" : vProfile
+                self.statsVideoResolution = isTranscoding ? "" : displayRes
+                self.statsVideoBitDepth = isTranscoding ? "" : vBitDepth
+                self.statsVideoRange = isTranscoding ? "" : vRange
                 self.statsAudioCodec = audioStream?.codec?.uppercased() ?? "\u{2014}"
                 self.statsAudioLabel = aLabel
                 self.statsContainer = source.container?.uppercased() ?? "\u{2014}"
@@ -709,14 +773,21 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     }
 
     func changeQuality(to quality: VideoQuality) async {
-        guard item != nil else { return }
+        guard let item else { return }
         selectedQuality = quality
 
-        let currentMs = engine.currentTimeMs
+        // Live TV restarts at the live edge, never at the previous player's clock.
+        let currentMs: Int32 = item.isChannel ? 0 : engine.currentTimeMs
 
         positionTimer?.cancel()
         engine.stop()
-        DispatchQueue.main.async { self.isLoading = true; self.isPlaying = false }
+        DispatchQueue.main.async { self.isLoading = true; self.isPlaying = false; self.error = nil }
+
+        if item.isChannel, let appState, let lsid = liveStreamId {
+            liveStreamId = nil
+            await JellyfinAPI.shared.closeLiveStream(
+                serverURL: appState.serverURL, liveStreamId: lsid, token: appState.token)
+        }
 
         try? await Task.sleep(for: .milliseconds(500))
 
@@ -765,20 +836,22 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     }
 
     func setAudio(index: Int32) {
-        currentAudioIndex = index
-        if !statsIsTranscoding {
+        if !usesServerAudioTracks {
+            currentAudioIndex = index
+            let playable = audioTracks.filter { $0.index >= 0 }
+            if let offset = playable.firstIndex(where: { $0.index == index }),
+               serverAudioStreams.indices.contains(offset) {
+                selectedAudioStreamIndex = serverAudioStreams[offset].index
+            }
             engine.setAudioTrack(index)
             return
         }
+        guard serverAudioStreams.contains(where: { $0.index == Int(index) }) else { return }
+        currentAudioIndex = index
+        selectedAudioStreamIndex = Int(index)
         Task {
-            let currentMs = engine.currentTimeMs
-            positionTimer?.cancel()
-            engine.stop()
-            DispatchQueue.main.async { self.isLoading = true; self.isPlaying = false }
-            try? await Task.sleep(for: .milliseconds(500))
-            pendingAudioStreamIndex = Int(index)
-            let startTicks = Int64(currentMs) * 10_000
-            await startPlayback(jellyfinStartTicks: startTicks, seekMs: currentMs)
+            // Re-negotiate the same quality and source with the selected server audio index.
+            await changeQuality(to: selectedQuality)
         }
     }
 

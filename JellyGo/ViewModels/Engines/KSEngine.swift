@@ -487,6 +487,7 @@ extension KSEngine: KSPlayerLayerDelegate {
             delegate?.enginePositionChanged(position: pos, currentMs: currentMs, durationMs: durationMs)
         }
         var stats = EngineStats()
+        stats.videoInfo = decodedVideoInfo(layer: layer)
         stats.bufferedSeconds = layer.player.playableTime
         if let info = layer.player.dynamicInfo {
             // KSMEPlayer path — full stats from FFmpeg
@@ -504,8 +505,41 @@ extension KSEngine: KSPlayerLayerDelegate {
         delegate?.engineStatsUpdated(stats)
     }
 
+    private func decodedVideoInfo(layer: KSPlayerLayer) -> EngineVideoInfo? {
+        let tracks = layer.player.tracks(mediaType: .video)
+        guard let track = tracks.first(where: { $0.isEnabled }) ?? tracks.first else { return nil }
+        let codec: String
+        if let ffmpegTrack = track as? FFmpegAssetTrack {
+            codec = ffmpegTrack.codecName.uppercased()
+        } else {
+            switch track.codecType {
+            case kCMVideoCodecType_H264: codec = "H264"
+            case kCMVideoCodecType_HEVC: codec = "HEVC"
+            default:
+                let code = track.codecType
+                codec = String(bytes: [UInt8((code >> 24) & 255), UInt8((code >> 16) & 255),
+                                       UInt8((code >> 8) & 255), UInt8(code & 255)], encoding: .ascii)?
+                    .trimmingCharacters(in: .whitespaces).uppercased() ?? ""
+            }
+        }
+        let size = layer.player.naturalSize
+        let resolution = size.width > 0 && size.height > 0
+            ? "\(Int(size.width))×\(Int(size.height))" : ""
+        let range: String
+        switch track.dynamicRange {
+        case .sdr?: range = "SDR"
+        case .hdr10?: range = "HDR10"
+        case .hlg?: range = "HLG"
+        case .dolbyVision?: range = "DOVI"
+        default: range = ""
+        }
+        return EngineVideoInfo(codec: codec, resolution: resolution,
+                               bitDepth: track.bitDepth > 0 ? "\(track.bitDepth)-bit" : "", range: range)
+    }
+
     private func pollLiveStats(layer: KSPlayerLayer) {
         var stats = EngineStats()
+        stats.videoInfo = decodedVideoInfo(layer: layer)
         stats.bufferedSeconds = layer.player.playableTime
         if let info = layer.player.dynamicInfo {
             stats.inputBitrateMbps = Double(info.videoBitrate + info.audioBitrate) / 1_000_000

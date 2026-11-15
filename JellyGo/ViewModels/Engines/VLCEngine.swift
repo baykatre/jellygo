@@ -84,6 +84,7 @@ final class VLCEngine: PlayerEngineBackend {
                 if let media = self.player.media {
                     let s = media.statistics
                     var stats = EngineStats()
+                    stats.videoInfo = self.decodedVideoInfo()
                     let inputBitrate = Double(s.inputBitrate)
                     let demuxBitrate = Double(s.demuxBitrate)
                     stats.inputBitrateMbps = inputBitrate * 8 / 1_000_000
@@ -278,6 +279,27 @@ final class VLCEngine: PlayerEngineBackend {
     }
 
     // MARK: - Engine Label
+
+    private func decodedVideoInfo() -> EngineVideoInfo? {
+        guard let tracks = player.media?.tracksInformation as? [[String: Any]],
+              let track = tracks.first(where: {
+                  ($0[VLCMediaTracksInformationType] as? String) == VLCMediaTracksInformationTypeVideo
+              }) else { return nil }
+        var info = EngineVideoInfo()
+        if let fourcc = track[VLCMediaTracksInformationCodec] as? UInt32 {
+            info.codec = VLCMedia.codecName(forFourCC: fourcc, trackType: VLCMediaTracksInformationTypeVideo)
+        }
+        if let profile = track[VLCMediaTracksInformationCodecProfile] as? Int, profile > 0,
+           let level = track[VLCMediaTracksInformationCodecLevel] as? Int, level > 0 {
+            info.profile = "P\(profile)/L\(level)"
+        }
+        let size = player.videoSize
+        if size.width > 0 && size.height > 0 {
+            info.resolution = "\(Int(size.width))×\(Int(size.height))"
+        }
+        // VLC does not expose reliable bit-depth/HDR metadata here; leave it unknown.
+        return info
+    }
 
     private func buildEngineLabel() -> String {
         guard let tracks = player.media?.tracksInformation as? [[String: Any]] else {

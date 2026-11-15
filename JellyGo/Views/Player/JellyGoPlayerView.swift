@@ -534,14 +534,14 @@ struct JellyGoPlayerView: View {
 
     private var localQualityText: String {
         if let dl = DownloadManager.shared.downloads.first(where: { $0.id == item.id }) {
-            return dl.quality
+            return dl.qualityDisplayName
         }
         return "Direct"
     }
 
     private var sfQualityLabel: some View {
         HStack(spacing: 4) {
-            Text(localURL != nil ? localQualityText : vm.selectedQuality.rawValue)
+            Text(localURL != nil ? localQualityText : vm.selectedQuality.displayName)
                 .font(.system(size: 12, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.5))
             Circle()
@@ -568,9 +568,9 @@ struct JellyGoPlayerView: View {
                         }
                     } label: {
                         if vm.selectedQuality == q {
-                            Label(q.rawValue, systemImage: "checkmark")
+                            Label(q.displayName, systemImage: "checkmark")
                         } else {
-                            Text(q.rawValue)
+                            Text(q.displayName)
                         }
                     }
                 }
@@ -789,14 +789,21 @@ struct JellyGoPlayerView: View {
 
     // MARK: - Action Buttons (above progress bar)
 
-    private var sfActionButtons: some View {
-        let audioStreams = (resolvedItem ?? item).mediaStreams?.filter(\.isAudio) ?? []
-        let vlcAudioTracks = vm.audioTracks
-        let cleanAudio: [JGAudioTrack] = vlcAudioTracks.enumerated().map { i, t in
-            let jellyfinIdx = t.index == -1 ? nil : (i < audioStreams.count ? audioStreams[i] : nil)
-            let name = jellyfinIdx?.languageName ?? t.name
-            return JGAudioTrack(index: t.index, name: name)
+    private var selectableAudioTracks: [JGAudioTrack] {
+        if vm.usesServerAudioTracks {
+            return vm.serverAudioStreams.map {
+                JGAudioTrack(index: Int32($0.index), name: $0.languageName ?? $0.audioLabel)
+            }
         }
+        let sourceAudio = (resolvedItem ?? item).mediaStreams?.filter(\.isAudio) ?? []
+        return vm.audioTracks.filter { $0.index >= 0 }.enumerated().map { offset, track in
+            let name = sourceAudio.indices.contains(offset) ? sourceAudio[offset].languageName : nil
+            return JGAudioTrack(index: track.index, name: name ?? track.name)
+        }
+    }
+
+    private var sfActionButtons: some View {
+        let cleanAudio = selectableAudioTracks
         let allSubs = (resolvedItem ?? item).mediaStreams?.filter(\.isSubtitle) ?? []
         let availableSubs: [JellyfinMediaStream] = localURL != nil
             ? allSubs.filter { Self.findLocalSubtitle(itemId: item.id, stream: $0) != nil }
@@ -973,7 +980,8 @@ struct JellyGoPlayerView: View {
                 .foregroundStyle(.gray)
 
             // ── Media info ──
-            Text("\(vm.statsVideoCodec) \(vm.statsVideoProfile) \(vm.statsVideoResolution) \(vm.statsVideoBitDepth) \(vm.statsVideoRange)")
+            Text([vm.statsVideoCodec, vm.statsVideoProfile, vm.statsVideoResolution,
+                  vm.statsVideoBitDepth, vm.statsVideoRange].filter { !$0.isEmpty }.joined(separator: " "))
             Text("\(vm.statsAudioCodec) \(vm.statsAudioLabel)")
                 .foregroundStyle(.white.opacity(0.7))
 
@@ -992,7 +1000,7 @@ struct JellyGoPlayerView: View {
             }
             if !isLocal && vm.statsIsTranscoding {
                 if vm.statsIsManualQuality {
-                    Text(String(localized: "Reason: Manual quality (\(vm.selectedQuality.rawValue))", bundle: Self.bundle))
+                    Text(String(localized: "Reason: Manual quality (\(vm.selectedQuality.displayName))", bundle: Self.bundle))
                         .foregroundStyle(.orange.opacity(0.9))
                 } else if !vm.statsTranscodeReasons.isEmpty {
                     Text("\(String(localized: "Reason", bundle: Self.bundle)): \(vm.statsTranscodeReasons.map { Self.readableReason($0) }.joined(separator: ", "))")
@@ -1015,7 +1023,10 @@ struct JellyGoPlayerView: View {
                     Circle().fill(quality.color).frame(width: 6, height: 6)
                     Text(quality.label).foregroundStyle(quality.color)
                     if vm.statsBitrateMbps > 0 {
-                        Text(String(format: "%.1f Mbps", vm.statsBitrateMbps))
+                        Text(String(format: "%.1f Mbps", locale: appState.currentLocale, vm.statsBitrateMbps))
+                        Text(String(format: String(localized: "≈ %.1f GB/h", bundle: Self.bundle),
+                                    locale: appState.currentLocale, vm.statsBitrateMbps * 0.45))
+                            .foregroundStyle(.white.opacity(0.6))
                     }
                 }
                 if vm.statsReadBytes > 0 {
@@ -1122,16 +1133,7 @@ struct JellyGoPlayerView: View {
     // MARK: - More Menu (native Menu with accordion sub-menus)
 
     private var sfMoreMenu: some View {
-        let audioStreams = (resolvedItem ?? item).mediaStreams?.filter(\.isAudio) ?? []
-        let vlcAudioTracks = vm.audioTracks
-        // Map VLC tracks to clean names using Jellyfin mediaStreams (matched by order)
-        let cleanAudio: [JGAudioTrack] = vlcAudioTracks.enumerated().map { i, t in
-            // VLC track 0 is usually "Disable", skip it for matching
-            let jellyfinIdx = t.index == -1 ? nil : (i < audioStreams.count ? audioStreams[i] : nil)
-            let name = jellyfinIdx?.languageName ?? t.name
-            return JGAudioTrack(index: t.index, name: name)
-        }
-        // Offline: only show subtitles that have local files on disk
+        let cleanAudio = selectableAudioTracks
         let allSubs = (resolvedItem ?? item).mediaStreams?.filter(\.isSubtitle) ?? []
         let availableSubs: [JellyfinMediaStream] = localURL != nil
             ? allSubs.filter { Self.findLocalSubtitle(itemId: item.id, stream: $0) != nil }
@@ -2267,14 +2269,14 @@ private struct JGMoreMenuView: View {
                     onQualityChanged(q)
                 } label: {
                     if currentQuality == q {
-                        Label(q.rawValue, systemImage: "checkmark")
+                        Label(q.displayName, systemImage: "checkmark")
                     } else {
-                        Text(q.rawValue)
+                        Text(q.displayName)
                     }
                 }
             }
         } label: {
-            Label("Quality \u{2022} \(currentQuality.rawValue)", systemImage: "sparkles")
+            Label("Quality \u{2022} \(currentQuality.displayName)", systemImage: "sparkles")
         }
     }
 }
@@ -2505,9 +2507,9 @@ private struct JGActionBarView: View {
                         onQualityChanged(q)
                     } label: {
                         if currentQuality == q {
-                            Label(q.rawValue, systemImage: "checkmark")
+                            Label(q.displayName, systemImage: "checkmark")
                         } else {
-                            Text(q.rawValue)
+                            Text(q.displayName)
                         }
                     }
                 }

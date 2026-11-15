@@ -85,6 +85,8 @@ struct DownloadedItem: Codable, Identifiable {
         DownloadManager.downloadsDirectory.appendingPathComponent(fileName)
     }
 
+    var qualityDisplayName: String { VideoQuality.displayName(for: quality) }
+
     var isMovie: Bool   { type == "Movie" }
     var isEpisode: Bool { type == "Episode" }
 
@@ -408,7 +410,9 @@ final class DownloadManager: NSObject, ObservableObject {
     // MARK: - Pause / Resume
 
     func pauseDownload(_ itemId: String) {
-        guard let active = activeTasks[itemId], !active.isPaused else { return }
+        // Progressive transcodes advertise Accept-Ranges: none; pausing by cancellation
+        // cannot preserve their partial file. Only original-file downloads can pause.
+        guard let active = activeTasks[itemId], !active.isPaused, !active.isTranscoding else { return }
         metaLock.lock()
         let meta = pendingMeta[itemId]
         metaLock.unlock()
@@ -418,14 +422,15 @@ final class DownloadManager: NSObject, ObservableObject {
         let snapshotExpected = active.bytesExpected
 
         active.task.cancel(byProducingResumeData: { [weak self] data in
-            guard let self else { return }
-            if let data {
-                self.metaLock.lock()
-                self.resumeDataStore[itemId] = data
-                self.metaLock.unlock()
-            }
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, self.activeTasks[itemId]?.task === active.task else { return }
+                // Cancel may have removed this task while resume data was being produced.
+                // Only the still-current task may restore a resumable download.
+                if let data {
+                    self.metaLock.withLock {
+                        self.resumeDataStore[itemId] = data
+                    }
+                }
                 if !self.pausedItems.contains(where: { $0.id == itemId }), let meta {
                     var p = PausedDownload(id: itemId, name: active.name,
                                            seriesName: active.seriesName, seriesId: active.seriesId,
@@ -581,19 +586,10 @@ final class DownloadManager: NSObject, ObservableObject {
     // MARK: - Cancel / Delete
 
     func cancelDownload(_ itemId: String) {
+        // Active downloads also have a pausedItems entry for kill recovery. Always
+        // clear every state; removing that entry alone does not cancel the transfer.
         downloadOrder.removeAll { $0 == itemId }
-        if let idx = downloadQueue.firstIndex(where: { $0.id == itemId }) {
-            downloadQueue.remove(at: idx)
-            return
-        }
-        if pausedItems.contains(where: { $0.id == itemId }) {
-            pausedItems.removeAll { $0.id == itemId }
-            savePausedItems()
-            metaLock.lock()
-            resumeDataStore.removeValue(forKey: itemId)
-            metaLock.unlock()
-            return
-        }
+        downloadQueue.removeAll { $0.id == itemId }
         // Use plain cancel (not byProducingResumeData) to avoid stale resume data
         // being picked up by a future download of the same item with a different quality.
         activeTasks[itemId]?.task.cancel()

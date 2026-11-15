@@ -61,7 +61,7 @@ struct DownloadedSeriesDetailView: View {
     }
 
     private var qualitySummary: String {
-        let quals = Set(allItems.map(\.quality))
+        let quals = Set(allItems.map(\.qualityDisplayName))
         return quals.sorted().joined(separator: ", ")
     }
 
@@ -383,7 +383,7 @@ struct DownloadedSeriesDetailView: View {
                 infoRow(
                     icon: "sparkles.tv",
                     label: String(localized: "Quality", bundle: AppState.currentBundle),
-                    value: movie.quality
+                    value: movie.qualityDisplayName
                 )
                 Divider().padding(.leading, 48)
                 infoRow(
@@ -624,7 +624,7 @@ struct DownloadedSeriesDetailView: View {
                 .lineLimit(1)
 
             HStack(spacing: 6) {
-                Text(ep.quality)
+                Text(ep.qualityDisplayName)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(ep.quality == "Direct" ? .green : Color.accentColor)
                 if !ep.formattedSize.isEmpty {

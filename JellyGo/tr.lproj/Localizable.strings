@@ -380,3 +380,9 @@
 "Download Settings" = "İndirme Ayarları";
 "Downloads Tab" = "İndirilenler Sekmesi";
 "Shows Downloads as a tab at the bottom of the screen." = "İndirilenler'i ekranın altında ayrı bir sekme olarak gösterir.";
+
+/* Playback bitrate estimates */
+"≈ %.1f GB/h" = "≈ %.1f GB/saat";
+"Selected playback quality is unavailable" = "Seçilen oynatma kalitesi kullanılamıyor";
+"Restart Download" = "İndirmeyi Yeniden Başlat";
+"Interrupted" = "Kesintiye uğradı";

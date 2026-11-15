@@ -106,7 +106,17 @@ protocol PlayerEngineDelegate: AnyObject {
     func engineInfoUpdated(_ label: String)
 }
 
+/// Metadata read from the stream the engine is actually decoding.
+struct EngineVideoInfo: Equatable {
+    var codec: String = ""
+    var profile: String = ""
+    var resolution: String = ""
+    var bitDepth: String = ""
+    var range: String = ""
+}
+
 struct EngineStats {
+    var videoInfo: EngineVideoInfo? = nil
     var inputBitrateMbps: Double = 0
     var demuxBitrateMbps: Double = 0
     var readBytes: Int = 0

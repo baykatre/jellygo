@@ -65,6 +65,7 @@ struct ItemDetailView: View {
             }
         }
         .fullScreenCover(item: $itemToPlay, onDismiss: {
+            playQualityOverride = nil
             appState.isPlayerActive = false
             AppDelegate.orientationLock = .portrait
             PlayerContainerView.rotate(to: .portrait)
@@ -77,7 +78,7 @@ struct ItemDetailView: View {
                 }
             PlayerContainerView(item: ep, localURL: localURL, qualityOverride: playQualityOverride)
                 .environmentObject(appState)
-                .onAppear { appState.isPlayerActive = true; playQualityOverride = nil }
+                .onAppear { appState.isPlayerActive = true }
         }
         .task {
             let isOffline = isFromDownloads || appState.manualOffline || appState.serverUnreachable
@@ -715,7 +716,7 @@ struct ItemDetailView: View {
                                     .font(.system(size: 15))
                                     .foregroundStyle(isDirect ? .green : .secondary)
                                     .frame(width: 24)
-                                Text(isDirect ? String(localized: "Direct Stream", bundle: AppState.currentBundle) : q.rawValue)
+                                Text(isDirect ? String(localized: "Direct Stream", bundle: AppState.currentBundle) : q.displayName)
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(isDirect ? .green : .primary)
                                 Spacer()
@@ -885,7 +886,8 @@ struct ItemDetailView: View {
                 }
                 if isPaused {
                     Text("·").foregroundStyle(.tertiary)
-                    Text(String(localized: "Paused", bundle: AppState.currentBundle))
+                    Text(isTranscoding ? String(localized: "Interrupted", bundle: AppState.currentBundle)
+                         : String(localized: "Paused", bundle: AppState.currentBundle))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.orange)
                 }
@@ -922,12 +924,14 @@ struct ItemDetailView: View {
                     Button {
                         dm.resumeDownload(itemId, appState: appState)
                     } label: {
-                        Label(String(localized: "Resume", bundle: AppState.currentBundle), systemImage: "play.fill")
+                        Label(isTranscoding ? String(localized: "Restart Download", bundle: AppState.currentBundle)
+                              : String(localized: "Resume", bundle: AppState.currentBundle),
+                              systemImage: isTranscoding ? "arrow.clockwise" : "play.fill")
                             .font(.caption.weight(.medium))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                } else if let task, !task.isFailed {
+                } else if let task, !task.isFailed, !task.isTranscoding {
                     Button {
                         dm.pauseDownload(itemId)
                     } label: {
@@ -1041,7 +1045,7 @@ struct ItemDetailView: View {
                                 .font(.system(size: 15))
                                 .foregroundStyle(isDirect ? .green : .secondary)
                                 .frame(width: 24)
-                            Text(isDirect ? String(localized: "Original (Direct)", bundle: AppState.currentBundle) : quality.label)
+                            Text(isDirect ? String(localized: "Original (Direct)", bundle: AppState.currentBundle) : VideoQuality.displayName(for: quality.label))
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(isDirect ? .green : .primary)
                             Spacer()
@@ -1151,7 +1155,9 @@ struct ItemDetailView: View {
             Button {
                 dm.resumeDownload(episode.id, appState: appState)
             } label: {
-                Label(String(localized: "Resume Download", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
+                Label(dm.pausedItems.first(where: { $0.id == episode.id })?.isTranscoding == true
+                      ? String(localized: "Restart Download", bundle: AppState.currentBundle)
+                      : String(localized: "Resume Download", bundle: AppState.currentBundle), systemImage: "arrow.down.circle")
             }
         } else if dm.isDownloading(episode.id) || dm.isQueued(episode.id) {
             Button(role: .destructive) {
@@ -1164,7 +1170,7 @@ struct ItemDetailView: View {
                 ForEach(qualities, id: \.label) { quality in
                     Button(quality.bitrate == nil
                            ? String(localized: "Original (Direct)", bundle: AppState.currentBundle)
-                           : quality.label) {
+                           : VideoQuality.displayName(for: quality.label)) {
                         guard let url = downloadURL(for: episode, quality: quality) else { return }
                         dm.startDownload(item: episode, qualityLabel: quality.label, downloadURL: url, appState: appState)
                         if let people = displayItem.people, !people.isEmpty {

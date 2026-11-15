@@ -362,7 +362,7 @@ final class JellyfinAPI {
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, forceTranscode: Bool = false, isLiveTV: Bool = false) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, mediaSourceId: String? = nil, forceTranscode: Bool = false, isLiveTV: Bool = false) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
         if startTimeTicks > 0 {
@@ -378,18 +378,22 @@ final class JellyfinAPI {
         var req = baseRequest(url: url, token: token)
         req.httpMethod = "POST"
 
+        // Manual quality explicitly requests encoding at the selected bitrate.
+        // Keep Direct as a separate choice rather than silently ignoring this one.
+        let requiresTranscode = forceTranscode || maxBitrate != nil
         // Device profile: direct play MP4/H264/HEVC, fallback to HLS transcode
         let subMethod = externalSubtitles ? "External" : "Hls"
         var profile: [String: Any] = [
             "UserId": userId,
             "AutoOpenLiveStream": isLiveTV,
-            "EnableDirectPlay": true,
-            "EnableDirectStream": true,
+            "EnableDirectPlay": !requiresTranscode,
+            "EnableDirectStream": !requiresTranscode,
             "EnableTranscoding": true,
+            "AllowVideoStreamCopy": !requiresTranscode,
             "DeviceProfile": [
                 "MaxStaticBitrate": 100_000_000,
                 "MaxStreamingBitrate": maxBitrate ?? 120_000_000,
-                "DirectPlayProfiles": forceTranscode ? [] as [[String: String]] : [
+                "DirectPlayProfiles": requiresTranscode ? [] as [[String: String]] : [
                     [
                         "Container": "mp4,m4v,mov,m2ts,ts,mpegts",
                         "Type": "Video",
@@ -439,7 +443,12 @@ final class JellyfinAPI {
                 ]
             ]
         ]
-        req.httpBody = try? JSONSerialization.data(withJSONObject: profile)
+        // AutoOpenLiveStream forwards this top-level value to the opened tuner.
+        // The nested device-profile limit alone is not forwarded on that path.
+        if let maxBitrate { profile["MaxStreamingBitrate"] = maxBitrate }
+        // Jellyfin applies AudioStreamIndex to the matching source, not every source.
+        if let mediaSourceId { profile["MediaSourceId"] = mediaSourceId }
+        req.httpBody = try JSONSerialization.data(withJSONObject: profile)
         let data = try await perform(req)
         if isLiveTV {
             let raw = String(data: data, encoding: .utf8) ?? ""
@@ -521,9 +530,11 @@ final class JellyfinAPI {
 
     func closeLiveStream(serverURL: String, liveStreamId: String, token: String) async {
         guard let base = URL(string: serverURL) else { return }
-        var req = baseRequest(url: base.appendingPathComponent("LiveStreams/Close"), token: token)
+        guard let url = try? buildURL(base, path: "LiveStreams/Close", queryItems: [
+            URLQueryItem(name: "liveStreamId", value: liveStreamId)
+        ]) else { return }
+        var req = baseRequest(url: url, token: token)
         req.httpMethod = "POST"
-        req.httpBody = try? JSONSerialization.data(withJSONObject: ["LiveStreamId": liveStreamId])
         _ = try? await URLSession.shared.data(for: req)
     }
 

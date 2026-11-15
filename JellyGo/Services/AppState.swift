@@ -43,6 +43,19 @@ enum VideoQuality: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    // Keep the stored identifiers compatible with existing preferences and downloads.
+    var displayName: String { Self.displayName(for: rawValue) }
+
+    static func displayName(for storedValue: String) -> String {
+        switch storedValue {
+        case "1080p": return "8 Mbps"
+        case "720p": return "4 Mbps"
+        case "480p": return "2 Mbps"
+        case "360p": return "1 Mbps"
+        default: return storedValue
+        }
+    }
+
     /// nil = no limit (Jellyfin decides). Direct uses the raw stream URL.
     var maxBitrate: Int? {
         switch self {
