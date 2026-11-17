@@ -86,13 +86,19 @@ final class HomeViewModel: ObservableObject {
         buildFeatured()
 
         // Preload hero banner images so swiping between slides never hits the network.
-        ImageCache.shared.warm(featuredItems.flatMap {
+        let heroWarming = ImageCache.shared.warm(featuredItems.flatMap {
             [JellyfinAPI.shared.backdropURL(serverURL: url, itemId: $0.id, maxWidth: 1280),
              JellyfinAPI.shared.logoURL(serverURL: url, itemId: $0.id)]
         })
 
-        // Fetch the hero items' detail pages in the background so "info" opens them filled.
-        DetailPrefetchStore.shared.prefetch(featuredItems, appState: appState)
+        // Fetch the hero items' detail pages in the background so "info" opens them filled —
+        // only after the hero pictures are in, so they don't share the connection with it.
+        let featured = featuredItems
+        Task { [weak appState] in
+            await heroWarming?.value
+            guard let appState else { return }
+            DetailPrefetchStore.shared.prefetch(featured, appState: appState)
+        }
 
         // Server became unreachable mid-session → try fallback
         if networkFailed {

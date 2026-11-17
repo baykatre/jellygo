@@ -64,10 +64,12 @@ final class ImageCache {
     /// swiping never has to hit the network. Runs sequentially, one at a time, at low
     /// network priority, so it never floods the connection pool or delays whatever the
     /// user is actually looking at right now.
-    func warm(_ urls: [URL?]) {
+    /// Returns the warming task so callers can start lower-priority work after it.
+    @discardableResult
+    func warm(_ urls: [URL?]) -> Task<Void, Never>? {
         let pending = urls.compactMap { $0 }.filter { memoryCachedImage(for: $0) == nil }
-        guard !pending.isEmpty else { return }
-        Task.detached(priority: .utility) { [weak self] in
+        guard !pending.isEmpty else { return nil }
+        return Task.detached(priority: .utility) { [weak self] in
             for url in pending {
                 _ = await self?.fetch(url: url, networkPriority: URLSessionTask.lowPriority)
             }

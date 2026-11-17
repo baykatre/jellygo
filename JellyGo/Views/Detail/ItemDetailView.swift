@@ -15,7 +15,15 @@ struct ItemDetailView: View {
     @EnvironmentObject private var dm: DownloadManager
     @StateObject private var vm = ItemDetailViewModel()
     @State private var activeItem: JellyfinItem
-    @State private var itemToPlay: JellyfinItem?
+    /// What the player cover shows. The quality travels inside it: the cover's content was
+    /// built from a stale snapshot of a separate `playQualityOverride` state (nil), so the
+    /// long-press quality choice reached the player only after it had started loading.
+    private struct PlayRequest: Identifiable {
+        let item: JellyfinItem
+        let quality: VideoQuality?
+        var id: String { item.id }
+    }
+    @State private var playRequest: PlayRequest?
     @State private var selectedSeason: JellyfinItem?
     @State private var downloadPopoverStep: DownloadPopoverStep? = nil
     @State private var pendingDownloadSeason = false
@@ -35,7 +43,9 @@ struct ItemDetailView: View {
     /// Set when the page was opened from a view that announced itself as the zoom source.
     @State private var zoomSourceId: String?
     @State private var showPlayQualityDialog = false
-    @State private var playQualityOverride: VideoQuality?
+    /// The current press on the play button turned into a long press (menu).
+    @State private var playLongPressed = false
+    @State private var isStartingPlayback = false
     private let qualities: [(label: String, bitrate: Int?)] = [
         ("Direct",  nil),
         ("1080p",   8_000_000),
@@ -56,6 +66,7 @@ struct ItemDetailView: View {
     @State private var detailScrollProxy: ScrollViewProxy?
     /// Season chosen while prefetching (see `DetailPrefetchStore`).
     @State private var prefetchedSeasonId: String?
+    @State private var backdropUIImage: UIImage?
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -66,19 +77,19 @@ struct ItemDetailView: View {
                     .transition(.opacity)
             }
         }
-        .fullScreenCover(item: $itemToPlay, onDismiss: {
-            playQualityOverride = nil
+        .fullScreenCover(item: $playRequest, onDismiss: {
             appState.isPlayerActive = false
             AppDelegate.orientationLock = .portrait
             PlayerContainerView.rotate(to: .portrait)
             Task { await vm.load(item: item, appState: appState) }
-        }) { ep in
+        }) { request in
+            let ep = request.item
             let localURL = dm.downloads.first(where: { $0.id == ep.id })
                 .flatMap { item -> URL? in
                     guard let url = item.localURL, FileManager.default.fileExists(atPath: url.path) else { return nil }
                     return url
                 }
-            PlayerContainerView(item: ep, localURL: localURL, qualityOverride: playQualityOverride)
+            PlayerContainerView(item: ep, localURL: localURL, qualityOverride: request.quality)
                 .environmentObject(appState)
                 .onAppear { appState.isPlayerActive = true }
         }
@@ -389,29 +400,38 @@ struct ItemDetailView: View {
         let url = DownloadManager.localBackdropURL(itemId: backdropId)
             ?? JellyfinAPI.shared.backdropURL(serverURL: appState.serverURL, itemId: backdropId, maxWidth: 1280)
         return Group {
-            if let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().aspectRatio(contentMode: .fill)
-                            .onAppear {
-                                extractDominantColor(from: url)
-                            }
-                    default:
-                        JGColor.placeholder
-                    }
-                }
+            if let backdropUIImage {
+                Image(uiImage: backdropUIImage).resizable().aspectRatio(contentMode: .fill)
             } else {
                 JGColor.placeholder
             }
         }
         .frame(maxWidth: .infinity)
+        // Same URL as the Home hero, through the same ImageCache: the hero already has it in
+        // memory, so the page opens with the picture instead of downloading it again.
+        .task(id: url) { await loadBackdrop(url) }
     }
 
-    private func extractDominantColor(from url: URL) {
+    private func loadBackdrop(_ url: URL?) async {
+        guard let url else { backdropUIImage = nil; return }
+        let image: UIImage?
+        if let cached = ImageCache.shared.memoryCachedImage(for: url) {
+            image = cached
+        } else if url.isFileURL {
+            image = await Task.detached(priority: .userInitiated) {
+                (try? Data(contentsOf: url)).flatMap(UIImage.init(data:))
+            }.value
+        } else {
+            image = await ImageCache.shared.fetch(url: url)
+        }
+        guard let image else { return }
+        backdropUIImage = image
+        extractDominantColor(from: image)
+    }
+
+    /// Colours come from the image already on screen (it used to be downloaded a third time).
+    private func extractDominantColor(from uiImage: UIImage) {
         Task.detached(priority: .utility) {
-            guard let data = try? Data(contentsOf: url),
-                  let uiImage = UIImage(data: data) else { return }
             let color = uiImage.averageBottomColor()
             let palette = uiImage.ambientPalette()
             await MainActor.run {
@@ -693,6 +713,9 @@ struct ItemDetailView: View {
     private var actionButtons: some View {
         HStack(spacing: 10) {
             Button {
+                // A long press opens the quality menu; the tap that ends it must not also
+                // start plain playback (that raced the menu choice and won, dropping it).
+                if playLongPressed { playLongPressed = false; return }
                 guard !showPlayQualityDialog else { return }
                 Task { await startPlayback() }
             } label: {
@@ -701,9 +724,14 @@ struct ItemDetailView: View {
             .buttonStyle(.plain)
             .simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                    playLongPressed = true
                     showPlayQualityDialog = true
                 }
             )
+            .onChange(of: showPlayQualityDialog) { _, shown in
+                // Menu closed without a choice: the next tap must play normally again.
+                if !shown { playLongPressed = false }
+            }
             .popover(isPresented: $showPlayQualityDialog, arrowEdge: .bottom) {
                 VStack(alignment: .leading, spacing: 6) {
                     Label(String(localized: "Playback Quality", bundle: AppState.currentBundle),
@@ -717,8 +745,8 @@ struct ItemDetailView: View {
                         let isDirect = q == .direct
                         Button {
                             showPlayQualityDialog = false
-                            playQualityOverride = q
-                            Task { await startPlayback() }
+                            playLongPressed = false
+                            Task { await startPlayback(quality: q) }
                         } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: isDirect ? "bolt.fill" : "play.rectangle.fill")
@@ -1498,7 +1526,12 @@ struct ItemDetailView: View {
 
     // MARK: - Playback
 
-    private func startPlayback() async {
+    /// `quality`: chosen in the play button's long-press menu (nil = default setting).
+    private func startPlayback(quality: VideoQuality? = nil) async {
+        // One start at a time: a second request while one is in flight is ignored.
+        guard !isStartingPlayback, playRequest == nil else { return }
+        isStartingPlayback = true
+        defer { isStartingPlayback = false }
         let target: JellyfinItem?
         if activeItem.isMovie || activeItem.isEpisode {
             target = activeItem
@@ -1518,7 +1551,7 @@ struct ItemDetailView: View {
         AppDelegate.orientationLock = .landscape
         PlayerContainerView.rotate(to: .landscapeRight)
         try? await Task.sleep(for: .milliseconds(300))
-        itemToPlay = target
+        playRequest = PlayRequest(item: target, quality: quality)
     }
 
     @ViewBuilder
