@@ -1,5 +1,6 @@
 import SwiftUI
 import MediaPlayer
+import Combine
 import AVFoundation
 import os
 
@@ -25,11 +26,14 @@ struct JellyGoPlayerView: View {
         self.externalVM = externalVM
         self.isInline = isInline
         self._item = State(initialValue: item)
-        self._isAspectFilled = State(initialValue: !isInline)
+        // Open fitted (whole picture, black bars → ambient light); pinch to zoom-fill.
+        self._isAspectFilled = State(initialValue: false)
     }
 
     @EnvironmentObject private var appState: AppState
     @StateObject private var subtitleManager = SubtitleManager()
+    /// @State, not @StateObject: new colours must redraw only the backdrop, not this whole view.
+    @State private var ambientSampler = AmbientSampler()
     @Environment(\.dismiss) private var dismiss
 
     @State private var showOverlay = true
@@ -98,6 +102,18 @@ struct JellyGoPlayerView: View {
                 // Video area
                 ZStack {
                     Color.black.modifier(SafeAreaIgnoreModifier(enabled: !isInline))
+
+                    let ambientOn = ambientActive(in: geo.size)
+                    if vm.supportsAmbientLight && !isInline {
+                        // Always in the tree so it can fade in and out; samples only while on.
+                        PlayerAmbientBackdrop(sampler: ambientSampler,
+                                              opacity: ambientOn ? appState.ambientLight.opacity : 0)
+                            .animation(.easeInOut(duration: 0.8), value: ambientOn)
+                            .animation(.easeInOut(duration: 0.8), value: appState.ambientLight)
+                            .modifier(SafeAreaIgnoreModifier(enabled: !isInline))
+                            .onChange(of: ambientOn, initial: true) { _, on in updateAmbientSampling(on) }
+                            .onDisappear { updateAmbientSampling(false) }
+                    }
 
                     vm.makeVideoSurface()
                         .scaleEffect(videoScale)
@@ -262,7 +278,7 @@ struct JellyGoPlayerView: View {
 
                     // Stats HUD (bottom-left, always visible when enabled)
                     if showHUD {
-                        statsHUD
+                        LivePlaybackView(live: vm.live) { statsHUD }
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                             .padding(.bottom, geo.safeAreaInsets.bottom + 60)
                             .padding(.leading, geo.safeAreaInsets.leading + 52)
@@ -371,7 +387,7 @@ struct JellyGoPlayerView: View {
                 if isAspectFilled { videoScale = aspectFillScale }
             }
             // Sync custom subtitles with playback
-            .onChange(of: vm.position) { _, _ in
+            .onReceive(vm.live.$position.removeDuplicates()) { _ in
                 subtitleManager.update(currentSeconds: vm.currentSeconds)
                 // Update PiP subtitle layer if PiP is active
                 if vm.isPipActive {
@@ -427,6 +443,9 @@ struct JellyGoPlayerView: View {
                 await loadEpisodeList()
             }
         }
+        // Full-screen player hides the animated page backgrounds: pause them meanwhile.
+        .onAppear { if !isInline { BackgroundMotion.shared.cover() } }
+        .onDisappear { if !isInline { BackgroundMotion.shared.uncover() } }
         .onDisappear {
             vm.stop()  // no-op when PiP is active — preserves playback if backgrounded into PiP
         }
@@ -734,7 +753,7 @@ struct JellyGoPlayerView: View {
     private var sfPlaybackProgress: some View {
         VStack(spacing: 10) {
             VStack(spacing: 5) {
-                sfCapsuleSlider
+                LivePlaybackView(live: vm.live) { sfCapsuleSlider }
                     .opacity(isLive ? 0.3 : 1)
                     .allowsHitTesting(!isLive)
                     .background(GeometryReader { g in
@@ -745,7 +764,7 @@ struct JellyGoPlayerView: View {
                 if isLive {
                     EmptyView()
                 } else {
-                    sfSplitTimestamp
+                    LivePlaybackView(live: vm.live) { sfSplitTimestamp }
                         .offset(y: isScrubbing ? 5 : 0)
                         .frame(maxWidth: isScrubbing ? nil : max(0, sliderSize.width - 32))
                 }
@@ -1821,6 +1840,30 @@ struct JellyGoPlayerView: View {
             guard !vm.isLoading else { return } // Don't hide while loading
             withAnimation(.spring(duration: 0.3, bounce: 0.2)) { dismissAllPanels() }
             withAnimation { showOverlay = false }
+        }
+    }
+
+    // MARK: - Ambient light
+
+    /// The glow shows only where there are black bars: video fitted (not zoomed to fill),
+    /// its shape different from the screen's, on screen (not PiP / loading / inline).
+    private func ambientActive(in size: CGSize) -> Bool {
+        guard appState.ambientLight != .off, vm.supportsAmbientLight,
+              !isInline, !isAspectFilled, !vm.isPipActive, !vm.isLoading,
+              !ProcessInfo.processInfo.isLowPowerModeEnabled else { return false }
+        let v = vm.videoSize
+        guard v.width > 0, v.height > 0, size.width > 0, size.height > 0 else { return false }
+        let videoAR = v.width / v.height
+        let screenAR = size.width / size.height
+        return abs(videoAR - screenAR) / screenAR > 0.04
+    }
+
+    private func updateAmbientSampling(_ active: Bool) {
+        if active {
+            let vm = self.vm
+            ambientSampler.start { vm.ambientFrame() }
+        } else {
+            ambientSampler.stop()
         }
     }
 

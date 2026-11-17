@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreVideo
 import Combine
 import MediaPlayer
 import AVFoundation
@@ -100,10 +101,15 @@ extension Notification.Name {
 final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     private var engine: PlayerEngineBackend
 
+    /// Values that change several times a second while playing. They live in their own
+    /// object so a change redraws only the views that show them (progress bar, time label,
+    /// stats panel) instead of the whole player screen; see `PlayerLiveState`.
+    let live = PlayerLiveState()
+
     @Published var isLoading = true
     @Published var isPlaying = false
     @Published var error: String?
-    @Published var position: Float = 0
+    var position: Float { get { live.position } set { live.position = newValue } }
     @Published var selectedQuality: VideoQuality = .direct
     @Published var playbackSpeed: Float = 1.0
 
@@ -138,9 +144,9 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     var disableEngineSubtitlesFlag = false
     /// Source shown in the HUD; external channels use their own stream URL.
     @Published private(set) var statsSourceURL: String = "—"
-    @Published var statsBitrateMbps: Double = 0
-    @Published var statsDecodedFrames: Int32 = 0
-    @Published var statsDroppedFrames: Int32 = 0
+    var statsBitrateMbps: Double { get { live.statsBitrateMbps } set { live.statsBitrateMbps = newValue } }
+    var statsDecodedFrames: Int32 { get { live.statsDecodedFrames } set { live.statsDecodedFrames = newValue } }
+    var statsDroppedFrames: Int32 { get { live.statsDroppedFrames } set { live.statsDroppedFrames = newValue } }
     @Published var statsVideoCodec: String = "\u{2014}"
     @Published var statsVideoProfile: String = ""
     @Published var statsVideoResolution: String = ""
@@ -152,17 +158,15 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     @Published var statsIsTranscoding: Bool = false
     @Published var statsTranscodeReasons: [String] = []
     @Published var statsIsManualQuality: Bool = false
-    @Published var statsReadBytes: Int = 0
-    @Published var statsDisplayedPictures: Int32 = 0
-    @Published var statsLostAudioBuffers: Int32 = 0
-    @Published var statsDemuxBitrateMbps: Double = 0
-
-    /// Engine info for HUD display (e.g. "VLC · MobileVLCKit" or "KSPlayer · KSMEPlayer · FFmpeg HW")
+    var statsReadBytes: Int { get { live.statsReadBytes } set { live.statsReadBytes = newValue } }
+    var statsDisplayedPictures: Int32 { get { live.statsDisplayedPictures } set { live.statsDisplayedPictures = newValue } }
+    var statsLostAudioBuffers: Int32 { get { live.statsLostAudioBuffers } set { live.statsLostAudioBuffers = newValue } }
+    var statsDemuxBitrateMbps: Double { get { live.statsDemuxBitrateMbps } set { live.statsDemuxBitrateMbps = newValue } }
     @Published var statsEngineLabel: String = ""
-    @Published var statsCpuUsage: Double = 0       // process CPU % (0–100+)
-    @Published var statsFps: Double = 0            // render FPS
-    @Published var statsThermal: String = "Nominal" // thermal state label
-    @Published var bufferedPosition: Double = 0    // 0–1 how far buffer extends
+    var statsCpuUsage: Double { get { live.statsCpuUsage } set { live.statsCpuUsage = newValue } }
+    var statsFps: Double { get { live.statsFps } set { live.statsFps = newValue } }
+    var statsThermal: String { get { live.statsThermal } set { live.statsThermal = newValue } }
+    var bufferedPosition: Double { get { live.bufferedPosition } set { live.bufferedPosition = newValue } }
 
     @Published var videoSize: CGSize = .zero
     @Published var subtitleTracks: [(index: Int32, name: String)] = []
@@ -319,6 +323,10 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     @MainActor func makeVideoSurface() -> AnyView {
         engine.makeVideoSurface()
     }
+
+    /// Frame for the ambient light behind the video (nil when nothing new / unsupported).
+    func ambientFrame() -> CVPixelBuffer? { engine.ambientFrame() }
+    var supportsAmbientLight: Bool { engine.supportsAmbientFrames }
 
     // MARK: - Picture-in-Picture
 
@@ -1033,7 +1041,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     if abs(self.statsCpuUsage - cpu) > 0.5 { self.statsCpuUsage = cpu }
-                    self.statsThermal = thermal
+                    if self.statsThermal != thermal { self.statsThermal = thermal }
                 }
             }
         }
@@ -1161,4 +1169,33 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             artwork: nowPlayingArtwork
         )
     }
+}
+
+// MARK: - Live playback values
+
+/// Playback position and running stats. Kept out of `PlayerViewModel`'s own `@Published`
+/// properties on purpose: the player screen observes the view model, and these change up to
+/// ~10 times a second, which used to re-evaluate the entire player view (profiled: the main
+/// thread spent most of its time in SwiftUI updates during playback).
+@MainActor
+final class PlayerLiveState: ObservableObject {
+    @Published var position: Float = 0
+    @Published var statsBitrateMbps: Double = 0
+    @Published var statsDecodedFrames: Int32 = 0
+    @Published var statsDroppedFrames: Int32 = 0
+    @Published var statsReadBytes: Int = 0
+    @Published var statsDisplayedPictures: Int32 = 0
+    @Published var statsLostAudioBuffers: Int32 = 0
+    @Published var statsDemuxBitrateMbps: Double = 0  /// Engine info for HUD display (e.g. "VLC · MobileVLCKit" or "KSPlayer · KSMEPlayer · FFmpeg HW")
+    @Published var statsCpuUsage: Double = 0  // process CPU % (0–100+)
+    @Published var statsFps: Double = 0  // render FPS
+    @Published var statsThermal: String = "Nominal"  // thermal state label
+    @Published var bufferedPosition: Double = 0  // 0–1 how far buffer extends
+}
+
+/// Redraws `content` when the live playback values change, without involving the parent.
+struct LivePlaybackView<Content: View>: View {
+    @ObservedObject var live: PlayerLiveState
+    @ViewBuilder let content: () -> Content
+    var body: some View { content() }
 }

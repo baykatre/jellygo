@@ -81,8 +81,11 @@ struct AmbientMeshBackground: View {
 
     private let fadeDuration = 1.2
 
+    @ObservedObject private var motion = BackgroundMotion.shared
+
     private var isStill: Bool {
         reduceMotion || scenePhase != .active || ProcessInfo.processInfo.isLowPowerModeEnabled
+            || motion.isCovered
     }
 
     var body: some View {
@@ -301,8 +304,11 @@ struct BrandGlowBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
+    @ObservedObject private var motion = BackgroundMotion.shared
+
     private var isStill: Bool {
         reduceMotion || scenePhase != .active || ProcessInfo.processInfo.isLowPowerModeEnabled
+            || motion.isCovered
     }
 
     /// One soft, slow-drifting patch of colour (unit coordinates of the page).
@@ -363,5 +369,21 @@ struct SettingsBadgeLabelStyle: LabelStyle {
                 .background(JGColor.brandGradient, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             configuration.title
         }
+    }
+}
+
+/// Stops the animated page backgrounds while something covers them completely (the
+/// full-screen player). They kept drifting at 20 fps behind the video, unseen.
+@MainActor
+final class BackgroundMotion: ObservableObject {
+    static let shared = BackgroundMotion()
+    @Published private(set) var isCovered = false
+    private var coverCount = 0
+
+    func cover() { coverCount += 1; update() }
+    func uncover() { coverCount = max(0, coverCount - 1); update() }
+    private func update() {
+        let covered = coverCount > 0
+        if covered != isCovered { isCovered = covered }
     }
 }

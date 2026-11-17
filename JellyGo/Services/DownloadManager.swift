@@ -719,9 +719,19 @@ final class DownloadManager: NSObject, ObservableObject {
 
     /// Returns local poster URL if cached, nil otherwise.
     static func localPosterURL(itemId: String) -> URL? {
+        // Called from view bodies (episode lists in the player); a disk check on every
+        // redraw showed up in profiles, so answers are cached. Hits never go stale; misses
+        // are re-checked after a few seconds in case the poster was just downloaded.
+        let now = Date()
+        if let hit = posterLookupCache[itemId], hit.url != nil || now.timeIntervalSince(hit.checked) < 5 {
+            return hit.url
+        }
         let url = downloadsDirectory.appendingPathComponent("\(itemId)_poster.jpg")
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        let found = FileManager.default.fileExists(atPath: url.path) ? url : nil
+        posterLookupCache[itemId] = (found, now)
+        return found
     }
+    nonisolated(unsafe) private static var posterLookupCache: [String: (url: URL?, checked: Date)] = [:]
 
     /// Returns local backdrop URL if cached, nil otherwise.
     static func localBackdropURL(itemId: String) -> URL? {
