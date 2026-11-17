@@ -77,7 +77,6 @@ struct LiveTvView: View {
                             Text(String(localized: "No channels to show. Check the sources in Live TV Settings.", bundle: AppState.currentBundle))
                         }
                     } actions: {
-                        emptyStateDiagnostics
                         Button(String(localized: "Retry", bundle: AppState.currentBundle)) {
                             Task { await vm.reloadJellyfin() }
                         }
@@ -368,43 +367,6 @@ struct LiveTvView: View {
         Task {
             await vm.setFavorite(channel, !current)
         }
-    }
-
-    // MARK: - Empty state: what each source answered
-
-    private var emptyStateDiagnostics: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: "server.rack")
-                Text("Jellyfin · \(URL(string: vm.serverURL)?.host ?? vm.serverURL)")
-                Spacer(minLength: 8)
-                switch vm.jellyfinState {
-                case .notAsked: Image(systemName: "questionmark.circle")
-                case .switchedOff: Image(systemName: "eye.slash")
-                case .serverNotReady: Image(systemName: "wifi.exclamationmark")
-                case .answered(let count):
-                    Text(vm.probeSummary.isEmpty ? "\(count)" : "\(count) · \(vm.probeSummary)").monospacedDigit()
-                case .failed(let message): Text(message).lineLimit(2)
-                }
-            }
-            if !vm.serverFacts.isEmpty {
-                Text(vm.serverFacts)
-                    .font(.caption2.monospaced())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            HStack(spacing: 8) {
-                Image(systemName: "list.bullet.rectangle")
-                Text("M3U")
-                Spacer(minLength: 8)
-                if vm.externalSwitchedOn { Text("\(vm.externalChannelCount)").monospacedDigit() }
-                else { Image(systemName: "eye.slash") }
-            }
-        }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .padding(12)
-        .frame(maxWidth: 300)
-        .glassCard(cornerRadius: 14)
     }
 
     // MARK: - Source / group filter

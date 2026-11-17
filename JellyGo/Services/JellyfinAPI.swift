@@ -633,17 +633,6 @@ final class JellyfinAPI {
 
     // MARK: - Live TV
 
-    /// Same endpoint with a reduced query, used to find out which parameter makes a server
-    /// answer with an empty list. `variant` 1 drops sorting/fields/images, 2 also drops UserId.
-    func getLiveTvChannelsProbe(serverURL: String, userId: String, token: String, variant: Int) async throws -> [JellyfinItem] {
-        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
-        var items = [URLQueryItem(name: "AddCurrentProgram", value: "true"), URLQueryItem(name: "EnableUserData", value: "true")]
-        if variant < 2 { items.append(URLQueryItem(name: "UserId", value: userId)) }
-        let url = try buildURL(base, path: "LiveTv/Channels", queryItems: items)
-        let data = try await perform(baseRequest(url: url, token: token))
-        return try decode(JellyfinItemsResponse.self, from: data).items
-    }
-
     func getLiveTvChannels(serverURL: String, userId: String, token: String, limit: Int = 500, startIndex: Int = 0) async throws -> [JellyfinItem] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         let url = try buildURL(base, path: "LiveTv/Channels", queryItems: [

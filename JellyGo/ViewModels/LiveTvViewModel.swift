@@ -27,18 +27,6 @@ final class LiveTvViewModel: ObservableObject {
     private var jellyfinError: String?
     private var lastJellyfinFetch: Date = .distantPast
 
-    /// What happened to the last request for the server's channels — shown on the empty
-    /// screen so "no channels" can be told apart from "switched off" or "not asked".
-    enum JellyfinFetchState: Equatable {
-        case notAsked, switchedOff, serverNotReady, answered(Int), failed(String)
-    }
-    @Published private(set) var jellyfinState: JellyfinFetchState = .notAsked
-    /// Channel counts of the reduced queries tried after an empty answer ("n / n").
-    @Published private(set) var probeSummary = ""
-    /// Signed-in user and the server's own tuner / guide counts, read after an empty answer.
-    @Published private(set) var serverFacts = ""
-    var externalChannelCount: Int { externalAllowed ? store.visibleChannels.count : 0 }
-    var externalSwitchedOn: Bool { externalAllowed }
     private var isFetchingJellyfin = false
     private weak var appState: AppState?
     private var cancellables = Set<AnyCancellable>()
@@ -82,9 +70,8 @@ final class LiveTvViewModel: ObservableObject {
     /// channels added on the server afterwards (or a first answer that came back empty)
     /// left the screen on "No Channels" until the app was restarted.
     func reloadJellyfin() async {
-        guard let appState else { jellyfinState = .notAsked; return }
-        guard store.showJellyfinChannels else { jellyfinState = .switchedOff; return }
-        guard appState.serverValidated, !appState.serverUnreachable else { jellyfinState = .serverNotReady; return }
+        guard let appState, store.showJellyfinChannels,
+              appState.serverValidated, !appState.serverUnreachable else { return }
         guard !isFetchingJellyfin else { return }
         isFetchingJellyfin = true
         defer { isFetchingJellyfin = false }
@@ -93,43 +80,8 @@ final class LiveTvViewModel: ObservableObject {
             jellyfinChannels = try await JellyfinAPI.shared.getLiveTvChannels(
                 serverURL: appState.serverURL, userId: appState.userId, token: appState.token)
             jellyfinError = nil
-            jellyfinState = .answered(jellyfinChannels.count)
-            probeSummary = ""
-            // The full query came back empty: ask again with fewer parameters. If a reduced
-            // query returns channels, use them and record which one worked.
-            if jellyfinChannels.isEmpty {
-                var counts: [String] = []
-                for variant in [1, 2] {
-                    if let found = try? await JellyfinAPI.shared.getLiveTvChannelsProbe(
-                        serverURL: appState.serverURL, userId: appState.userId, token: appState.token, variant: variant) {
-                        counts.append("\(found.count)")
-                        if !found.isEmpty && jellyfinChannels.isEmpty { jellyfinChannels = found }
-                    } else {
-                        counts.append("x")
-                    }
-                }
-                probeSummary = counts.joined(separator: " / ")
-
-                // What does this server itself say it has, and who is asking?
-                var facts: [String] = [appState.username]
-                if let admin = try? await JellyfinAPI.shared.currentUserIsAdministrator(
-                    serverURL: appState.serverURL, token: appState.token) {
-                    facts.append(admin ? "admin" : "user")
-                }
-                if let config = try? await JellyfinAPI.shared.getLiveTvServerConfig(
-                    serverURL: appState.serverURL, token: appState.token) {
-                    facts.append("tuner \(config.tunerHosts.count)")
-                    facts.append("epg \(config.listingProviders.count)")
-                } else {
-                    facts.append("tuner ?")
-                }
-                serverFacts = facts.joined(separator: " · ")
-            } else {
-                serverFacts = ""
-            }
         } catch {
             jellyfinError = error.localizedDescription
-            jellyfinState = .failed(error.localizedDescription)
         }
         lastJellyfinFetch = Date()
         isLoading = false
@@ -166,10 +118,8 @@ final class LiveTvViewModel: ObservableObject {
                     serverURL: appState.serverURL, userId: appState.userId, token: appState.token
                 )
                 jellyfinError = nil
-                jellyfinState = .answered(jellyfinChannels.count)
             } catch {
                 jellyfinError = error.localizedDescription
-                jellyfinState = .failed(error.localizedDescription)
             }
             lastJellyfinFetch = Date()
         } else if store.showJellyfinChannels && !serverReady && !externalAllowed {
