@@ -182,6 +182,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     private var metricsTimer: Task<Void, Never>?
     private var resumeMs: Int32 = 0
     private var didSeekToResume = false
+    private var reachedResumePoint = false
     private var lastPositionUpdate: CFTimeInterval = 0
     /// For KSPlayer transcode: HLS stream starts from this offset (ms).
     /// KSPlayer reports time relative to stream start, we add this to get real video time.
@@ -227,7 +228,12 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
         if isPlaying {
             // Seek to resume position on first play
-            if !didSeekToResume && resumeMs > 0 {
+            if !didSeekToResume && resumeMs > 0 && !engine.needsManualResumeSeek {
+                // The engine already opened at the resume position (KSMEPlayer startPlayTime);
+                // seeking there again cost one more network round trip and ~5 s of waiting.
+                didSeekToResume = true
+                isLoading = false
+            } else if !didSeekToResume && resumeMs > 0 {
                 didSeekToResume = true
                 engine.seekTime(ms: resumeMs)
                 Task {
@@ -254,6 +260,13 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         guard now - lastPositionUpdate >= 0.25 else { return }
         lastPositionUpdate = now
 
+        // While opening at a resume point the engine first reports ~0 (before its first
+        // frame), which made the time label show 00:00 and then jump. Keep the preset
+        // resume position until the engine actually reports a time near it.
+        if resumeMs > 0 && !reachedResumePoint {
+            guard abs(Int(currentMs) - Int(resumeMs)) < 5_000 else { return }
+            reachedResumePoint = true
+        }
         self.position = position
     }
 
@@ -500,6 +513,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         }
 
         didSeekToResume = false
+        reachedResumePoint = false
         transcodeOffsetMs = 0
 
         // Check for pure Dolby Vision before direct play — VLC renders pink on DOVI.
@@ -544,6 +558,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
             if seekMs > 0 {
                 resumeMs = seekMs
+                presetPosition(ms: seekMs)
             } else {
                 resumeMs = 0
             }
@@ -551,7 +566,9 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             engine.play(url: directURL, startTimeMs: seekMs, options: [
                 "appState": appState,
                 "disableSubs": disableEngineSubtitlesFlag,
-                "useStartTime": seekMs > 0
+                "useStartTime": seekMs > 0,
+                // Lets the engine skip AVPlayer for containers it cannot open (MKV...).
+                "container": item.mediaSources?.first?.container ?? ""
             ])
 
             if NetworkMonitor.shared.isConnected {
@@ -749,6 +766,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             let useStartTime = !isTranscoding && seekMs > 0
             if seekMs > 0 {
                 resumeMs = seekMs
+                presetPosition(ms: seekMs)
             } else {
                 resumeMs = 0
             }
@@ -763,7 +781,9 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 "disableSubs": disableEngineSubtitlesFlag,
                 "useStartTime": !isLiveTV && useStartTime,
                 "isTranscoding": isTranscoding,
-                "isLiveTV": isLiveTV
+                "isLiveTV": isLiveTV,
+                // Lets the engine skip AVPlayer for containers it cannot open (MKV...).
+                "container": isTranscoding ? "" : (source.container ?? "")
             ])
         } catch {
             print("[LIVETV] PlaybackInfo error: \(error)")
@@ -884,11 +904,13 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     }
 
     func seek(to pos: Float) {
+        reachedResumePoint = true
         engine.seek(to: pos)
         DispatchQueue.main.async { self.position = pos }
     }
 
     func skip(seconds: Int) {
+        reachedResumePoint = true
         let currentMs = Int(engine.currentTimeMs)
         let newMs = max(0, currentMs + seconds * 1000)
         engine.seekTime(ms: Int32(newMs))
@@ -1078,6 +1100,15 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         case .critical: return "Critical"
         @unknown default: return "Unknown"
         }
+    }
+
+    /// Shows the resume point on the progress bar / time label right away. The engine opens
+    /// at that position, but reports its first time only after buffering, so the UI showed
+    /// 00:00 for a couple of seconds and then jumped.
+    func presetPosition(ms: Int32) {
+        guard let ticks = item?.runTimeTicks, ticks > 0, ms > 0 else { return }
+        let totalMs = Double(ticks) / 10_000
+        position = Float(min(1, Double(ms) / totalMs))
     }
 
     var currentSeconds: Double {

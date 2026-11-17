@@ -12,6 +12,8 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     var onPipStarted: (() -> Void)?
 
     private var playerLayer: KSPlayerLayer?
+    /// Buffer target used for the first start and for seeks (KSMEPlayer waits for half of it).
+    private static let quickStartBuffer: TimeInterval = 1.5
     private var shouldDisableSubs = false
     private var _isPlaying = false
     private var _position: Float = 0
@@ -82,9 +84,29 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
             KSOptions.firstPlayerType = KSMEPlayer.self
             KSOptions.secondPlayerType = KSMEPlayer.self
         } else {
-            // Normal content: AVPlayer first, KSMEPlayer fallback
-            KSOptions.firstPlayerType = KSAVPlayer.self
+            // Normal content: AVPlayer first, KSMEPlayer fallback — except for containers
+            // AVPlayer cannot open. Trying AVPlayer on an MKV only fails after a while, which
+            // made every MKV start slowly before KSMEPlayer took over.
+            let container = ((options["container"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                             ?? url.pathExtension).lowercased()
+            let avPlayerCannotOpen: Set<String> = ["mkv", "webm", "avi", "wmv", "asf", "flv", "ogg", "ogm", "ogv", "rm", "rmvb", "divx", "vob"]
+            let skipAVPlayer = container.split(separator: ",").contains { avPlayerCannotOpen.contains(String($0)) }
+            KSOptions.firstPlayerType = skipAVPlayer ? KSMEPlayer.self : KSAVPlayer.self
             KSOptions.secondPlayerType = KSMEPlayer.self
+            // URLSessionAVIOContext (system TLS instead of FFmpeg's software gnutls) is kept
+            // off for now: on a slow link it reopened a connection for every seek and
+            // playback stalled more. Revisit with connection reuse before enabling.
+            ksOptions.useSystemNetworking = false
+            var headers: [String: String] = [:]
+            if let ua = options["httpUserAgent"] as? String, !ua.isEmpty { headers["User-Agent"] = ua }
+            if let ref = options["httpReferrer"] as? String, !ref.isEmpty { headers["Referer"] = ref }
+            ksOptions.systemNetworkingHeaders = headers
+            // Stream info for files: FFmpeg's default 5 s analysis means reading several MB
+            // before the first frame, which takes many seconds on a slow link. Containers
+            // like MKV/MP4 describe their streams in the header, so 2 s is plenty.
+            ksOptions.maxAnalyzeDuration = 2_000_000
+            ksOptions.steadyFirstStart = true
+            ksOptions.preferredForwardBufferDuration = Self.quickStartBuffer
         }
 
         shouldDisableSubs = options["disableSubs"] as? Bool ?? false
@@ -233,6 +255,12 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
 
     private func doSeek(to time: TimeInterval) {
         guard let layer = playerLayer else { return }
+        // KSMEPlayer resumes after a seek once half of preferredForwardBufferDuration is
+        // buffered (a fixed threshold, independent of network speed). Use a short one while
+        // seeking; restored to the normal value at bufferFinished.
+        if !isLiveTV, layer.player is KSMEPlayer {
+            layer.options.preferredForwardBufferDuration = Self.quickStartBuffer
+        }
         if layer.player.seekable {
             layer.seek(time: time, autoPlay: true) { _ in }
         } else {
@@ -474,7 +502,10 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     // MARK: - Capabilities
 
     var needsDoviTranscode: Bool { true }  // DOVI RPU tone mapping not implemented
-    var needsManualResumeSeek: Bool { true }
+    /// KSMEPlayer opens directly at `startPlayTime`; KSAVPlayer ignores it and needs a seek.
+    var needsManualResumeSeek: Bool {
+        !(playerLayer?.player is KSMEPlayer && (currentOptions?.startPlayTime ?? 0) > 0)
+    }
     var resumeSeekTimeoutMs: Int { 5000 }
     var resumeSeekSettleDelay: TimeInterval { 0 }
     var reportsTranscodeTimeRelative: Bool { true }
@@ -494,6 +525,11 @@ extension KSEngine: KSPlayerLayerDelegate {
 #endif
         switch state {
         case .readyToPlay, .bufferFinished:
+            // Back to the normal rebuffer threshold once the quick start/seek has played.
+            if state == .bufferFinished, !isLiveTV, layer.player is KSMEPlayer,
+               layer.options.preferredForwardBufferDuration == Self.quickStartBuffer {
+                layer.options.preferredForwardBufferDuration = KSOptions.preferredForwardBufferDuration
+            }
             _isPlaying = true
             delegate?.engineStateChanged(isPlaying: true, isBuffering: false, error: nil)
             if state == .readyToPlay {
@@ -729,6 +765,29 @@ final class KSPassthroughView: UIView {
 final class JellyGoKSOptions: KSOptions {
     /// When true, routes frames through AVSampleBufferDisplayLayer for PiP support.
     nonisolated(unsafe) var pipActive = false
+    /// Read progressive HTTPS files through URLSession (system TLS) instead of FFmpeg's
+    /// software TLS. See `URLSessionAVIOContext`.
+    nonisolated(unsafe) var useSystemNetworking = false
+    /// Files (not live): start the first playback like a seek — once ~1.5 s is buffered —
+    /// instead of after just two frames. The two-frame start played ~0.5 s and then
+    /// stalled for 2-3 s while the buffer filled up.
+    nonisolated(unsafe) var steadyFirstStart = false
+
+    nonisolated override func playable(capacitys: [CapacityProtocol], isFirst: Bool, isSeek: Bool) -> LoadingState {
+        if steadyFirstStart && isFirst {
+            return super.playable(capacitys: capacitys, isFirst: false, isSeek: true)
+        }
+        return super.playable(capacitys: capacitys, isFirst: isFirst, isSeek: isSeek)
+    }
+    nonisolated(unsafe) var systemNetworkingHeaders: [String: String] = [:]
+
+    nonisolated override func process(url: URL) -> AbstractAVIOContext? {
+        guard useSystemNetworking, url.scheme?.lowercased() == "https" else { return nil }
+        // HLS: FFmpeg opens every segment itself, so only the playlist would go through us.
+        let path = url.path.lowercased()
+        guard !path.hasSuffix(".m3u8"), !path.hasSuffix(".m3u") else { return nil }
+        return URLSessionAVIOContext(url: url, headers: systemNetworkingHeaders)
+    }
 
     nonisolated override init() {
         super.init()
