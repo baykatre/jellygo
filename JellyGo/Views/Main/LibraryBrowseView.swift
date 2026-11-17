@@ -37,7 +37,7 @@ struct LibraryBrowseView: View {
                     }
                 }
             }
-            .ambientPage()
+            .brandPage()
             .navigationTitle(String(localized: "Library", bundle: AppState.currentBundle))
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: LibraryNav.self) { _ in
@@ -274,7 +274,7 @@ struct FavoritesView: View {
                 }
             }
         }
-        .ambientPage()
+        .brandPage()
         .navigationTitle(String(localized: "Favorites", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.large)
         .task { await loadInitial() }

@@ -147,7 +147,7 @@ struct DownloadedSeriesDetailView: View {
                         } label: {
                             Text(String(format: String(localized: "Delete (%lld)", bundle: AppState.currentBundle), Int64(selectedIds.count)))
                                 .font(.body.weight(.medium))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(JGColor.danger)
                         }
                     } else {
                         Button {
@@ -578,7 +578,7 @@ struct DownloadedSeriesDetailView: View {
                 } label: {
                     Image(systemName: "trash")
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(JGColor.danger)
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
@@ -626,7 +626,7 @@ struct DownloadedSeriesDetailView: View {
             HStack(spacing: 6) {
                 Text(ep.qualityDisplayName)
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(ep.quality == "Direct" ? .green : Color.accentColor)
+                    .foregroundStyle(ep.quality == "Direct" ? JGColor.success : Color.accentColor)
                 if !ep.formattedSize.isEmpty {
                     Text("·").foregroundStyle(.tertiary)
                     Text(ep.formattedSize)
@@ -665,7 +665,7 @@ struct DownloadedSeriesDetailView: View {
                         .padding(.vertical, 12)
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(JGColor.danger)
                 }
             } else if allItems.count > 1 {
                 Button(role: .destructive) {
@@ -683,7 +683,7 @@ struct DownloadedSeriesDetailView: View {
                     .padding(.vertical, 12)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.red)
+                .foregroundStyle(JGColor.danger)
             } else if let item = allItems.first {
                 Button(role: .destructive) {
                     deleteTarget = item.id
@@ -698,7 +698,7 @@ struct DownloadedSeriesDetailView: View {
                     .padding(.vertical, 12)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.red)
+                .foregroundStyle(JGColor.danger)
             }
         }
         .background(Color(.secondarySystemGroupedBackground))

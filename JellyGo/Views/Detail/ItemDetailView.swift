@@ -29,7 +29,7 @@ struct ItemDetailView: View {
     @State private var selectedAudioStreamIndex: Int? = nil
     private let backdropHeight: CGFloat = 680
     private let imageHeight: CGFloat = 520
-    @State private var backdropDominantColor: Color = Color(white: 0.12)
+    @State private var backdropDominantColor: Color = JGColor.placeholder
     @State private var ambientPalette: AmbientPalette?
     @State private var ambientOwner = UUID()
     /// Set when the page was opened from a view that announced itself as the zoom source.
@@ -276,7 +276,7 @@ struct ItemDetailView: View {
                         Text(String(localized: "Downloaded View", bundle: AppState.currentBundle))
                             .font(.caption.weight(.medium))
                     }
-                    .foregroundStyle(appState.manualOffline || appState.serverUnreachable ? .gray : .green)
+                    .foregroundStyle(appState.manualOffline || appState.serverUnreachable ? .gray : JGColor.success)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 5)
                 }
@@ -293,7 +293,7 @@ struct ItemDetailView: View {
                     Task { await vm.toggleFavorite(item: activeItem, appState: appState) }
                 } label: {
                     Image(systemName: vm.isFavorite ? "heart.fill" : "heart")
-                        .foregroundStyle(vm.isFavorite ? .red : .white)
+                        .foregroundStyle(vm.isFavorite ? JGColor.brand : .white)
                 }
             }
         }
@@ -390,11 +390,11 @@ struct ItemDetailView: View {
                                 extractDominantColor(from: url)
                             }
                     default:
-                        Color(white: 0.12)
+                        JGColor.placeholder
                     }
                 }
             } else {
-                Color(white: 0.12)
+                JGColor.placeholder
             }
         }
         .frame(maxWidth: .infinity)
@@ -580,6 +580,7 @@ struct ItemDetailView: View {
                     }
                 }
             }
+            .scrollDisabled(true)
         }
     }
 
@@ -714,11 +715,11 @@ struct ItemDetailView: View {
                             HStack(spacing: 10) {
                                 Image(systemName: isDirect ? "bolt.fill" : "play.rectangle.fill")
                                     .font(.system(size: 15))
-                                    .foregroundStyle(isDirect ? .green : .secondary)
+                                    .foregroundStyle(isDirect ? JGColor.success : .secondary)
                                     .frame(width: 24)
                                 Text(isDirect ? String(localized: "Direct Stream", bundle: AppState.currentBundle) : q.displayName)
                                     .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(isDirect ? .green : .primary)
+                                    .foregroundStyle(isDirect ? JGColor.success : .primary)
                                 Spacer()
                             }
                             .padding(.vertical, 6)
@@ -867,18 +868,18 @@ struct ItemDetailView: View {
             return Double(p.bytesReceived) / Double(p.bytesExpected)
         }()
         let progressText: String = task?.formattedProgress ?? pausedItem?.formattedProgress ?? ""
-        let tintColor: Color = isTranscoding ? .orange : (isDirect ? .green : .accentColor)
+        let tintColor: Color = isTranscoding ? JGColor.warning : (isDirect ? JGColor.success : .accentColor)
 
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 if isTranscoding {
                     Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(JGColor.warning)
                 } else if isDirect {
                     Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(JGColor.success)
                 } else if isQueued {
                     Label(String(localized: "Queued", bundle: AppState.currentBundle), systemImage: "clock")
                         .font(.caption.weight(.semibold))
@@ -889,7 +890,7 @@ struct ItemDetailView: View {
                     Text(isTranscoding ? String(localized: "Interrupted", bundle: AppState.currentBundle)
                          : String(localized: "Paused", bundle: AppState.currentBundle))
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(JGColor.warning)
                 }
                 Spacer(minLength: 4)
                 if !progressText.isEmpty {
@@ -1043,11 +1044,11 @@ struct ItemDetailView: View {
                         HStack(spacing: 10) {
                             Image(systemName: isDirect ? "bolt.fill" : "arrow.down.circle")
                                 .font(.system(size: 15))
-                                .foregroundStyle(isDirect ? .green : .secondary)
+                                .foregroundStyle(isDirect ? JGColor.success : .secondary)
                                 .frame(width: 24)
                             Text(isDirect ? String(localized: "Original (Direct)", bundle: AppState.currentBundle) : VideoQuality.displayName(for: quality.label))
                                 .font(.subheadline.weight(.medium))
-                                .foregroundStyle(isDirect ? .green : .primary)
+                                .foregroundStyle(isDirect ? JGColor.success : .primary)
                             Spacer()
                         }
                         .padding(.vertical, 6)
@@ -1290,7 +1291,7 @@ struct ItemDetailView: View {
                         .lineSpacing(5)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(14)
-                        .background(Color(.systemBackground).opacity(0.95), in: RoundedRectangle(cornerRadius: 14))
+                        .background(JGColor.canvas.opacity(0.95), in: RoundedRectangle(cornerRadius: 14))
                         .padding(.horizontal, 24)
                         .frame(maxHeight: geo.size.height * 0.4, alignment: .center)
                 }
@@ -1749,7 +1750,7 @@ struct EpisodeThumbnailView: View {
                             Spacer()
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.white)
-                                .background(Color.green, in: Circle())
+                                .background(JGColor.success, in: Circle())
                                 .font(.caption)
                                 .padding(5)
                         }

@@ -21,6 +21,10 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     private var isLiveTV = false
     private var liveURL: URL?
     private var liveStatsTimer: Timer?
+#if DEBUG
+    private var debugOpenStartedAt: CFTimeInterval = 0
+    private var debugDidLogVideoDecode = false
+#endif
     /// Persistent container view — player.view is added/removed dynamically
     private let containerView = KSPassthroughView()
     /// Shared KS options instance — kept alive for PiP display-layer toggling.
@@ -43,12 +47,25 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
     // MARK: - Playback
 
     func play(url: URL, startTimeMs: Int32, options: [String: Any]) {
+#if DEBUG
+        let requestTime = CACurrentMediaTime()
+#endif
         stop()
+#if DEBUG
+        debugOpenStartedAt = requestTime
+        debugDidLogVideoDecode = false
+        if options["isLiveTV"] as? Bool == true {
+            print(String(format: "[ZAP-KS] teardown=%.3fs", CACurrentMediaTime() - requestTime))
+        }
+#endif
 
         isLiveTV = options["isLiveTV"] as? Bool ?? false
         liveURL = isLiveTV ? url : nil
 
         let ksOptions = JellyGoKSOptions()
+        // External Live TV lists may require their own User-Agent / Referer.
+        if let ua = options["httpUserAgent"] as? String, !ua.isEmpty { ksOptions.userAgent = ua }
+        if let ref = options["httpReferrer"] as? String, !ref.isEmpty { ksOptions.referer = ref }
         if startTimeMs > 0, options["useStartTime"] as? Bool == true {
             ksOptions.startPlayTime = TimeInterval(startTimeMs) / 1000.0
         }
@@ -57,6 +74,9 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
             // Live TV: force FFmpeg backend (KSMEPlayer) — AVPlayer can't handle infinite HTTP streams
             // FFmpeg reads continuously from the stream without Content-Length issues
             ksOptions.isLoopPlay = false
+            // Bound stream-info analysis for live zapping (FFmpeg uses microseconds).
+            // Keep the playback buffer independent from the startup analysis budget.
+            ksOptions.maxAnalyzeDuration = 1_000_000
             ksOptions.preferredForwardBufferDuration = 8
             ksOptions.maxBufferDuration = 30
             KSOptions.firstPlayerType = KSMEPlayer.self
@@ -72,6 +92,11 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
 
         let layer = KSPlayerLayer(url: url, options: ksOptions, delegate: self)
         self.playerLayer = layer
+#if DEBUG
+        if isLiveTV {
+            print("[ZAP-KS] create elapsed=\(CACurrentMediaTime() - requestTime)s buffer=\(ksOptions.preferredForwardBufferDuration)s max=\(ksOptions.maxBufferDuration)s fastStart=\(ksOptions.isSecondOpen)")
+        }
+#endif
 
         // Live TV: poll stats every second since KSPlayer's time callback is unreliable with totalTime=0
         if isLiveTV {
@@ -408,6 +433,11 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
 extension KSEngine: KSPlayerLayerDelegate {
     // KSPlayerLayerDelegate is @MainActor — callbacks arrive on main thread directly
     func player(layer: KSPlayerLayer, state: KSPlayerState) {
+#if DEBUG
+        if isLiveTV {
+            debugLogStartup(layer: layer, event: "state=\(state) current=\(layer === playerLayer)")
+        }
+#endif
         switch state {
         case .readyToPlay, .bufferFinished:
             _isPlaying = true
@@ -415,6 +445,11 @@ extension KSEngine: KSPlayerLayerDelegate {
             if state == .readyToPlay {
                 let subs = subtitleTracks
                 let auds = audioTracks
+#if DEBUG
+                if isLiveTV {
+                    print("[ZAP-KS] tracks video=\(layer.player.tracks(mediaType: .video).count) audio=\(auds.count) subtitles=\(subs.count) analyzeLimit=\(layer.options.maxAnalyzeDuration ?? 0)us")
+                }
+#endif
                 delegate?.engineTracksUpdated(subtitles: subs, audio: auds)
                 if shouldDisableSubs && !isPipActive {
                     disableEngineSubtitles()
@@ -510,11 +545,14 @@ extension KSEngine: KSPlayerLayerDelegate {
         guard let track = tracks.first(where: { $0.isEnabled }) ?? tracks.first else { return nil }
         let codec: String
         if let ffmpegTrack = track as? FFmpegAssetTrack {
-            codec = ffmpegTrack.codecName.uppercased()
+            // KSPlayer appends a descriptor profile (e.g. "h264 (Baseline)").
+            // Keep only the codec identifier in the compact video statistics row.
+            codec = ffmpegTrack.codecName.components(separatedBy: " (").first?.uppercased() ?? ""
         } else {
             switch track.codecType {
             case kCMVideoCodecType_H264: codec = "H264"
             case kCMVideoCodecType_HEVC: codec = "HEVC"
+            case kCMVideoCodecType_AV1: codec = "AV1"
             default:
                 let code = track.codecType
                 codec = String(bytes: [UInt8((code >> 24) & 255), UInt8((code >> 16) & 255),
@@ -538,6 +576,12 @@ extension KSEngine: KSPlayerLayerDelegate {
     }
 
     private func pollLiveStats(layer: KSPlayerLayer) {
+#if DEBUG
+        if !debugDidLogVideoDecode, layer.options.decodeVideoTime > 0 {
+            debugDidLogVideoDecode = true
+            debugLogStartup(layer: layer, event: "first-video-decoded")
+        }
+#endif
         var stats = EngineStats()
         stats.videoInfo = decodedVideoInfo(layer: layer)
         stats.bufferedSeconds = layer.player.playableTime
@@ -549,6 +593,21 @@ extension KSEngine: KSPlayerLayerDelegate {
         }
         delegate?.engineStatsUpdated(stats)
     }
+
+#if DEBUG
+    private func debugLogStartup(layer: KSPlayerLayer, event: String) {
+        let o = layer.options
+        func elapsed(_ end: Double, since start: Double) -> String {
+            guard start > 0, end >= start else { return "pending" }
+            return String(format: "%.3fs", end - start)
+        }
+        let opened = elapsed(o.openTime, since: o.prepareTime)
+        let analyzed = elapsed(o.findTime, since: o.openTime)
+        let decoded = elapsed(o.decodeVideoTime, since: o.findTime)
+        let total = elapsed(CACurrentMediaTime(), since: debugOpenStartedAt)
+        print("[ZAP-KS] \(event) total=\(total) open=\(opened) analyze=\(analyzed) videoDecode=\(decoded) playable=\(layer.player.playableTime)s")
+    }
+#endif
 
     func player(layer: KSPlayerLayer, finish error: Error?) {
         if let error {

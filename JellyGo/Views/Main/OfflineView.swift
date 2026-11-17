@@ -311,7 +311,7 @@ struct OfflineView: View {
                     Text(String(localized: "Offline", bundle: AppState.currentBundle))
                         .font(.caption.weight(.medium))
                 }
-                .foregroundStyle(.orange)
+                .foregroundStyle(JGColor.warning)
                 .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
             }
 

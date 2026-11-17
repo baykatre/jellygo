@@ -15,6 +15,10 @@ import Foundation
 /// that point at the configured Jellyfin server (same origin and base path).
 nonisolated enum JellyfinMediaRequestBuilder {
 
+    /// Ordered output codecs supported by our playback engines. Jellyfin selects
+    /// among them using its encoding settings; HEVC and H.265 are the same codec.
+    static let preferredTranscodingVideoCodecs = "av1,hevc,h264"
+
     /// Query parameter Jellyfin 12 reads without legacy authorization.
     static let tokenQueryName = "ApiKey"
     /// Legacy parameter that must no longer be sent (compared case-insensitively).

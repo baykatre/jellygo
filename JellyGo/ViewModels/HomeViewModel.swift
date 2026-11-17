@@ -64,7 +64,7 @@ final class HomeViewModel: ObservableObject {
         do {
             latestMovies = try await lmTask.items
         } catch JellyfinAPIError.unauthorized {
-            error = NSLocalizedString("Session expired. Re-add the account from settings.", comment: "")
+            error = AppState.currentBundle.localizedString(forKey: "Session expired. Re-add the account from settings.", value: nil, table: nil)
         } catch JellyfinAPIError.networkError {
             networkFailed = true
         } catch let err as JellyfinAPIError {
@@ -74,7 +74,7 @@ final class HomeViewModel: ObservableObject {
         do {
             latestShows = try await lsTask.items
         } catch JellyfinAPIError.unauthorized {
-            if error == nil { error = NSLocalizedString("Session expired. Re-add the account from settings.", comment: "") }
+            if error == nil { error = AppState.currentBundle.localizedString(forKey: "Session expired. Re-add the account from settings.", value: nil, table: nil) }
         } catch JellyfinAPIError.networkError {
             networkFailed = true
         } catch let err as JellyfinAPIError {

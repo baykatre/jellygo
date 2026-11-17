@@ -545,7 +545,7 @@ struct JellyGoPlayerView: View {
                 .font(.system(size: 12, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.5))
             Circle()
-                .fill(vm.statsIsTranscoding ? Color.orange.opacity(0.7) : ((vm.selectedQuality == .direct || (localURL != nil && localQualityText == "Direct")) ? Color.green.opacity(0.7) : Color.white.opacity(0.3)))
+                .fill(vm.statsIsTranscoding ? JGColor.warning.opacity(0.7) : ((vm.selectedQuality == .direct || (localURL != nil && localQualityText == "Direct")) ? JGColor.success.opacity(0.7) : Color.white.opacity(0.3)))
                 .frame(width: 5, height: 5)
         }
         .padding(.horizontal, 12)
@@ -775,8 +775,8 @@ struct JellyGoPlayerView: View {
             pokeTimer()
         } label: {
             HStack(spacing: 5) {
-                Circle().fill(.red).frame(width: 7, height: 7)
-                    .shadow(color: .red.opacity(0.8), radius: 3)
+                Circle().fill(JGColor.brand).frame(width: 7, height: 7)
+                    .shadow(color: JGColor.brand.opacity(0.8), radius: 3)
                 Text(String(localized: "LIVE", bundle: AppState.currentBundle))
                     .font(.system(size: 13, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
@@ -973,14 +973,16 @@ struct JellyGoPlayerView: View {
         return VStack(alignment: .leading, spacing: 3) {
             // ── Engine ──
             Text(vm.statsEngineLabel)
-                .foregroundStyle(.cyan)
+                .foregroundStyle(Color.white.opacity(0.75))
 
             // ── Source ──
-            Text(isLocal ? String(localized: "LOCAL FILE", bundle: Self.bundle) : appState.serverURL)
+            Text(isLocal ? String(localized: "LOCAL FILE", bundle: Self.bundle) : vm.statsSourceURL)
+                .lineLimit(1)
+                .truncationMode(.middle)
                 .foregroundStyle(.gray)
 
             // ── Media info ──
-            Text([vm.statsVideoCodec, vm.statsVideoProfile, vm.statsVideoResolution,
+            Text([vm.statsVideoCodec, vm.statsVideoResolution,
                   vm.statsVideoBitDepth, vm.statsVideoRange].filter { !$0.isEmpty }.joined(separator: " "))
             Text("\(vm.statsAudioCodec) \(vm.statsAudioLabel)")
                 .foregroundStyle(.white.opacity(0.7))
@@ -988,11 +990,11 @@ struct JellyGoPlayerView: View {
             // ── Playback ──
             HStack(spacing: 4) {
                 if isLocal {
-                    Text(String(localized: "LOCAL PLAY", bundle: Self.bundle)).foregroundStyle(.cyan).bold()
+                    Text(String(localized: "LOCAL PLAY", bundle: Self.bundle)).foregroundStyle(Color.white.opacity(0.75)).bold()
                 } else if vm.statsIsTranscoding {
-                    Text(String(localized: "TRANSCODE", bundle: Self.bundle)).foregroundStyle(.orange).bold()
+                    Text(String(localized: "TRANSCODE", bundle: Self.bundle)).foregroundStyle(JGColor.warning).bold()
                 } else {
-                    Text(String(localized: "DIRECT PLAY", bundle: Self.bundle)).foregroundStyle(.green).bold()
+                    Text(String(localized: "DIRECT PLAY", bundle: Self.bundle)).foregroundStyle(JGColor.success).bold()
                 }
                 if !vm.statsContainer.isEmpty && vm.statsContainer != "—" {
                     Text("· \(vm.statsContainer)").foregroundStyle(.white.opacity(0.5))
@@ -1001,18 +1003,18 @@ struct JellyGoPlayerView: View {
             if !isLocal && vm.statsIsTranscoding {
                 if vm.statsIsManualQuality {
                     Text(String(localized: "Reason: Manual quality (\(vm.selectedQuality.displayName))", bundle: Self.bundle))
-                        .foregroundStyle(.orange.opacity(0.9))
+                        .foregroundStyle(JGColor.warning.opacity(0.9))
                 } else if !vm.statsTranscodeReasons.isEmpty {
                     Text("\(String(localized: "Reason", bundle: Self.bundle)): \(vm.statsTranscodeReasons.map { Self.readableReason($0) }.joined(separator: ", "))")
-                        .foregroundStyle(.orange.opacity(0.9))
+                        .foregroundStyle(JGColor.warning.opacity(0.9))
                 }
             }
 
             // ── Network / Disk ──
             HStack(spacing: 6) {
                 if isLocal {
-                    Circle().fill(.cyan).frame(width: 6, height: 6)
-                    Text(String(localized: "Disk", bundle: Self.bundle)).foregroundStyle(.cyan)
+                    Circle().fill(Color.white.opacity(0.75)).frame(width: 6, height: 6)
+                    Text(String(localized: "Disk", bundle: Self.bundle)).foregroundStyle(Color.white.opacity(0.75))
                 } else {
                     let quality = Self.networkQuality(
                         inputBitrate: vm.statsBitrateMbps,
@@ -1038,9 +1040,9 @@ struct JellyGoPlayerView: View {
                 let dropColor: Color = {
                     let rate = vm.statsDecodedFrames > 100
                         ? Double(vm.statsDroppedFrames) / Double(vm.statsDecodedFrames) : 0
-                    if rate > 0.03 { return .red }
-                    if rate > 0.005 { return .orange }
-                    return .yellow
+                    if rate > 0.03 { return JGColor.danger }
+                    if rate > 0.005 { return JGColor.warning }
+                    return JGColor.warning
                 }()
                 Text(String(format: String(localized: "Dropped: %lld frames", bundle: Self.bundle), Int64(vm.statsDroppedFrames)))
                     .foregroundStyle(dropColor.opacity(0.8))
@@ -1048,7 +1050,7 @@ struct JellyGoPlayerView: View {
 
             // ── Performance ──
             HStack(spacing: 6) {
-                let cpuColor: Color = vm.statsCpuUsage > 80 ? .red : vm.statsCpuUsage > 40 ? .orange : .green
+                let cpuColor: Color = vm.statsCpuUsage > 80 ? JGColor.danger : vm.statsCpuUsage > 40 ? JGColor.warning : JGColor.success
                 Text(String(format: "CPU %.0f%%", vm.statsCpuUsage))
                     .foregroundStyle(cpuColor)
                 if vm.statsFps > 0 {
@@ -1057,8 +1059,8 @@ struct JellyGoPlayerView: View {
                 }
                 let thermalColor: Color = {
                     switch vm.statsThermal {
-                    case "Serious": return .orange
-                    case "Critical": return .red
+                    case "Serious": return JGColor.warning
+                    case "Critical": return JGColor.danger
                     default: return .white.opacity(0.5)
                     }
                 }()
@@ -1079,22 +1081,22 @@ struct JellyGoPlayerView: View {
         let b = AppState.currentBundle
         // No data flowing yet
         if inputBitrate == 0 && decoded == 0 {
-            return (String(localized: "Connecting", bundle: b), .yellow)
+            return (String(localized: "Connecting", bundle: b), JGColor.warning)
         }
         // Can't analyze quality without decoded frame count — just show bitrate is flowing
         if decoded == 0 {
             return (inputBitrate > 0
-                ? (String(format: "%.1f Mbps", inputBitrate), Color.green)
-                : (String(localized: "Buffering", bundle: b), .yellow))
+                ? (String(format: "%.1f Mbps", inputBitrate), JGColor.success)
+                : (String(localized: "Buffering", bundle: b), JGColor.warning))
         }
         // Full analysis available (VLC / KSMEPlayer)
         let dropRate = decoded > 100 ? Double(dropped) / Double(decoded) : 0
-        if dropRate > 0.03 { return (String(localized: "Poor", bundle: b), .red) }
+        if dropRate > 0.03 { return (String(localized: "Poor", bundle: b), JGColor.danger) }
         if demuxBitrate > 0 && inputBitrate > 0 && inputBitrate < demuxBitrate * 0.5 {
-            return (String(localized: "Slow", bundle: b), .orange)
+            return (String(localized: "Slow", bundle: b), JGColor.warning)
         }
-        if dropRate > 0.005 { return (String(localized: "Fair", bundle: b), .yellow) }
-        return (String(localized: "Good", bundle: b), .green)
+        if dropRate > 0.005 { return (String(localized: "Fair", bundle: b), JGColor.warning) }
+        return (String(localized: "Good", bundle: b), JGColor.success)
     }
 
     private static func formatBytes(_ bytes: Int) -> String {
@@ -1251,7 +1253,7 @@ struct JellyGoPlayerView: View {
         return HStack(spacing: 10) {
             // Channel logo
             FallbackAsyncImage(
-                primaryURL: JellyfinAPI.shared.imageURL(serverURL: appState.serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 80),
+                primaryURL: LiveTvChannelArt.logoURL(for: channel, serverURL: appState.serverURL, maxWidth: 80),
                 fallbackURL: nil,
                 placeholder: Image(systemName: "tv")
                     .font(.system(size: 14))
@@ -1349,7 +1351,7 @@ struct JellyGoPlayerView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 10))
                         .foregroundStyle(.white)
-                        .background(Color.green, in: Circle())
+                        .background(JGColor.success, in: Circle())
                         .offset(x: 80, y: -40)
                 }
             }
@@ -1438,6 +1440,15 @@ struct JellyGoPlayerView: View {
     }
 
     private func loadChannelList() async {
+        // External list channel: offer the external channels (they never come from the server).
+        if ExternalLiveTvID.isExternal(item.id) {
+            var channels = ExternalLiveTvStore.shared.visibleItems()
+            if UserDefaults.standard.bool(forKey: "jellygo.liveTvFavoritesOnly") {
+                channels = channels.filter { $0.userData?.isFavorite == true }
+            }
+            episodeListItems = channels
+            return
+        }
         do {
             var channels = try await JellyfinAPI.shared.getLiveTvChannels(
                 serverURL: appState.serverURL,
@@ -1462,7 +1473,7 @@ struct JellyGoPlayerView: View {
 
         let logoId = isEpisode ? (item.seriesId ?? item.id) : item.id
         let logoURL: URL? = isChannel
-            ? JellyfinAPI.shared.imageURL(serverURL: appState.serverURL, itemId: item.id, imageType: "Primary", maxWidth: 120)
+            ? LiveTvChannelArt.logoURL(for: item, serverURL: appState.serverURL, maxWidth: 120)
             : (DownloadManager.localLogoURL(itemId: logoId)
                 ?? JellyfinAPI.shared.logoURL(serverURL: appState.serverURL, itemId: logoId, maxWidth: 300))
 
@@ -1611,7 +1622,7 @@ struct JellyGoPlayerView: View {
         return VStack(spacing: 10) {
             Image(systemName: briIcon)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(isBoost ? (vm.brightnessBoost > 1.3 ? .orange : .yellow) : .white.opacity(0.6))
+                .foregroundStyle(isBoost ? (vm.brightnessBoost > 1.3 ? JGColor.goldBottom : JGColor.goldTop) : .white.opacity(0.6))
                 .contentTransition(.symbolEffect(.replace))
 
             GeometryReader { geo in
@@ -1634,8 +1645,8 @@ struct JellyGoPlayerView: View {
                                 stops: [
                                     .init(color: .white, location: 0),
                                     .init(color: .white, location: isBoost ? sysH / max(1, fillH) : 1),
-                                    .init(color: .yellow, location: isBoost ? sysH / max(1, fillH) + 0.01 : 1),
-                                    .init(color: .orange, location: 1)
+                                    .init(color: JGColor.warning, location: isBoost ? sysH / max(1, fillH) + 0.01 : 1),
+                                    .init(color: JGColor.warning, location: 1)
                                 ],
                                 startPoint: .bottom,
                                 endPoint: .top
@@ -1671,7 +1682,7 @@ struct JellyGoPlayerView: View {
 
             Text("\(Int(vm.brightnessBoost * 100))%")
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(vm.brightnessBoost > 1.3 ? .orange : .yellow)
+                .foregroundStyle(vm.brightnessBoost > 1.3 ? JGColor.goldBottom : JGColor.goldTop)
                 .opacity(isBoost ? 1 : 0)
                 .frame(height: isBoost ? nil : 0)
         }
@@ -1693,7 +1704,7 @@ struct JellyGoPlayerView: View {
         return VStack(spacing: 10) {
             Image(systemName: volIcon)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(isBoost ? .orange : .white.opacity(0.6))
+                .foregroundStyle(isBoost ? JGColor.warning : .white.opacity(0.6))
                 .contentTransition(.symbolEffect(.replace))
 
             GeometryReader { geo in
@@ -1717,8 +1728,8 @@ struct JellyGoPlayerView: View {
                                 stops: [
                                     .init(color: .white, location: 0),
                                     .init(color: .white, location: isBoost ? sysH / max(1, fillH) : 1),
-                                    .init(color: .orange, location: isBoost ? sysH / max(1, fillH) + 0.01 : 1),
-                                    .init(color: .orange, location: 1)
+                                    .init(color: JGColor.warning, location: isBoost ? sysH / max(1, fillH) + 0.01 : 1),
+                                    .init(color: JGColor.warning, location: 1)
                                 ],
                                 startPoint: .bottom,
                                 endPoint: .top
@@ -1752,7 +1763,7 @@ struct JellyGoPlayerView: View {
 
             Text("\(vm.volumeBoost)%")
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(.orange)
+                .foregroundStyle(JGColor.warning)
                 .opacity(isBoost ? 1 : 0)
                 .frame(height: isBoost ? nil : 0)
         }
@@ -1777,7 +1788,7 @@ struct JellyGoPlayerView: View {
     private func errorView(message: String) -> some View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 44)).foregroundStyle(.yellow)
+                .font(.system(size: 44)).foregroundStyle(JGColor.warning)
             Text(message).font(.subheadline).foregroundStyle(.white)
                 .multilineTextAlignment(.center).padding(.horizontal, 32)
             Button(String(localized: "Dismiss", bundle: AppState.currentBundle)) { dismiss() }.buttonStyle(.bordered).tint(.white)
@@ -1854,6 +1865,8 @@ struct JellyGoPlayerView: View {
     @State private var resolvedItem: JellyfinItem?
 
     private func autoSelectSubtitle() async {
+        // External list channels have no Jellyfin item to ask about.
+        if ExternalLiveTvID.isExternal(item.id) { return }
         // item from list views may not have mediaStreams — fetch full details if needed
         var richItem = item
         if (richItem.mediaStreams ?? []).isEmpty {

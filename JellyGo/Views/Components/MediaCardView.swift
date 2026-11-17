@@ -83,7 +83,7 @@ struct HeroBannerView: View {
     @State private var isTransitioning = false
     @State private var isDragging = false
     @State private var pauseUntil: Date = .distantPast
-    @State private var dominantColor: Color = Color(white: 0.12)
+    @State private var dominantColor: Color = JGColor.placeholder
     @State private var isVisible = false
     @State private var ambientOwner = UUID()
     @State private var heldForDetail = false
@@ -298,7 +298,7 @@ struct HeroBannerView: View {
         let imgView = FallbackAsyncImage(
             primaryURL: bannerBackdropURL(item: item),
             fallbackURL: nil,
-            placeholder: Color(white: 0.12)
+            placeholder: JGColor.placeholder
         )
         .offset(x: parallaxOffset, y: scrollParallax)
 
@@ -488,7 +488,7 @@ private struct CachedBackdropImage: View {
                 .resizable().aspectRatio(contentMode: .fill)
                 .offset(x: parallaxX, y: parallaxY)
         } else {
-            Color(white: 0.12)
+            JGColor.placeholder
                 .onAppear { loadImage() }
         }
     }
@@ -512,7 +512,7 @@ struct HeroBannerPlaceholder: View {
         let size = bannerSize
         ZStack(alignment: .bottom) {
             LinearGradient(
-                colors: [Color(white: 0.18), Color(white: 0.08)],
+                colors: [JGColor.placeholder, JGColor.canvas],
                 startPoint: .top, endPoint: .bottom
             )
 
@@ -580,7 +580,7 @@ struct PosterCardView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.caption)
                             .foregroundStyle(.white)
-                            .background(Color.green, in: Circle())
+                            .background(JGColor.success, in: Circle())
                             .frame(maxWidth: .infinity, alignment: .trailing)
                             .padding(.horizontal, 6)
                     }
@@ -718,7 +718,7 @@ extension BackdropCardView {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.caption)
                                 .foregroundStyle(.white)
-                                .background(Color.green, in: Circle())
+                                .background(JGColor.success, in: Circle())
                                 .padding(7)
                         }
                         Spacer()
@@ -739,7 +739,7 @@ extension BackdropCardView {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 } else if let mins = item.runtimeMinutes {
-                    Text(String(format: NSLocalizedString("%lld min", comment: ""), Int64(mins)))
+                    Text(String(format: AppState.currentBundle.localizedString(forKey: "%lld min", value: nil, table: nil), Int64(mins)))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

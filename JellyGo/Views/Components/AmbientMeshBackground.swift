@@ -56,8 +56,10 @@ extension UIImage {
         var hue: CGFloat = 0, sat: CGFloat = 0, bri: CGFloat = 0, a: CGFloat = 0
         UIColor(red: c.x, green: c.y, blue: c.z, alpha: 1).getHue(&hue, saturation: &sat, brightness: &bri, alpha: &a)
         // Leave near-greys grey (boosting them invents a random hue).
-        if sat > 0.08 { sat = min(1, sat * 1.35 + 0.08) }
-        bri = min(max(bri, 0.22), 0.55)
+        // Keep the artwork's hue but hold it back: muted enough that the bordo controls on
+        // top never fight a strongly coloured poster. Near-greys stay grey.
+        if sat > 0.08 { sat = min(0.48, sat * 0.95) }
+        bri = min(max(bri, 0.20), 0.42)
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
         UIColor(hue: hue, saturation: sat, brightness: bri, alpha: 1).getRed(&r, green: &g, blue: &b, alpha: &a)
         return SIMD3(Double(r), Double(g), Double(b))
@@ -88,7 +90,7 @@ struct AmbientMeshBackground: View {
         TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: isStill)) { context in
             mesh(at: context.date)
         }
-        .background(Color.black)
+        .background(JGColor.canvas)
         .onAppear { from = palette; to = palette }
         .onChange(of: palette) { _, new in
             from = current(at: Date())
@@ -125,7 +127,7 @@ struct AmbientMeshBackground: View {
             colors: [
                 color(p[0]), color(topMid, 0.9), color(p[1]),
                 color(p[2], 0.55), color(lowMid, 0.7), color(p[3], 0.55),
-                .black, .black, .black,
+                JGColor.canvas, JGColor.canvas, JGColor.canvas,
             ],
             smoothsColors: true
         )
@@ -190,8 +192,13 @@ extension View {
     }
 
     /// For `List`/`Form` settings pages: brand background, opaque list background removed.
+    /// Settings sub-pages: bordo switches/checkmarks (iOS switches ignore the accent colour
+    /// otherwise and turn green) and the same bordo icon badges as the main Settings page.
     func ambientList() -> some View {
-        scrollContentBackground(.hidden).brandPage()
+        scrollContentBackground(.hidden)
+            .tint(JGColor.brand)
+            .labelStyle(SettingsBadgeLabelStyle())
+            .brandPage()
     }
 }
 
@@ -255,12 +262,14 @@ struct AmbientScrollingBackdrop: View {
 
 extension View {
     /// Translucent card that sits on the ambient background.
-    func glassCard(cornerRadius: CGFloat = 16, highlighted: Bool = false) -> some View {
+    /// `bordered: false` matches the grouped lists of the settings sub-pages (no hairline).
+    func glassCard(cornerRadius: CGFloat = 16, highlighted: Bool = false, bordered: Bool = true) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         return self
             .background(.ultraThinMaterial, in: shape)
             .background(highlighted ? Color.accentColor.opacity(0.22) : Color.white.opacity(0.04), in: shape)
-            .overlay(shape.strokeBorder(highlighted ? Color.accentColor.opacity(0.9) : Color.white.opacity(0.14),
+            .overlay(shape.strokeBorder(highlighted ? Color.accentColor.opacity(0.9)
+                                        : Color.white.opacity(bordered ? 0.14 : 0),
                                         lineWidth: highlighted ? 1.5 : 0.5))
             .contentShape(shape)
     }
@@ -289,7 +298,6 @@ enum ZoomContext {
 /// bordo glows drifting near the top corners. Most of the page stays black so the cards
 /// carry the screen; the colour is an accent, not a wash.
 struct BrandGlowBackground: View {
-    @State private var animationStartedAt = Date()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
@@ -297,35 +305,63 @@ struct BrandGlowBackground: View {
         reduceMotion || scenePhase != .active || ProcessInfo.processInfo.isLowPowerModeEnabled
     }
 
+    /// One soft, slow-drifting patch of colour (unit coordinates of the page).
+    private struct Patch {
+        let color: Color
+        let center: CGPoint, radius: CGSize
+        let period: Double, phase: Double
+    }
+
+    // "Muted aurora": three bordo tones on the canvas black — low saturation, wide and blurry.
+    private let patches: [Patch] = [
+        Patch(color: Color(red: 0.300, green: 0.050, blue: 0.105),
+              center: CGPoint(x: 0.25, y: 0.15), radius: CGSize(width: 0.62, height: 0.36), period: 19, phase: 0),
+        Patch(color: Color(red: 0.180, green: 0.032, blue: 0.068),
+              center: CGPoint(x: 0.85, y: 0.44), radius: CGSize(width: 0.56, height: 0.31), period: 23, phase: 2.4),
+        Patch(color: Color(red: 0.235, green: 0.045, blue: 0.090),
+              center: CGPoint(x: 0.38, y: 0.89), radius: CGSize(width: 0.66, height: 0.36), period: 27, phase: 4.1),
+    ]
+
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: isStill)) { context in
-            let t = isStill ? 0 : max(0, context.date.timeIntervalSince(animationStartedAt))
+            let t = isStill ? 0 : context.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
-                // A soft diagonal band of bordo light that slowly slides across a black page.
-                // Begin near the lower-right corner, then drift slowly across the page.
-                let phase = cos(t / 90 * 2 * .pi)
-                var c = ctx
-                c.translateBy(x: size.width / 2 + phase * size.width * 0.28,
-                              y: size.height / 2 + phase * size.height * 0.28)
-                c.rotate(by: .degrees(-28))
-                let length = hypot(size.width, size.height) * 1.6
-                let thickness = size.height * 0.46
-                let rect = CGRect(x: -length / 2, y: -thickness / 2, width: length, height: thickness)
-                let deep = Color(red: 0.47, green: 0.05, blue: 0.12)
-                let bright = Color(red: 0.80, green: 0.14, blue: 0.24)
-                c.fill(Path(rect), with: .linearGradient(
-                    Gradient(stops: [
-                        .init(color: deep.opacity(0), location: 0),
-                        .init(color: deep.opacity(0.55), location: 0.36),
-                        .init(color: bright.opacity(0.55), location: 0.5),
-                        .init(color: deep.opacity(0.55), location: 0.64),
-                        .init(color: deep.opacity(0), location: 1),
-                    ]),
-                    startPoint: CGPoint(x: 0, y: -thickness / 2),
-                    endPoint: CGPoint(x: 0, y: thickness / 2)))
+                for p in patches {
+                    let wave = sin(t / p.period * 2 * .pi + p.phase)
+                    let cx = (p.center.x + 0.07 * wave) * size.width
+                    let cy = (p.center.y + 0.05 * wave) * size.height
+                    let rx = p.radius.width * size.width
+                    let ry = p.radius.height * size.height
+                    // Draw a unit circle gradient stretched to an ellipse.
+                    var c = ctx
+                    c.translateBy(x: cx, y: cy)
+                    c.scaleBy(x: rx, y: ry)
+                    c.fill(Path(ellipseIn: CGRect(x: -1, y: -1, width: 2, height: 2)),
+                           with: .radialGradient(
+                            Gradient(stops: [
+                                .init(color: p.color.opacity(0.85), location: 0),
+                                .init(color: p.color.opacity(0.55), location: 0.45),
+                                .init(color: p.color.opacity(0), location: 1),
+                            ]),
+                            center: .zero, startRadius: 0, endRadius: 1))
+                }
             }
         }
-        .background(Color.black)
+        .background(JGColor.canvas)
         .ignoresSafeArea()
+    }
+}
+
+/// Label with its icon in a small bordo badge, as on the main Settings page.
+struct SettingsBadgeLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 12) {
+            configuration.icon
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(JGColor.brandGradient, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            configuration.title
+        }
     }
 }

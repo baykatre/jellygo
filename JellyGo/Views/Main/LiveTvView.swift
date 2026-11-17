@@ -12,8 +12,10 @@ struct LiveTvView: View {
     @State private var isSearchVisible = false
     @State private var heroIndex = 0
 
+    @ObservedObject private var externalStore = ExternalLiveTvStore.shared
+
     private var filteredChannels: [JellyfinItem] {
-        var list = vm.channels
+        var list = vm.channels.filter(vm.matchesFilters)
 
         if showFavoritesOnly {
             list = list.filter { $0.userData?.isFavorite == true }
@@ -25,6 +27,7 @@ struct LiveTvView: View {
                 ch.name.lowercased().contains(q)
                 || ch.channelNumber?.lowercased().contains(q) == true
                 || ch.currentProgram?.name.lowercased().contains(q) == true
+                || (vm.isExternal(ch) && externalStore.groupName(forItemId: ch.id)?.lowercased().contains(q) == true)
             }
         }
 
@@ -43,8 +46,9 @@ struct LiveTvView: View {
 
     /// Favorites if any, else the first few channels — featured in the hero slider.
     private var heroChannels: [JellyfinItem] {
-        let favorites = vm.channels.filter { $0.userData?.isFavorite == true }
-        return Array((favorites.isEmpty ? vm.channels : favorites).prefix(8))
+        let pool = vm.channels.filter(vm.matchesFilters)
+        let favorites = pool.filter { $0.userData?.isFavorite == true }
+        return Array((favorites.isEmpty ? pool : favorites).prefix(8))
     }
 
     var body: some View {
@@ -67,7 +71,16 @@ struct LiveTvView: View {
                     ContentUnavailableView {
                         Label(String(localized: "No Channels", bundle: AppState.currentBundle), systemImage: "tv.slash")
                     } description: {
-                        Text(String(localized: "No live TV channels found on this server.", bundle: AppState.currentBundle))
+                        if externalStore.playlists.isEmpty && externalStore.showJellyfinChannels {
+                            Text(String(localized: "No live TV channels found on this server.", bundle: AppState.currentBundle))
+                        } else {
+                            Text(String(localized: "No channels to show. Check the sources in Live TV Settings.", bundle: AppState.currentBundle))
+                        }
+                    } actions: {
+                        emptyStateDiagnostics
+                        Button(String(localized: "Retry", bundle: AppState.currentBundle)) {
+                            Task { await vm.reloadJellyfin() }
+                        }
                     }
                 } else {
                     liveContent
@@ -75,6 +88,9 @@ struct LiveTvView: View {
             }
             .safeAreaInset(edge: .top) { liveTvHeader }
             .navigationBarHidden(true)
+            // The server's channel list is not fixed for the life of the app: ask again
+            // when the screen comes back (throttled inside the view model).
+            .onAppear { Task { await vm.refreshJellyfinIfStale() } }
         }
         .fullScreenCover(isPresented: $isFullscreen, onDismiss: {
             AppDelegate.orientationLock = .portrait
@@ -123,7 +139,7 @@ struct LiveTvView: View {
                 } label: {
                     Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
                         .font(.title3.weight(.semibold))
-                        .foregroundStyle(showFavoritesOnly ? .red : .primary)
+                        .foregroundStyle(showFavoritesOnly ? JGColor.brand : .primary)
                         .padding(8)
                         .background(.ultraThinMaterial, in: Circle())
                 }
@@ -163,6 +179,12 @@ struct LiveTvView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
+            // Always on screen when there are channels: it is also the legend that says
+            // which kind of channels (server / external list) are being shown.
+            if !vm.availableSources.isEmpty {
+                sourceFilterBar
+            }
+
             ScrollView {
                 VStack(spacing: 14) {
                     if searchText.isEmpty && !showFavoritesOnly, !heroChannels.isEmpty {
@@ -178,7 +200,10 @@ struct LiveTvView: View {
                                 LiveChannelTile(
                                     channel: channel,
                                     serverURL: vm.serverURL,
-                                    isPlaying: channel.id == currentChannel?.id
+                                    isPlaying: channel.id == currentChannel?.id,
+                                    sourceBadge: vm.showsSourceBadges
+                                        ? LiveChannelTile.SourceBadge(isExternal: vm.isExternal(channel), title: vm.sourceLabel(for: channel))
+                                        : nil
                                 )
                             }
                             .buttonStyle(.plain)
@@ -245,7 +270,7 @@ struct LiveTvView: View {
                 )
 
                 FallbackAsyncImage(
-                    primaryURL: JellyfinAPI.shared.imageURL(serverURL: vm.serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 400),
+                    primaryURL: LiveTvChannelArt.logoURL(for: channel, serverURL: vm.serverURL, maxWidth: 400),
                     fallbackURL: nil,
                     placeholder: Color.clear,
                     contentMode: .fit
@@ -264,8 +289,8 @@ struct LiveTvView: View {
                     Spacer(minLength: 0)
 
                     HStack(spacing: 6) {
-                        Circle().fill(.red).frame(width: 7, height: 7)
-                            .shadow(color: .red.opacity(0.8), radius: 3)
+                        Circle().fill(JGColor.brand).frame(width: 7, height: 7)
+                            .shadow(color: JGColor.brand.opacity(0.8), radius: 3)
                         Text(String(localized: "LIVE", bundle: AppState.currentBundle))
                             .font(.system(size: 11, weight: .heavy, design: .rounded))
                         if let num = channel.channelNumber {
@@ -341,32 +366,129 @@ struct LiveTvView: View {
     private func toggleFavorite(_ channel: JellyfinItem) {
         let current = channel.userData?.isFavorite == true
         Task {
-            try? await JellyfinAPI.shared.setFavorite(
-                serverURL: appState.serverURL,
-                itemId: channel.id,
-                userId: appState.userId,
-                token: appState.token,
-                isFavorite: !current
-            )
-            if let idx = vm.channels.firstIndex(where: { $0.id == channel.id }) {
-                var updated = vm.channels[idx]
-                var ud = updated.userData ?? JellyfinUserData(playbackPositionTicks: nil, played: nil, isFavorite: nil, playCount: nil)
-                ud.isFavorite = !current
-                updated.userData = ud
-                withAnimation(.spring(duration: 0.3)) {
-                    vm.channels[idx] = updated
+            await vm.setFavorite(channel, !current)
+        }
+    }
+
+    // MARK: - Empty state: what each source answered
+
+    private var emptyStateDiagnostics: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "server.rack")
+                Text("Jellyfin · \(URL(string: vm.serverURL)?.host ?? vm.serverURL)")
+                Spacer(minLength: 8)
+                switch vm.jellyfinState {
+                case .notAsked: Image(systemName: "questionmark.circle")
+                case .switchedOff: Image(systemName: "eye.slash")
+                case .serverNotReady: Image(systemName: "wifi.exclamationmark")
+                case .answered(let count):
+                    Text(vm.probeSummary.isEmpty ? "\(count)" : "\(count) · \(vm.probeSummary)").monospacedDigit()
+                case .failed(let message): Text(message).lineLimit(2)
+                }
+            }
+            if !vm.serverFacts.isEmpty {
+                Text(vm.serverFacts)
+                    .font(.caption2.monospaced())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "list.bullet.rectangle")
+                Text("M3U")
+                Spacer(minLength: 8)
+                if vm.externalSwitchedOn { Text("\(vm.externalChannelCount)").monospacedDigit() }
+                else { Image(systemName: "eye.slash") }
+            }
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .padding(12)
+        .frame(maxWidth: 300)
+        .glassCard(cornerRadius: 14)
+    }
+
+    // MARK: - Source / group filter
+
+    private var sourceFilterBar: some View {
+        VStack(spacing: 6) {
+            filterChipRow {
+                if vm.availableSources.count > 1 {
+                    filterChip(String(localized: "All", bundle: AppState.currentBundle),
+                               count: vm.channelCount(for: .all), selected: vm.sourceFilter == .all) {
+                        vm.sourceFilter = .all
+                    }
+                }
+                ForEach(vm.availableSources) { source in
+                    // With a single source the chip is just a label for the channel type.
+                    filterChip(source.title, icon: source.icon, count: vm.channelCount(for: source.filter),
+                               selected: vm.availableSources.count > 1 && vm.sourceFilter == source.filter) {
+                        if vm.availableSources.count > 1 { vm.sourceFilter = source.filter }
+                    }
+                }
+            }
+            if !vm.availableGroups.isEmpty {
+                filterChipRow {
+                    filterChip(String(localized: "All Groups", bundle: AppState.currentBundle), selected: vm.groupFilter == nil, small: true) {
+                        vm.groupFilter = nil
+                    }
+                    ForEach(vm.availableGroups, id: \.self) { group in
+                        filterChip(group, selected: vm.groupFilter == group, small: true) {
+                            vm.groupFilter = group
+                        }
+                    }
                 }
             }
         }
+        .padding(.bottom, 6)
+    }
+
+    private func filterChipRow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) { content() }
+                .padding(.horizontal, 16)
+        }
+    }
+
+    private func filterChip(_ title: String, icon: String? = nil, count: Int? = nil, selected: Bool,
+                            small: Bool = false, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.spring(duration: 0.3)) { action() }
+        } label: {
+            HStack(spacing: 5) {
+                if let icon {
+                    Image(systemName: icon).font(.system(size: 10, weight: .bold))
+                }
+                Text(title)
+                    .lineLimit(1)
+                if let count {
+                    Text("\(count)")
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .opacity(0.6)
+                }
+            }
+                .font(.system(size: small ? 12 : 13, weight: .semibold))
+                .foregroundStyle(selected ? Color.white : Color.primary)
+                .padding(.horizontal, small ? 10 : 12)
+                .padding(.vertical, small ? 5 : 7)
+                .background(selected ? JGColor.brand : Color.white.opacity(0.08), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.white.opacity(selected ? 0 : 0.10), lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
     }
 }
 
 // MARK: - Live Channel Row (Flat List)
 
 private struct LiveChannelTile: View {
+    struct SourceBadge {
+        let isExternal: Bool
+        let title: String
+    }
+
     let channel: JellyfinItem
     let serverURL: String
     let isPlaying: Bool
+    var sourceBadge: SourceBadge?
 
     private var isFavorite: Bool { channel.userData?.isFavorite == true }
 
@@ -374,7 +496,7 @@ private struct LiveChannelTile: View {
         VStack(alignment: .leading, spacing: 8) {
             // Channel logo
             FallbackAsyncImage(
-                primaryURL: JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: channel.id, imageType: "Primary", maxWidth: 240),
+                primaryURL: LiveTvChannelArt.logoURL(for: channel, serverURL: serverURL, maxWidth: 240),
                 fallbackURL: nil,
                 placeholder: Text(channel.name.prefix(2).uppercased())
                     .font(.system(size: 20, weight: .black, design: .rounded))
@@ -425,8 +547,29 @@ private struct LiveChannelTile: View {
             if isFavorite {
                 Image(systemName: "heart.fill")
                     .font(.system(size: 12))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(JGColor.danger)
                     .padding(10)
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if let sourceBadge {
+                // Small mark for where the channel comes from (server or an external list).
+                HStack(spacing: 3) {
+                    Image(systemName: sourceBadge.isExternal ? "list.bullet.rectangle" : "server.rack")
+                        .font(.system(size: 8, weight: .bold))
+                    // `frame(maxWidth:)` alone stretched every badge to the full 70 pt, leaving a gap
+                    // after short names; fixedSize makes it hug the text and only cap long ones.
+                    Text(sourceBadge.title)
+                        .font(.system(size: 9, weight: .semibold))
+                        .lineLimit(1)
+                        .frame(maxWidth: 70, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .padding(8)
             }
         }
     }

@@ -140,6 +140,15 @@ final class JellyfinNetworkScanner: ObservableObject {
 
 struct ServerView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    /// true when adding an account from Settings: the same server/login steps in a plain
+    /// sheet, without the welcome screen's poster carousel. The first-run screen is unchanged.
+    private let compact: Bool
+
+    init(compact: Bool = false) {
+        self.compact = compact
+    }
 
     // Server
     @State private var serverHost = ""
@@ -168,12 +177,17 @@ struct ServerView: View {
 
     private enum InputField { case host, port, username, password }
 
-    private let accentColor = Color(red: 0.75, green: 0.15, blue: 0.20)
+    private let accentColor = JGColor.brand
     private let backdropImages = ["Backdrop1", "Backdrop2", "Backdrop3", "Backdrop4", "Backdrop5", "Backdrop6"]
     @State private var currentBackdrop = 0
     @State private var trendingItems: [TMDBService.TrendingItem] = []
 
     var body: some View {
+        if compact { compactShell } else { fullShell }
+    }
+
+    /// The first-run welcome screen (unchanged).
+    private var fullShell: some View {
         GeometryReader { geo in
             let screenH = geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom
 
@@ -343,6 +357,85 @@ struct ServerView: View {
         }
     }
 
+    /// Add-account sheet: plain app background, same steps as the welcome screen.
+    private var compactShell: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Text(String(localized: "Add Account", bundle: AppState.currentBundle))
+                    .font(.headline)
+                HStack {
+                    if showLogin {
+                        Button { backToServerStep() } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 15, weight: .semibold))
+                                .frame(width: 36, height: 36)
+                                .background(Color.white.opacity(0.08), in: Circle())
+                        }
+                    }
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .frame(width: 36, height: 36)
+                            .background(Color.white.opacity(0.08), in: Circle())
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.top, 22)
+            .padding(.bottom, 14)
+
+            Group {
+                if showLogin {
+                    loginContent
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else {
+                    serverContent
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showLogin)
+        // The server step fades in on `appeared`; the welcome screen sets it in its own
+        // onAppear, which this sheet does not have.
+        .onAppear { appeared = true }
+        .onChange(of: scanner.results) { results in
+            if let first = results.first {
+                parseURL(first.url)
+            }
+        }
+        .onChange(of: serverHost) { host in
+            let shouldBeHTTPS = hostLooksLikeDomain(host)
+            if useHTTPS != shouldBeHTTPS {
+                useHTTPS = shouldBeHTTPS
+                serverPort = shouldBeHTTPS ? "443" : "8096"
+            }
+        }
+        .alert(String(localized: "Account Already Added", bundle: AppState.currentBundle), isPresented: $showDuplicateAlert) {
+            Button(String(localized: "OK", bundle: AppState.currentBundle)) { appState.closeAddAccountSheet = true }
+        } message: {
+            if let info = serverInfo {
+                Text(String(localized: "\(username) on \(info.serverName) is already in your account list.", bundle: AppState.currentBundle))
+            }
+        }
+    }
+
+    private func backToServerStep() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showLogin = false
+            errorMessage = nil
+            username = ""
+            password = ""
+            quickConnectTask?.cancel()
+            quickConnectCode = nil
+            quickConnectSecret = nil
+            quickConnectPolling = false
+        }
+    }
+
+
     // MARK: - Server Content
 
     private var serverContent: some View {
@@ -410,10 +503,10 @@ struct ServerView: View {
                                 Text(useHTTPS ? "https" : "http")
                                     .font(.system(.caption2, design: .monospaced).weight(.semibold))
                             }
-                            .foregroundStyle(useHTTPS ? .green : .white.opacity(0.5))
+                            .foregroundStyle(useHTTPS ? JGColor.success : .white.opacity(0.5))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(Capsule().fill(useHTTPS ? Color.green.opacity(0.15) : .white.opacity(0.08)))
+                            .background(Capsule().fill(useHTTPS ? JGColor.success.opacity(0.15) : .white.opacity(0.08)))
                         }
                         .padding(.leading, 10)
                         .padding(.trailing, 6)
@@ -449,7 +542,7 @@ struct ServerView: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .strokeBorder(
-                                        errorMessage != nil ? Color.red.opacity(0.5) :
+                                        errorMessage != nil ? JGColor.danger.opacity(0.5) :
                                         (focusedField == .host || focusedField == .port) ? accentColor.opacity(0.4) : .white.opacity(0.08),
                                         lineWidth: 1
                                     )
@@ -463,7 +556,7 @@ struct ServerView: View {
                             Text(error)
                                 .font(.caption)
                         }
-                        .foregroundStyle(.red.opacity(0.9))
+                        .foregroundStyle(JGColor.danger.opacity(0.9))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
@@ -653,7 +746,7 @@ struct ServerView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(
-                                errorMessage != nil ? Color.red.opacity(0.5) : .white.opacity(0.08),
+                                errorMessage != nil ? JGColor.danger.opacity(0.5) : .white.opacity(0.08),
                                 lineWidth: 1
                             )
                     )
@@ -665,7 +758,7 @@ struct ServerView: View {
                             Text(error)
                                 .font(.caption)
                         }
-                        .foregroundStyle(.red.opacity(0.9))
+                        .foregroundStyle(JGColor.danger.opacity(0.9))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 4)
                         .transition(.move(edge: .top).combined(with: .opacity))

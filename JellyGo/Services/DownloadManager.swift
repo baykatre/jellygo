@@ -862,7 +862,7 @@ final class DownloadManager: NSObject, ObservableObject {
 
     static func transcodedURL(itemId: String, serverURL: String, token: String, maxBitrate: Int, audioStreamIndex: Int? = nil) -> URL? {
         var items = [
-            URLQueryItem(name: "VideoCodec",       value: "h264"),
+            URLQueryItem(name: "VideoCodec",       value: JellyfinMediaRequestBuilder.preferredTranscodingVideoCodecs),
             URLQueryItem(name: "AudioCodec",       value: "aac"),
             URLQueryItem(name: "VideoBitrate",     value: "\(maxBitrate)"),
             URLQueryItem(name: "AudioBitrate",     value: "128000"),

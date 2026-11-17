@@ -27,6 +27,12 @@ final class KeychainService {
         delete(forKey: "jellygo.token.\(accountId)")
     }
 
+    // MARK: - Generic secrets (e.g. external Live TV list addresses that embed credentials)
+
+    func saveSecret(_ value: String, forKey key: String) { save(value, forKey: key) }
+    func secret(forKey key: String) -> String? { get(forKey: key) }
+    func deleteSecret(forKey key: String) { delete(forKey: key) }
+
     // MARK: - Helpers
 
     private func save(_ value: String, forKey key: String) {

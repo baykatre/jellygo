@@ -287,17 +287,21 @@ struct HomeView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(appState.username)
                     .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
                 Text(activeDisplayLabel)
                     .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .truncationMode(.middle)
                     .foregroundStyle(.white.opacity(0.75))
                     .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 1)
             }
 
             avatarCircle
         }
-        .fixedSize()
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var avatarCircle: some View {
@@ -513,7 +517,7 @@ struct HomeView: View {
     private func errorBanner(message: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.yellow)
+                .foregroundStyle(JGColor.warning)
             Text(message)
                 .font(.caption)
         }
@@ -560,179 +564,369 @@ struct SettingsView: View {
     @State private var editAliasAccount: SavedAccount?
 
     @State private var quickConnectAvailable = false
+    @State private var showQuickConnectOff = false
+    @State private var showQuickConnect = false
 
     private var appVersion: String {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     }
 
-    private var proLabel: some View {
-        Label {
-            Text(appState.isPro
-                 ? String(localized: "Pro Active", bundle: AppState.currentBundle)
-                 : String(localized: "Upgrade to Pro", bundle: AppState.currentBundle))
-                .foregroundStyle(.primary)
-        } icon: {
-            Image(systemName: "crown.fill")
-                .foregroundStyle(LinearGradient(
-                    colors: [Color(red: 1.0, green: 0.78, blue: 0.32), Color(red: 0.95, green: 0.55, blue: 0.20)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                ))
-        }
+    // MARK: Design tokens
+
+    /// Same corner radius as the grouped lists on the settings sub-pages.
+    private static let cardRadius: CGFloat = 26
+
+    private static let brandGradient = JGColor.brandGradient
+    private static let goldGradient = JGColor.goldGradient
+
+    private func loc(_ key: String.LocalizationValue) -> String {
+        String(localized: key, bundle: AppState.currentBundle)
     }
 
-    private func settingsTileLabel(_ key: String.LocalizationValue, icon: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
-                .background(color.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Text(String(localized: key, bundle: AppState.currentBundle))
+    /// Rounded icon badge in the app colour — one visual language for every option.
+    private func iconBadge(_ icon: String, size: CGFloat = 32, muted: Bool = false) -> some View {
+        Image(systemName: icon)
+            .font(.system(size: size * 0.45, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+                if muted { shape.fill(Color.white.opacity(0.16)) } else { shape.fill(Self.brandGradient) }
+            }
+    }
+
+    // MARK: Current-value summaries (so a tile says something before it is opened)
+
+    private var playbackSummary: String {
+        "\(appState.playerEngine.rawValue) · \(appState.defaultVideoQuality.displayName)"
+    }
+
+    private var languageSummary: String {
+        let parts = [appState.preferredAudioLanguage, appState.preferredSubtitleLanguage]
+            .filter { !$0.isEmpty }
+            .map { $0.uppercased() }
+        return parts.isEmpty ? "—" : parts.joined(separator: " · ")
+    }
+
+    private var downloadsSummary: String {
+        let bytes = DownloadManager.shared.downloads.reduce(Int64(0)) { $0 + ($1.fileSize ?? 0) }
+        guard bytes > 0 else { return "—" }
+        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
+    private var homeSummary: String {
+        let on = [appState.showContinueWatching, appState.showNextUp,
+                  appState.showLatestMovies, appState.showLatestShows].filter { $0 }.count
+        return "\(on) / 4"
+    }
+
+    private var appLanguageSummary: String {
+        let code = appState.appLanguage
+        guard code.count <= 3, let name = Locale.current.localizedString(forLanguageCode: code) else { return "" }
+        return name.capitalized
+    }
+
+    // MARK: Building blocks
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 6)
+            .padding(.top, 10)
+    }
+
+    /// Primary option: badge + chevron on top, title and its current value below.
+    private func tileLabel(_ key: String.LocalizationValue, icon: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                iconBadge(icon, size: 38)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer(minLength: 18)
+            Text(loc(key))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(value)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .padding(.top, 3)
         }
-        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
         .padding(14)
-        .glassCard()
+        .glassCard(cornerRadius: Self.cardRadius, bordered: false)
     }
 
-    private func settingsTile<Destination: View>(_ key: String.LocalizationValue, icon: String, color: Color,
-                                                 @ViewBuilder destination: @escaping () -> Destination) -> some View {
-        NavigationLink {
-            destination()
+    private func tile<Destination: View>(_ key: String.LocalizationValue, icon: String, value: String,
+                                         @ViewBuilder destination: @escaping () -> Destination) -> some View {
+        NavigationLink { destination() } label: { tileLabel(key, icon: icon, value: value) }
+            .buttonStyle(.plain)
+    }
+
+    /// Secondary option: one line inside a grouped card.
+    private func rowLabel(_ key: String.LocalizationValue, icon: String, value: String = "",
+                          muted: Bool = false, chevron: Bool = true) -> some View {
+        HStack(spacing: 12) {
+            iconBadge(icon, size: 30, muted: muted)
+            Text(loc(key))
+                .font(.body)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 8)
+            if !value.isEmpty {
+                Text(value)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            if chevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 52)
+        .contentShape(Rectangle())
+    }
+
+    private var rowDivider: some View {
+        Divider().overlay(Color.white.opacity(0.06)).padding(.leading, 56)
+    }
+
+    // MARK: Sections
+
+    private var profileHeader: some View {
+        HStack(spacing: 14) {
+            Text(appState.username.prefix(1).uppercased())
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .background(Self.brandGradient, in: Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.22), lineWidth: 1))
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(appState.username)
+                        .font(.title2.bold())
+                        .lineLimit(1)
+                    if appState.isPro {
+                        Label("PRO", systemImage: "crown.fill")
+                            .font(.caption2.weight(.heavy))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Self.goldGradient, in: Capsule())
+                    }
+                }
+                Text(appState.serverName.isEmpty
+                     ? (URL(string: appState.serverURL)?.host ?? appState.serverURL)
+                     : appState.serverName)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+
+            Button {
+                if !appState.isPro && !appState.savedAccounts.isEmpty {
+                    appState.showPaywall = true
+                } else {
+                    showAddAccountSheet = true
+                }
+            } label: {
+                Image(systemName: "person.badge.plus")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 38, height: 38)
+                    .background(Color.white.opacity(0.09), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(loc("Add"))
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 6)
+    }
+
+    private var proBanner: some View {
+        Button {
+            appState.showPaywall = true
         } label: {
-            settingsTileLabel(key, icon: icon, color: color)
+            HStack(spacing: 12) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 38, height: 38)
+                    .background(Self.goldGradient, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                Text(loc("Upgrade to Pro"))
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .glassCard(cornerRadius: Self.cardRadius, bordered: false)
+            .overlay(RoundedRectangle(cornerRadius: Self.cardRadius, style: .continuous)
+                .strokeBorder(Self.goldGradient.opacity(0.7), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
 
-    /// Opens the paywall only while Pro is not owned; when active it is a plain status row.
-    @ViewBuilder private var proRow: some View {
-        if appState.isPro {
-            HStack {
-                proLabel
-                Spacer()
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+    private var primaryTiles: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            tile("Playback", icon: "play.fill", value: playbackSummary) {
+                PlaybackSettingsView().environmentObject(appState)
             }
-        } else {
-            Button {
-                appState.showPaywall = true
-            } label: {
-                HStack {
-                    proLabel
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+            tile("Audio & Subtitles", icon: "captions.bubble.fill", value: languageSummary) {
+                AudioSubtitleSettingsView().environmentObject(appState)
+            }
+            if pathBased {
+                NavigationLink(value: SettingsRoute.downloadSettings) {
+                    tileLabel("Download Settings", icon: "arrow.down.to.line", value: downloadsSummary)
                 }
+                .buttonStyle(.plain)
+            } else {
+                tile("Download Settings", icon: "arrow.down.to.line", value: downloadsSummary) {
+                    StorageSettingsView().environmentObject(appState)
+                }
+            }
+            tile("Live TV", icon: "tv.fill", value: appState.experimentalLiveTv ? loc("On") : loc("Off")) {
+                LiveTvSettingsView().environmentObject(appState)
+            }
+        }
+    }
+
+    /// Server access: authorising another device, and working without the server.
+    private var connectionCard: some View {
+        VStack(spacing: 0) {
+            // Always listed so the card does not jump when the server check comes back.
+            Button {
+                if quickConnectAvailable { showQuickConnect = true } else { showQuickConnectOff = true }
+            } label: {
+                rowLabel("Quick Connect", icon: "bolt.fill")
+            }
+            .buttonStyle(.plain)
+
+            rowDivider
+            Toggle(isOn: $appState.manualOffline) {
+                HStack(spacing: 12) {
+                    iconBadge("wifi.slash", size: 30)
+                    Text(loc("Offline"))
+                }
+            }
+            .tint(JGColor.brand)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 52)
+        }
+        .glassCard(cornerRadius: Self.cardRadius, bordered: false)
+    }
+
+    /// Set-once options: layout of the home screen, language, about.
+    private var appCard: some View {
+        VStack(spacing: 0) {
+            NavigationLink {
+                HomeSectionsSettingsView().environmentObject(appState)
+            } label: {
+                rowLabel("Home Screen", icon: "house.fill", value: homeSummary)
+            }
+            .buttonStyle(.plain)
+
+            rowDivider
+            NavigationLink {
+                AppSettingsView().environmentObject(appState)
+            } label: {
+                rowLabel("App Language", icon: "globe", value: appLanguageSummary)
+            }
+            .buttonStyle(.plain)
+
+            rowDivider
+            NavigationLink {
+                AboutSettingsView()
+            } label: {
+                rowLabel("About", icon: "info", muted: true)
             }
             .buttonStyle(.plain)
         }
+        .glassCard(cornerRadius: Self.cardRadius, bordered: false)
+    }
+
+    private var footer: some View {
+        VStack(spacing: 10) {
+            Button(role: .destructive) {
+                showLogoutAlert = true
+            } label: {
+                Label(loc("Sign Out"), systemImage: "rectangle.portrait.and.arrow.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(JGColor.danger)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 11)
+                    .background(Color.white.opacity(0.07), in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5))
+            }
+            .buttonStyle(.plain)
+
+            Text("JellyGo \(appVersion)")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 14)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                // Accounts scroll with the page as its first card (was a pinned opaque header).
-                accountsBubbles
+                profileHeader
+                accountsSection
 
-                // Upsell stays on top; once Pro is active the status moves to the bottom.
                 if !appState.isPro {
-                    proRow.padding(14).glassCard()
+                    proBanner
                 }
 
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-                          spacing: 12) {
-                    settingsTile("Playback", icon: "play.fill", color: .orange) {
-                        PlaybackSettingsView().environmentObject(appState)
-                    }
-                    settingsTile("Audio & Subtitles", icon: "captions.bubble.fill", color: .purple) {
-                        AudioSubtitleSettingsView().environmentObject(appState)
-                    }
-                    if pathBased {
-                        NavigationLink(value: SettingsRoute.downloadSettings) {
-                            settingsTileLabel("Download Settings", icon: "arrow.down", color: .blue)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        settingsTile("Download Settings", icon: "arrow.down", color: .blue) {
-                            StorageSettingsView().environmentObject(appState)
-                        }
-                    }
-                    settingsTile("Home Screen", icon: "house.fill", color: .green) {
-                        HomeSectionsSettingsView().environmentObject(appState)
-                    }
-                    settingsTile("App Language", icon: "globe", color: .teal) {
-                        AppSettingsView().environmentObject(appState)
-                    }
-                    if quickConnectAvailable {
-                        settingsTile("Quick Connect", icon: "bolt.fill", color: .yellow) {
-                            QuickConnectView().environmentObject(appState)
-                        }
-                    }
-                    settingsTile("About", icon: "info", color: .gray) {
-                        AboutSettingsView()
-                    }
-                }
+                // Most used first: what and how you watch, then server access, then set-once options.
+                sectionHeader(loc("Watching"))
+                primaryTiles
 
-                VStack(spacing: 0) {
-                    Toggle(isOn: Binding(
-                        get: { appState.experimentalLiveTv },
-                        set: { newValue in
-                            if newValue && !appState.isPro {
-                                appState.showPaywall = true
-                            } else {
-                                appState.experimentalLiveTv = newValue
-                            }
-                        }
-                    )) {
-                        Label(String(localized: "Live TV", bundle: AppState.currentBundle), systemImage: "tv")
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                sectionHeader(loc("Connection"))
+                connectionCard
 
-                    Divider().padding(.leading, 16)
+                sectionHeader(loc("App"))
+                appCard
 
-                    Toggle(isOn: $appState.manualOffline) {
-                        Label(String(localized: "Offline", bundle: AppState.currentBundle), systemImage: "wifi.slash")
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                }
-                .glassCard()
-
-                Button(role: .destructive) {
-                    showLogoutAlert = true
-                } label: {
-                    Label(String(localized: "Sign Out", bundle: AppState.currentBundle), systemImage: "rectangle.portrait.and.arrow.right")
-                        .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .glassCard()
-                }
-                .buttonStyle(.plain)
-
-                if appState.isPro {
-                    proRow.padding(14).glassCard()
-                }
+                footer
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 32)
+            .padding(.top, 8)
+            .padding(.bottom, 36)
         }
         .brandPage()
         .navigationTitle(String(localized: "Settings", bundle: AppState.currentBundle))
         .task { quickConnectAvailable = (try? await JellyfinAPI.shared.quickConnectEnabled(serverURL: appState.serverURL)) ?? false }
+        .alert(loc("Quick Connect"), isPresented: $showQuickConnectOff) {
+            Button(loc("OK"), role: .cancel) {}
+        } message: {
+            Text(loc("Quick Connect is turned off on this server."))
+        }
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showAddAccountSheet) {
-            ServerView()
+            ServerView(compact: true)
                 .environmentObject(appState)
+                .fittedSheet()
                 .onAppear { appState.isAddingAccount = true }
                 .onDisappear { appState.isAddingAccount = false }
+        }
+        .sheet(isPresented: $showQuickConnect) {
+            QuickConnectView(asSheet: true)
+                .environmentObject(appState)
+                .fittedSheet()
         }
         .sheet(item: $editAliasAccount) { account in
             AliasEditSheet(account: account)
@@ -770,40 +964,24 @@ struct SettingsView: View {
 
     // MARK: Accounts (outside List — avoids row-level highlight on long press)
 
-    private var accountsBubbles: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(String(localized: "Accounts", bundle: AppState.currentBundle))
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .padding(.leading, 20)
-                Spacer()
-                Button {
-                    if !appState.isPro && !appState.savedAccounts.isEmpty {
-                        appState.showPaywall = true
-                    } else {
-                        showAddAccountSheet = true
-                    }
-                } label: {
-                    Label(String(localized: "Add", bundle: AppState.currentBundle), systemImage: "plus")
-                        .font(.subheadline.weight(.medium))
-                        .labelStyle(.iconOnly)
-                        .padding(.trailing, 20)
-                }
-            }
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+    /// Other servers of the signed-in user and the other saved users, right under the
+    /// profile header (which already shows the active account). Hidden when there is
+    /// nothing else to switch to.
+    private var switchableGroups: [UserGroup] {
+        userGroups.filter { $0.userId != appState.userId || $0.accounts.count > 1 }
+    }
 
+    @ViewBuilder private var accountsSection: some View {
+        if !switchableGroups.isEmpty {
             VStack(spacing: 0) {
-                ForEach(userGroups) { group in
+                ForEach(switchableGroups) { group in
                     userGroupRow(group)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .glassCard(cornerRadius: Self.cardRadius, bordered: false)
         }
-        .glassCard()
     }
 
     private struct UserGroup: Identifiable {
@@ -830,12 +1008,13 @@ struct SettingsView: View {
         let isCurrentUser = group.userId == appState.userId
 
         VStack(alignment: .leading, spacing: 0) {
-            // User header
+            // User header (the active user is already in the profile header above)
+            if !isCurrentUser {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(isCurrentUser ? Color.accentColor : Color.secondary.opacity(0.15))
-                        .frame(width: 40, height: 40)
+                        .fill(isCurrentUser ? AnyShapeStyle(Self.brandGradient) : AnyShapeStyle(Color.white.opacity(0.12)))
+                        .frame(width: 36, height: 36)
                     Text(group.username.prefix(1).uppercased())
                         .font(.headline.bold())
                         .foregroundStyle(isCurrentUser ? .white : .secondary)
@@ -857,6 +1036,7 @@ struct SettingsView: View {
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 4)
+            }
 
             // Server rows indented under user
             VStack(spacing: 0) {
@@ -864,10 +1044,10 @@ struct SettingsView: View {
                     serverRow(account)
                 }
             }
-            .padding(.leading, 52)
+            .padding(.leading, isCurrentUser ? 0 : 52)
         }
 
-        if group.id != userGroups.last?.id {
+        if group.id != switchableGroups.last?.id {
             Divider().padding(.leading, 56)
         }
     }
@@ -914,15 +1094,74 @@ struct SettingsView: View {
 
 // MARK: - Quick Connect View
 
+/// Row background for the settings sub-pages: the same translucent glass as the cards
+/// on the main Settings page (the list clips it to its rounded sections).
+struct SettingsRowBackground: View {
+    var body: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay(Color.white.opacity(0.04))
+    }
+}
+
 struct QuickConnectView: View {
+    /// true when shown as a compact sheet from Settings instead of a pushed page.
+    var asSheet = false
     @EnvironmentObject private var appState: AppState
+    @FocusState private var codeFocused: Bool
     @State private var quickConnectCode = ""
     @State private var quickConnectAuthorizing = false
     @State private var quickConnectSuccess = false
     @State private var quickConnectError: String?
 
     var body: some View {
+        if asSheet { sheetBody } else { pageBody }
+    }
+
+    /// Same look as the server-entry form on the welcome screen (shared Auth* components).
+    private var sheetBody: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(localized: "Quick Connect", bundle: AppState.currentBundle))
+                    .font(.title2.bold())
+                Text(String(localized: "Enter the code shown on the device you want to authorize.", bundle: AppState.currentBundle))
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            .padding(.horizontal, 4)
+
+            AuthFormCard(header: String(localized: "Quick Connect Code", bundle: AppState.currentBundle)) {
+                VStack(spacing: 14) {
+                    AuthInputField(icon: "bolt.fill", chip: "code", placeholder: "000000",
+                                   text: $quickConnectCode, keyboard: .numberPad, monospaced: true,
+                                   isError: quickConnectError != nil, isFocused: codeFocused)
+                        .focused($codeFocused)
+                        .onChange(of: quickConnectCode) { _, _ in quickConnectError = nil }
+
+                    if let error = quickConnectError {
+                        AuthErrorLine(message: error)
+                    }
+
+                    AuthPrimaryButton(title: String(localized: "Authorize", bundle: AppState.currentBundle),
+                                      systemImage: "checkmark.shield",
+                                      isLoading: quickConnectAuthorizing,
+                                      isDone: quickConnectSuccess,
+                                      isEnabled: !quickConnectCode.isEmpty) {
+                        codeFocused = false
+                        Task { await authorizeQuickConnect() }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 28)
+        .padding(.bottom, 24)
+        .onAppear { codeFocused = true }
+    }
+
+    private var pageBody: some View {
         List {
+        Group {
             Section {
                 HStack(spacing: 12) {
                     TextField(String(localized: "Quick Connect Code", bundle: AppState.currentBundle), text: $quickConnectCode)
@@ -934,7 +1173,7 @@ struct QuickConnectView: View {
                         ProgressView().scaleEffect(0.8)
                     } else if quickConnectSuccess {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(JGColor.success)
                     } else {
                         Button {
                             Task { await authorizeQuickConnect() }
@@ -949,11 +1188,13 @@ struct QuickConnectView: View {
                 if let error = quickConnectError {
                     Text(error)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(JGColor.danger)
                 }
             } footer: {
                 Text(String(localized: "Enter the code shown on the device you want to authorize.", bundle: AppState.currentBundle))
             }
+        }
+        .listRowBackground(SettingsRowBackground())
         }
         .ambientList()
         .navigationTitle(String(localized: "Quick Connect", bundle: AppState.currentBundle))
@@ -978,6 +1219,10 @@ struct QuickConnectView: View {
                 try? await Task.sleep(for: .seconds(3))
                 quickConnectSuccess = false
             }
+        } catch JellyfinAPIError.serverError(let status) where status == 404 || status == 400 {
+            // The server answers 404 for a code it does not know (mistyped or expired).
+            quickConnectError = String(localized: "Invalid or expired code. Check it and try again.",
+                                       bundle: AppState.currentBundle)
         } catch let error as JellyfinAPIError {
             quickConnectError = error.errorDescription
         } catch {
@@ -993,6 +1238,7 @@ struct PlaybackSettingsView: View {
 
     var body: some View {
         List {
+        Group {
             Section(String(localized: "Player Engine", bundle: AppState.currentBundle)) {
                 Picker(String(localized: "Player Engine", bundle: AppState.currentBundle),
                        selection: $appState.playerEngine) {
@@ -1013,6 +1259,8 @@ struct PlaybackSettingsView: View {
                 .labelsHidden()
             }
         }
+        .listRowBackground(SettingsRowBackground())
+        }
         .ambientList()
         .navigationTitle(String(localized: "Playback", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
@@ -1026,6 +1274,7 @@ struct AudioSubtitleSettingsView: View {
 
     var body: some View {
         List {
+        Group {
             Section(String(localized: "Audio", bundle: AppState.currentBundle)) {
                 LanguagePicker(
                     label: "Preferred Language",
@@ -1056,6 +1305,8 @@ struct AudioSubtitleSettingsView: View {
                 }
             }
         }
+        .listRowBackground(SettingsRowBackground())
+        }
         .ambientList()
         .navigationTitle(String(localized: "Audio & Subtitles", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
@@ -1069,9 +1320,12 @@ struct AppSettingsView: View {
 
     var body: some View {
         List {
+        Group {
             Section(String(localized: "Language Settings", bundle: AppState.currentBundle)) {
                 AppLanguagePicker(selection: $appState.appLanguage)
             }
+        }
+        .listRowBackground(SettingsRowBackground())
         }
         .ambientList()
         .navigationTitle(String(localized: "App Language", bundle: AppState.currentBundle))
@@ -1088,6 +1342,7 @@ struct AboutSettingsView: View {
 
     var body: some View {
         List {
+        Group {
             Section {
                 LabeledContent(String(localized: "Version", bundle: AppState.currentBundle), value: appVersion)
                     .foregroundStyle(.secondary)
@@ -1110,6 +1365,8 @@ struct AboutSettingsView: View {
                 .padding(.vertical, 4)
             }
         }
+        .listRowBackground(SettingsRowBackground())
+        }
         .ambientList()
         .navigationTitle(String(localized: "About", bundle: AppState.currentBundle))
         .navigationBarTitleDisplayMode(.inline)
@@ -1124,6 +1381,7 @@ struct HomeSectionsSettingsView: View {
 
     var body: some View {
         List {
+        Group {
             Section {
                 Toggle(String(localized: "Continue Watching", bundle: AppState.currentBundle), isOn: $appState.showContinueWatching)
                 Toggle(String(localized: "Next Up", bundle: AppState.currentBundle), isOn: $appState.showNextUp)
@@ -1132,6 +1390,8 @@ struct HomeSectionsSettingsView: View {
             } footer: {
                 Text(String(localized: "Choose which sections appear on the home screen.", bundle: AppState.currentBundle))
             }
+        }
+        .listRowBackground(SettingsRowBackground())
         }
         .ambientList()
         .navigationTitle(String(localized: "Home Screen", bundle: AppState.currentBundle))
@@ -1178,6 +1438,7 @@ struct StorageSettingsView: View {
 
     var body: some View {
         List {
+        Group {
             // Where Downloads lives
             // Offline mode keeps its own Downloads tab, so the link only exists on the Home stack.
             if showsDownloadsLink {
@@ -1199,7 +1460,6 @@ struct StorageSettingsView: View {
                 LabeledContent(String(localized: "Downloaded Content", bundle: AppState.currentBundle), value: totalDownloadSize)
                 LabeledContent(String(localized: "Image Cache", bundle: AppState.currentBundle), value: cacheSize)
             }
-            .foregroundStyle(.secondary)
 
             // Movies
             if !movies.isEmpty {
@@ -1252,15 +1512,17 @@ struct StorageSettingsView: View {
             Section {
                 Button(role: .destructive) { showClearCacheAlert = true } label: {
                     Label(String(localized: "Clear Cache", bundle: AppState.currentBundle), systemImage: "xmark.bin")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(JGColor.danger)
                 }
                 if !dm.downloads.isEmpty {
                     Button(role: .destructive) { showDeleteAllAlert = true } label: {
                         Label(String(localized: "Delete All", bundle: AppState.currentBundle), systemImage: "trash")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(JGColor.danger)
                     }
                 }
             }
+        }
+        .listRowBackground(SettingsRowBackground())
         }
         .ambientList()
         .navigationTitle(String(localized: "Download Settings", bundle: AppState.currentBundle))
@@ -1516,6 +1778,7 @@ struct SubtitleAppearanceView: View {
 
     var body: some View {
         List {
+        Group {
             // Preview
             Section {
                 ZStack {
@@ -1608,6 +1871,8 @@ struct SubtitleAppearanceView: View {
                         .frame(width: 36, alignment: .trailing)
                 }
             }
+        }
+        .listRowBackground(SettingsRowBackground())
         }
         .ambientList()
         .navigationTitle(String(localized: "Subtitle Appearance", bundle: AppState.currentBundle))

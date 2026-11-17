@@ -354,11 +354,11 @@ struct DownloadsView: View {
                             if task.isFailed {
                                 Label(String(localized: "Failed", bundle: AppState.currentBundle), systemImage: "exclamationmark.circle.fill")
                                     .font(.caption)
-                                    .foregroundStyle(.red)
+                                    .foregroundStyle(JGColor.danger)
                             } else if task.isTranscoding {
                                 Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
                                     .font(.caption2.weight(.medium))
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(JGColor.warning)
                                 HStack(spacing: 4) {
                                     Text(task.formattedProgress)
                                         .font(.caption).foregroundStyle(.secondary)
@@ -372,7 +372,7 @@ struct DownloadsView: View {
                                 if task.isDirect {
                                     Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
                                         .font(.caption2.weight(.medium))
-                                        .foregroundStyle(.green)
+                                        .foregroundStyle(JGColor.success)
                                 }
                                 HStack(spacing: 4) {
                                     Text(task.formattedProgress)
@@ -412,11 +412,11 @@ struct DownloadsView: View {
                 if task.progress > 0 || task.bytesExpected > 0 {
                     ProgressView(value: task.progress)
                         .progressViewStyle(.linear)
-                        .tint(task.isTranscoding ? .orange : (task.isDirect ? .green : .accentColor))
+                        .tint(task.isTranscoding ? JGColor.warning : (task.isDirect ? JGColor.success : .accentColor))
                 } else {
                     ProgressView()
                         .progressViewStyle(.linear)
-                        .tint(task.isTranscoding ? .orange : .accentColor)
+                        .tint(task.isTranscoding ? JGColor.warning : .accentColor)
                 }
             }
         }
@@ -447,11 +447,11 @@ struct DownloadsView: View {
                             if entry.isDirect {
                                 Label(String(localized: "Direct", bundle: AppState.currentBundle), systemImage: "bolt.fill")
                                     .font(.caption2.weight(.medium))
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(JGColor.success)
                             } else if entry.isTranscoding {
                                 Label(String(localized: "Transcoding", bundle: AppState.currentBundle), systemImage: "gearshape.fill")
                                     .font(.caption2.weight(.medium))
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(JGColor.warning)
                             }
                             if !entry.formattedProgress.isEmpty {
                                 Text(entry.formattedProgress)
@@ -488,7 +488,7 @@ struct DownloadsView: View {
             if entry.progress > 0 {
                 ProgressView(value: entry.progress)
                     .progressViewStyle(.linear)
-                    .tint(entry.isTranscoding ? .orange : (entry.isDirect ? .green : .accentColor))
+                    .tint(entry.isTranscoding ? JGColor.warning : (entry.isDirect ? JGColor.success : .accentColor))
             }
         }
         .padding(14)

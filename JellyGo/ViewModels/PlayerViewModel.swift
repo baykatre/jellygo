@@ -136,6 +136,8 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     @Published var isLocal = false
     /// When true, engine subtitle rendering is disabled at media load (JellyGo player manages its own).
     var disableEngineSubtitlesFlag = false
+    /// Source shown in the HUD; external channels use their own stream URL.
+    @Published private(set) var statsSourceURL: String = "—"
     @Published var statsBitrateMbps: Double = 0
     @Published var statsDecodedFrames: Int32 = 0
     @Published var statsDroppedFrames: Int32 = 0
@@ -368,7 +370,12 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     func loadLocal(url: URL, item: JellyfinItem, appState: AppState) async {
         self.item = item
         self.appState = appState
-        DispatchQueue.main.async { self.isLoading = true; self.error = nil; self.isLocal = true }
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.error = nil
+            self.isLocal = true
+            self.statsSourceURL = "—"
+        }
 
         engine.play(url: url, startTimeMs: 0, options: [
             "appState": appState,
@@ -442,6 +449,11 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     // MARK: - Load Streaming
 
     func load(item: JellyfinItem, appState: AppState, qualityOverride: VideoQuality? = nil) async {
+#if DEBUG
+        if item.isChannel {
+            print("[ZAP] load channel=\(item.name) external=\(ExternalLiveTvID.isExternal(item.id))")
+        }
+#endif
         self.item = item
         self.appState = appState
         selectedQuality = qualityOverride ?? appState.defaultVideoQuality
@@ -449,7 +461,14 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         usesServerAudioTracks = false
         serverAudioStreams = (item.mediaStreams ?? item.mediaSources?.first?.mediaStreams ?? []).filter(\.isAudio)
         mediaSourceId = item.mediaSources?.first?.id
-        DispatchQueue.main.async { self.isLoading = true; self.error = nil; self.statsReadBytes = 0 }
+        await MainActor.run {
+            self.isLoading = true
+            self.error = nil
+            self.isLocal = false
+            self.statsReadBytes = 0
+            self.statsSourceURL = ExternalLiveTvID.isExternal(item.id)
+                ? "—" : JellyfinMediaRequestBuilder.masked(appState.serverURL)
+        }
 
         guard !item.isSeries && !item.isSeason else {
             DispatchQueue.main.async { self.error = String(localized: "Select an episode to play", bundle: AppState.currentBundle); self.isLoading = false }
@@ -465,6 +484,12 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
 
     private func startPlayback(jellyfinStartTicks: Int64, seekMs: Int32) async {
         guard let item, let appState else { return }
+
+        // External playlist channel: no PlaybackInfo, no Jellyfin session at all.
+        if ExternalLiveTvID.isExternal(item.id) {
+            await startExternalPlayback(item: item, appState: appState)
+            return
+        }
 
         didSeekToResume = false
         transcodeOffsetMs = 0
@@ -763,6 +788,51 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         setupNowPlaying()
     }
 
+    // MARK: - External (M3U) channels
+
+    /// Plays an external list's stream URL directly. Nothing is sent to the Jellyfin server
+    /// (no PlaybackInfo, no progress/stop reports) and no Jellyfin token is attached.
+    private func startExternalPlayback(item: JellyfinItem, appState: AppState) async {
+        playSessionId = nil
+        liveStreamId = nil
+        mediaSourceId = nil
+        resumeMs = 0
+        guard let playback = ExternalLiveTvStore.shared.playback(forItemId: item.id) else {
+            DispatchQueue.main.async {
+                self.error = String(localized: "This channel is no longer in your lists.", bundle: AppState.currentBundle)
+                self.isLoading = false
+            }
+            return
+        }
+        print("[LIVETV] external stream: \(LiveTvURLMasker.mask(playback.url.absoluteString))")
+        await MainActor.run {
+            self.statsSourceURL = LiveTvURLMasker.mask(playback.url.absoluteString)
+            self.statsIsTranscoding = false
+            self.statsTranscodeReasons = []
+        }
+
+        var options: [String: Any] = [
+            "appState": appState,
+            "disableSubs": disableEngineSubtitlesFlag,
+            "useStartTime": false,
+            "isTranscoding": false,
+            "isLiveTV": true
+        ]
+        // Both engines read these: KSPlayer (FFmpeg user_agent / referer), VLC (:http-user-agent / :http-referrer).
+        if let ua = playback.userAgent { options["httpUserAgent"] = ua }
+        if let ref = playback.referrer { options["httpReferrer"] = ref }
+        engine.play(url: playback.url, startTimeMs: 0, options: options)
+
+        await waitForPlaying()
+        DispatchQueue.main.async {
+            self.isLoading = false
+            self.isPlaying = self.engine.isPlaying
+        }
+        startPositionTimer()
+        startMetricsTimer()
+        setupNowPlaying()
+    }
+
     private func waitForPlaying() async {
         let timeout = (item?.isChannel == true) ? 30_000 : 15_000
         var waited = 0
@@ -892,6 +962,14 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
             LocalPlaybackStore.savePosition(currentSeconds, for: item.id)
         }
 
+        if ExternalLiveTvID.isExternal(item.id) {
+            // External list channel: nothing was opened on the Jellyfin server.
+            Task { @MainActor in
+                NotificationCenter.default.post(name: .playbackStopped, object: nil)
+            }
+            return
+        }
+
         let capturedLiveStreamId = self.liveStreamId
         Task {
             if NetworkMonitor.shared.isConnected {
@@ -921,7 +999,7 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 // Live TV: send keepalive progress to prevent server from closing transcode session
                 if item.isChannel {
                     self.updateNowPlayingPlaybackState()
-                    if NetworkMonitor.shared.isConnected {
+                    if NetworkMonitor.shared.isConnected && !ExternalLiveTvID.isExternal(item.id) {
                         await JellyfinAPI.shared.reportLivePlaybackProgress(
                             serverURL: appState.serverURL, itemId: item.id,
                             playSessionId: self.playSessionId, liveStreamId: self.liveStreamId,
@@ -1043,8 +1121,12 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
         if nowPlayingArtwork == nil, let appState {
             let itemId = item.seriesId ?? item.id
             let serverURL = appState.serverURL
+            // External channels use the list's logo; everything else the Jellyfin image API.
+            let artworkURL = ExternalLiveTvID.isExternal(item.id)
+                ? ExternalLiveTvStore.shared.logoURL(forItemId: item.id)
+                : JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: itemId, maxWidth: 600)
             Task.detached(priority: .utility) { [weak self] in
-                guard let url = JellyfinAPI.shared.imageURL(serverURL: serverURL, itemId: itemId, maxWidth: 600) else { return }
+                guard let url = artworkURL else { return }
                 let (data, _) = try await URLSession.shared.data(from: url)
                 guard let image = UIImage(data: data) else { return }
                 let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }

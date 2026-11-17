@@ -33,6 +33,10 @@ final class VLCEngine: PlayerEngineBackend {
     private var didReportInfo = false
     private var isLiveTV = false
     private var liveURL: URL?
+#if DEBUG
+    private var debugOpenStartedAt: CFTimeInterval = 0
+    private var debugDidLogPosition = false
+#endif
 
     init() {
         player.delegate = bridge
@@ -41,6 +45,11 @@ final class VLCEngine: PlayerEngineBackend {
         bridge.onStateChanged = { [weak self] state in
             DispatchQueue.main.async {
                 guard let self else { return }
+#if DEBUG
+                if self.isLiveTV {
+                    print("[ZAP-VLC] state=\(state.rawValue) elapsed=\(CACurrentMediaTime() - self.debugOpenStartedAt)s")
+                }
+#endif
 
                 // Live TV: reconnect on error or ended
                 if self.isLiveTV && (state == .error || state == .ended || state == .stopped) {
@@ -77,6 +86,12 @@ final class VLCEngine: PlayerEngineBackend {
             DispatchQueue.main.async {
                 guard let self else { return }
                 let currentMs = self.player.time.intValue
+#if DEBUG
+                if self.isLiveTV, !self.debugDidLogPosition, currentMs > 0 {
+                    self.debugDidLogPosition = true
+                    print("[ZAP-VLC] first-position elapsed=\(CACurrentMediaTime() - self.debugOpenStartedAt)s")
+                }
+#endif
                 let durationMs = self.player.media?.length.intValue ?? 0
                 self.delegate?.enginePositionChanged(position: pos, currentMs: currentMs, durationMs: durationMs)
 
@@ -104,6 +119,10 @@ final class VLCEngine: PlayerEngineBackend {
     // MARK: - Playback
 
     func play(url: URL, startTimeMs: Int32, options: [String: Any]) {
+#if DEBUG
+        debugOpenStartedAt = CACurrentMediaTime()
+        debugDidLogPosition = false
+#endif
         tracksLoaded = false
         didDisableSubs = false
         isLiveTV = options["isLiveTV"] as? Bool ?? false
@@ -123,6 +142,10 @@ final class VLCEngine: PlayerEngineBackend {
         if shouldDisableSubs {
             media.addOption(":sub-track-id=-1")
         }
+
+        // External Live TV lists may require their own User-Agent / Referer.
+        if let ua = options["httpUserAgent"] as? String, !ua.isEmpty { media.addOption(":http-user-agent=\(ua)") }
+        if let ref = options["httpReferrer"] as? String, !ref.isEmpty { media.addOption(":http-referrer=\(ref)") }
 
         if isLiveTV {
             media.addOption(":network-caching=3000")

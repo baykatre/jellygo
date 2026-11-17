@@ -123,7 +123,7 @@ final class StoreManager: ObservableObject {
             await retryLoadProduct()
         }
         guard let product else {
-            purchaseError = NSLocalizedString("Couldn't reach the App Store. Check your connection and try again.", comment: "")
+            purchaseError = AppState.currentBundle.localizedString(forKey: "Couldn't reach the App Store. Check your connection and try again.", value: nil, table: nil)
             return
         }
         isLoading = true
@@ -141,7 +141,7 @@ final class StoreManager: ObservableObject {
             case .userCancelled:
                 break
             case .pending:
-                purchaseError = NSLocalizedString("Purchase pending approval.", comment: "")
+                purchaseError = AppState.currentBundle.localizedString(forKey: "Purchase pending approval.", value: nil, table: nil)
             @unknown default:
                 break
             }

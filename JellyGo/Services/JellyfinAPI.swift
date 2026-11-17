@@ -13,17 +13,17 @@ enum JellyfinAPIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return NSLocalizedString("Geçersiz sunucu adresi", comment: "")
+            return AppState.currentBundle.localizedString(forKey: "Invalid server address", value: nil, table: nil)
         case .networkError(let e):
-            return String(format: NSLocalizedString("Bağlantı hatası: %@", comment: ""), e.localizedDescription)
+            return String(format: AppState.currentBundle.localizedString(forKey: "Connection error: %@", value: nil, table: nil), e.localizedDescription)
         case .unauthorized:
-            return NSLocalizedString("Kullanıcı adı veya şifre hatalı", comment: "")
+            return AppState.currentBundle.localizedString(forKey: "Invalid username or password", value: nil, table: nil)
         case .serverError(let c):
-            return String(format: NSLocalizedString("Sunucu hatası: %d", comment: ""), c)
+            return String(format: AppState.currentBundle.localizedString(forKey: "Server error: %d", value: nil, table: nil), c)
         case .decodingError:
-            return NSLocalizedString("Sunucu yanıtı okunamadı", comment: "")
+            return AppState.currentBundle.localizedString(forKey: "Could not read server response", value: nil, table: nil)
         case .notAJellyfinServer:
-            return NSLocalizedString("Bu adres bir Jellyfin sunucusu değil", comment: "")
+            return AppState.currentBundle.localizedString(forKey: "This is not a Jellyfin server", value: nil, table: nil)
         }
     }
 }
@@ -56,7 +56,8 @@ final class JellyfinAPI {
         return h
     }
 
-    private func baseRequest(url: URL, token: String? = nil) -> URLRequest {
+    /// Internal (not private) so `JellyfinAPI+LiveTvAdmin.swift` can reuse the auth header.
+    func baseRequest(url: URL, token: String? = nil) -> URLRequest {
         var req = URLRequest(url: url)
         req.setValue(authHeader(token: token), forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -381,8 +382,8 @@ final class JellyfinAPI {
         // Manual quality explicitly requests encoding at the selected bitrate.
         // Keep Direct as a separate choice rather than silently ignoring this one.
         let requiresTranscode = forceTranscode || maxBitrate != nil
-        // Device profile: direct play MP4/H264/HEVC, fallback to HLS transcode
-        let subMethod = externalSubtitles ? "External" : "Hls"
+        // Offer ordered codec alternatives in fMP4 HLS. AV1 cannot use MPEG-TS;
+        // retain the TS/H264 profile for sources requiring the compatible profile.
         var profile: [String: Any] = [
             "UserId": userId,
             "AutoOpenLiveStream": isLiveTV,
@@ -402,6 +403,17 @@ final class JellyfinAPI {
                     ]
                 ],
                 "TranscodingProfiles": [
+                    [
+                        "Container": "mp4",
+                        "Type": "Video",
+                        "VideoCodec": JellyfinMediaRequestBuilder.preferredTranscodingVideoCodecs,
+                        "AudioCodec": "aac",
+                        "Protocol": "hls",
+                        "Context": "Streaming",
+                        "MaxAudioChannels": "6",
+                        "MinSegments": "2",
+                        "BreakOnNonKeyFrames": true
+                    ],
                     [
                         "Container": "ts",
                         "Type": "Video",
@@ -620,6 +632,17 @@ final class JellyfinAPI {
     }
 
     // MARK: - Live TV
+
+    /// Same endpoint with a reduced query, used to find out which parameter makes a server
+    /// answer with an empty list. `variant` 1 drops sorting/fields/images, 2 also drops UserId.
+    func getLiveTvChannelsProbe(serverURL: String, userId: String, token: String, variant: Int) async throws -> [JellyfinItem] {
+        guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
+        var items = [URLQueryItem(name: "AddCurrentProgram", value: "true"), URLQueryItem(name: "EnableUserData", value: "true")]
+        if variant < 2 { items.append(URLQueryItem(name: "UserId", value: userId)) }
+        let url = try buildURL(base, path: "LiveTv/Channels", queryItems: items)
+        let data = try await perform(baseRequest(url: url, token: token))
+        return try decode(JellyfinItemsResponse.self, from: data).items
+    }
 
     func getLiveTvChannels(serverURL: String, userId: String, token: String, limit: Int = 500, startIndex: Int = 0) async throws -> [JellyfinItem] {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }

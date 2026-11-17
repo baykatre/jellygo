@@ -25,7 +25,7 @@ struct PaywallView: View {
                 .padding(.bottom, 200)
             }
             .scrollEdgeEffectStyle(.soft, for: .bottom)
-            .background(Color(.systemBackground).ignoresSafeArea())
+            .background(JGColor.canvas.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
                 purchaseSection
                     .padding(.horizontal, 20)
@@ -78,8 +78,8 @@ struct PaywallView: View {
             ZStack {
                 Circle()
                     .fill(LinearGradient(
-                        colors: [Color(red: 1.0, green: 0.78, blue: 0.32).opacity(0.25),
-                                 Color(red: 0.95, green: 0.55, blue: 0.20).opacity(0.05)],
+                        colors: [JGColor.goldTop.opacity(0.25),
+                                 JGColor.goldBottom.opacity(0.05)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
                     .frame(width: 120, height: 120)
@@ -88,11 +88,11 @@ struct PaywallView: View {
                 Image(systemName: "crown.fill")
                     .font(.system(size: 56, weight: .semibold))
                     .foregroundStyle(LinearGradient(
-                        colors: [Color(red: 1.0, green: 0.82, blue: 0.40),
-                                 Color(red: 0.92, green: 0.50, blue: 0.18)],
+                        colors: [JGColor.goldTop,
+                                 JGColor.goldBottom],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
-                    .shadow(color: .orange.opacity(0.35), radius: 14, y: 6)
+                    .shadow(color: JGColor.goldBottom.opacity(0.35), radius: 14, y: 6)
             }
 
             VStack(spacing: 6) {
@@ -131,7 +131,7 @@ struct PaywallView: View {
             )
             featureCard(
                 icon: "sparkles",
-                tint: Color.orange,
+                tint: JGColor.goldBottom,
                 title: String(localized: "All Future Pro Features", bundle: bundle),
                 description: String(localized: "One-time purchase. Lifetime updates.", bundle: bundle)
             )
@@ -172,7 +172,7 @@ struct PaywallView: View {
             if let error = store.purchaseError {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(JGColor.danger)
                     .multilineTextAlignment(.center)
             } else if store.productLoadFailed {
                 Text(String(localized: "Couldn't load pricing from the App Store.", bundle: bundle))
