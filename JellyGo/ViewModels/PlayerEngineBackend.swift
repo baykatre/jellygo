@@ -98,6 +98,9 @@ protocol PlayerEngineBackend: AnyObject {
     /// Current video frame for the ambient light (see extension for the default).
     func ambientFrame() -> CVPixelBuffer?
     var supportsAmbientFrames: Bool { get }
+
+    /// Whether transcodes may be AV1 for this engine (needs hardware AV1 decoding).
+    var allowsAV1Transcode: Bool { get }
 }
 
 // MARK: - Player Engine Delegate
@@ -122,6 +125,9 @@ struct EngineVideoInfo: Equatable {
 
 struct EngineStats {
     var videoInfo: EngineVideoInfo? = nil
+    /// Audio actually being decoded, e.g. "AAC 2.0" (empty when unknown). For transcodes this
+    /// differs from the source file's track that PlaybackInfo describes.
+    var audioInfo: String = ""
     var inputBitrateMbps: Double = 0
     var demuxBitrateMbps: Double = 0
     var readBytes: Int = 0
@@ -140,4 +146,5 @@ extension PlayerEngineBackend {
     /// Engines that cannot hand out frames cheaply return nil (no ambient light).
     func ambientFrame() -> CVPixelBuffer? { nil }
     var supportsAmbientFrames: Bool { false }
+    var allowsAV1Transcode: Bool { true }
 }

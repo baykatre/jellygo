@@ -363,7 +363,7 @@ final class JellyfinAPI {
 
     // MARK: - Playback
 
-    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, mediaSourceId: String? = nil, forceTranscode: Bool = false, isLiveTV: Bool = false) async throws -> JellyfinPlaybackInfo {
+    func getPlaybackInfo(serverURL: String, itemId: String, userId: String, token: String, startTimeTicks: Int64 = 0, maxBitrate: Int? = nil, externalSubtitles: Bool = false, audioStreamIndex: Int? = nil, mediaSourceId: String? = nil, forceTranscode: Bool = false, isLiveTV: Bool = false, videoCodecs: String = JellyfinMediaRequestBuilder.preferredTranscodingVideoCodecs) async throws -> JellyfinPlaybackInfo {
         guard let base = URL(string: serverURL) else { throw JellyfinAPIError.invalidURL }
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "UserId", value: userId)]
         if startTimeTicks > 0 {
@@ -406,7 +406,7 @@ final class JellyfinAPI {
                     [
                         "Container": "mp4",
                         "Type": "Video",
-                        "VideoCodec": JellyfinMediaRequestBuilder.preferredTranscodingVideoCodecs,
+                        "VideoCodec": videoCodecs,
                         "AudioCodec": "aac",
                         "Protocol": "hls",
                         "Context": "Streaming",

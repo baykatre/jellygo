@@ -872,7 +872,9 @@ final class DownloadManager: NSObject, ObservableObject {
 
     static func transcodedURL(itemId: String, serverURL: String, token: String, maxBitrate: Int, audioStreamIndex: Int? = nil) -> URL? {
         var items = [
-            URLQueryItem(name: "VideoCodec",       value: JellyfinMediaRequestBuilder.preferredTranscodingVideoCodecs),
+            // Downloads are played by the user's engine; VLC can't decode AV1 in hardware.
+            URLQueryItem(name: "VideoCodec",       value: JellyfinMediaRequestBuilder.transcodingVideoCodecs(
+                allowAV1: AppState.shared?.playerEngine != .vlc)),
             URLQueryItem(name: "AudioCodec",       value: "aac"),
             URLQueryItem(name: "VideoBitrate",     value: "\(maxBitrate)"),
             URLQueryItem(name: "AudioBitrate",     value: "128000"),

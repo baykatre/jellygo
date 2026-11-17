@@ -299,6 +299,8 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
     }
 
     func engineStatsUpdated(_ stats: EngineStats) {
+        // What the player actually decodes (a transcode's AAC, not the source's TrueHD).
+        if !stats.audioInfo.isEmpty && statsAudioCodec != stats.audioInfo { statsAudioCodec = stats.audioInfo }
         if let video = stats.videoInfo {
             if !video.codec.isEmpty && statsVideoCodec != video.codec { statsVideoCodec = video.codec }
             if statsVideoProfile != video.profile { statsVideoProfile = video.profile }
@@ -601,7 +603,8 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 audioStreamIndex: audioIdx,
                 mediaSourceId: audioIdx == nil ? nil : self.mediaSourceId,
                 forceTranscode: doviNeedsTranscode,
-                isLiveTV: isLiveTV
+                isLiveTV: isLiveTV,
+                videoCodecs: JellyfinMediaRequestBuilder.transcodingVideoCodecs(allowAV1: engine.allowsAV1Transcode)
             )
             self.playSessionId = info.playSessionId
             if isLiveTV {
@@ -755,8 +758,12 @@ final class PlayerViewModel: ObservableObject, PlayerEngineDelegate {
                 self.statsVideoResolution = isTranscoding ? "" : displayRes
                 self.statsVideoBitDepth = isTranscoding ? "" : vBitDepth
                 self.statsVideoRange = isTranscoding ? "" : vRange
-                self.statsAudioCodec = audioStream?.codec?.uppercased() ?? "\u{2014}"
-                self.statsAudioLabel = aLabel
+                // Transcoded audio is re-encoded: show the decoder's codec once known, and drop
+                // source-only details like "(Atmos)" from the label.
+                self.statsAudioCodec = isTranscoding ? "\u{2014}" : (audioStream?.codec?.uppercased() ?? "\u{2014}")
+                self.statsAudioLabel = isTranscoding
+                    ? (audioStream?.languageName ?? audioStream?.displayTitle ?? audioStream?.language ?? "")
+                    : aLabel
                 self.statsContainer = source.container?.uppercased() ?? "\u{2014}"
                 self.statsIsTranscoding = isTranscoding
                 self.statsTranscodeReasons = reasons

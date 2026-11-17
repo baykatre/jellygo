@@ -367,6 +367,9 @@ final class VLCEngine: PlayerEngineBackend {
 
     // MARK: - Picture-in-Picture
 
+    /// VLCKit's VideoToolbox decoder has no AV1, so AV1 would be decoded in software.
+    var allowsAV1Transcode: Bool { false }
+
     var isPipSupported: Bool { false }
     var isPipActive: Bool { false }
     func startPip() {}

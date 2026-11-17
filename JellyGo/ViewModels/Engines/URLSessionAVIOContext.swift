@@ -9,11 +9,13 @@ import KSPlayer
 /// ~20-28 % of the app's CPU in `gcm_gf_mul` / `nettle_aes_encrypt` while streaming over HTTPS.
 /// URLSession uses the system TLS stack, which runs AES/GHASH on the CPU's crypto units.
 ///
-/// How: one streaming GET (`Range: bytes=N-`) fills a bounded buffer; FFmpeg's blocking
-/// `read` drains it. The download is suspended when the buffer is full and resumed when it
-/// drains (backpressure). A seek inside the buffered window just skips bytes; any other seek
-/// cancels the request and reopens it at the new offset. The total size comes from
-/// `Content-Range` (or `Content-Length`). `close()` wakes any blocked read immediately.
+/// How: the file is fetched in bounded byte ranges (`Range: bytes=a-b`), not one open-ended
+/// request. A finished range leaves its keep-alive connection free, so the next range — or the
+/// first range after a seek — reuses it instead of paying a new TCP + TLS handshake. (The first
+/// version streamed `bytes=N-` and had to cancel it on every seek; on HTTP/1.1 that closes the
+/// connection, and opening an MKV alone seeks 5-6 times.) Ranges start small (256 KB) and
+/// double while reads stay sequential, up to 4 MB, so header/index probes and seeks are cheap
+/// and steady playback uses few requests. Up to 8 MB is kept ahead of the read position.
 nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked Sendable {
     // FFmpeg error codes (macros are not visible to Swift).
     private static let errorEOF: Int32 = -541_478_725      // AVERROR_EOF
@@ -22,9 +24,14 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
 
     private let url: URL
     private let headers: [String: String]
-    private let highWater = 8 * 1024 * 1024
-    private let lowWater = 4 * 1024 * 1024
+    private let minSegment = 256 * 1024
+    private let maxSegment = 4 * 1024 * 1024
+    private let readAhead = 8 * 1024 * 1024
+    /// A superseded range still in flight is left to finish (keeping its connection) unless
+    /// more than this much of it is still to come.
+    private let abandonCancelThreshold: Int64 = 1024 * 1024
     private let readTimeout: TimeInterval = 30
+    private let maxRetries = 3
 
     private let condition = NSCondition()
     private var session: URLSession!
@@ -36,31 +43,21 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
     }()
 
     // State below is guarded by `condition`.
-    private var task: URLSessionDataTask?
-    private var generation = 0             // bumps on every (re)open; stale callbacks are dropped
+    private var generation = 0            // bumps on every seek outside the buffer
     private var chunks: [Data] = []
-    private var headOffset = 0             // bytes already consumed from chunks[0]
-    private var buffered = 0               // unread bytes in `chunks`
-    private var position: Int64 = 0        // file offset of the next byte FFmpeg will read
+    private var headOffset = 0            // bytes already consumed from chunks[0]
+    private var buffered = 0              // unread bytes in `chunks`
+    private var position: Int64 = 0       // file offset of the next byte FFmpeg will read
+    private var fetchOffset: Int64 = 0    // where the next range request starts
+    private var segmentSize = 256 * 1024
     private var totalSize: Int64 = -1
-    private var gotResponse = false
-    private var finished = false           // current request delivered everything
+    private var gotSize = false
+    private var active: URLSessionDataTask?        // range for the current generation
+    private var activeLength: Int64 = 0            // bytes requested by `active`
+    private var activeReceived: Int64 = 0
     private var failed = false
+    private var retries = 0
     private var closed = false
-    private var suspended = false
-    private var reconnects = 0
-#if DEBUG
-    private var statIn = 0, statOut = 0, statReads = 0, statWaitMs = 0.0
-    private var statStart = Date()
-    private func stat() {
-        let dt = Date().timeIntervalSince(statStart)
-        guard dt >= 2 else { return }
-        log(String(format: "in %.2f MB/s  out %.2f MB/s  reads %d  wait %.0f ms  buffered %.1f MB  suspended %@",
-                   Double(statIn) / dt / 1e6, Double(statOut) / dt / 1e6, statReads, statWaitMs,
-                   Double(buffered) / 1e6, suspended ? "yes" : "no"))
-        statIn = 0; statOut = 0; statReads = 0; statWaitMs = 0; statStart = Date()
-    }
-#endif
 
     init(url: URL, headers: [String: String] = [:]) {
         self.url = url
@@ -69,10 +66,8 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
         let config = URLSessionConfiguration.default
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
-        // Idle timeout per request. The task is suspended while the buffer is full (and
-        // while the video is paused), so this must be generous; read() reconnects anyway.
-        config.timeoutIntervalForRequest = 120
-        config.timeoutIntervalForResource = 7 * 24 * 3600
+        config.timeoutIntervalForRequest = readTimeout
+        config.httpMaximumConnectionsPerHost = 4
         session = URLSession(configuration: config,
                              delegate: SessionDelegate(owner: self),
                              delegateQueue: delegateQueue)
@@ -84,25 +79,17 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
         guard let buffer, size > 0 else { return 0 }
         condition.lock()
         defer { condition.unlock() }
-        if task == nil && !closed { open(at: position) }
-        var deadline = Date().addingTimeInterval(readTimeout)
-#if DEBUG
-        let waitStart = Date()
-        defer { statWaitMs += Date().timeIntervalSince(waitStart) * 1000 }
-#endif
+        if atEnd { return Self.errorEOF }
+        fillAhead()
+        let deadline = Date().addingTimeInterval(readTimeout)
         while buffered == 0 && !closed {
-            if finished || failed {
-                // The request ended before the file did (timeout while suspended, dropped
-                // connection, server closing idle streams...): reconnect at the current
-                // offset instead of reporting an error to FFmpeg.
-                let atEnd = totalSize >= 0 && position >= totalSize
-                if atEnd || (finished && !failed && totalSize < 0) { return Self.errorEOF }
-                guard reconnects < 5 else { return Self.errorIO }
-                reconnects += 1
-                log("reconnect #\(reconnects) at \(position)")
-                open(at: position)
-                deadline = Date().addingTimeInterval(readTimeout)
-                continue
+            if atEnd { return Self.errorEOF }
+            if failed {
+                guard retries < maxRetries else { return Self.errorIO }
+                retries += 1
+                failed = false
+                log("retry #\(retries) at \(fetchOffset)")
+                fillAhead()
             }
             if !condition.wait(until: deadline) {
                 log("read timed out at \(position)")
@@ -110,14 +97,12 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
             }
         }
         if closed { return Self.errorExit }
-        reconnects = 0
 
         let out = UnsafeMutablePointer(mutating: buffer)
         var written = 0
         let want = Int(size)
         while written < want, let head = chunks.first {
-            let available = head.count - headOffset
-            let n = min(available, want - written)
+            let n = min(head.count - headOffset, want - written)
             head.withUnsafeBytes { raw in
                 (out + written).update(from: raw.baseAddress!.assumingMemoryBound(to: UInt8.self) + headOffset, count: n)
             }
@@ -127,13 +112,11 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
         }
         buffered -= written
         position += Int64(written)
+        retries = 0
 #if DEBUG
         statOut += written; statReads += 1; stat()
 #endif
-        if suspended && buffered <= lowWater, let task {
-            suspended = false
-            task.resume()
-        }
+        fillAhead()
         return Int32(written)
     }
 
@@ -145,14 +128,14 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
         case 0: target = offset                                  // SEEK_SET
         case 1: target = position + offset                       // SEEK_CUR
         case 2:                                                  // SEEK_END
-            if totalSize < 0 { waitForResponse() }
+            if !gotSize { fillAhead(); waitForSize() }
             guard totalSize >= 0 else { return -1 }
             target = totalSize + offset
         default: return -1
         }
         guard target >= 0 else { return -1 }
         if target == position { return target }
-        // Forward seek inside what is already downloaded: drop bytes, keep the request.
+        // Forward inside what is already downloaded: drop bytes, keep everything else.
         if target > position, target - position <= Int64(buffered) {
             var skip = Int(target - position)
             while skip > 0, let head = chunks.first {
@@ -163,21 +146,19 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
                 if headOffset == head.count { chunks.removeFirst(); headOffset = 0 }
             }
             position = target
-            if suspended && buffered <= lowWater, let task { suspended = false; task.resume() }
             return target
         }
-        position = target
-        log("seek -> \(target) (reopen)")
-        open(at: target)
+        log("seek -> \(target)")
+        restart(at: target)
         return target
     }
 
     override func fileSize() -> Int64 {
         condition.lock()
         defer { condition.unlock() }
-        if totalSize < 0 && !closed {
-            if task == nil { open(at: position) }
-            waitForResponse()
+        if !gotSize && !closed {
+            fillAhead()
+            waitForSize()
         }
         return totalSize
     }
@@ -185,8 +166,8 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
     override func close() {
         condition.lock()
         closed = true
-        task?.cancel()
-        task = nil
+        active?.cancel()
+        active = nil
         chunks.removeAll()
         buffered = 0
         condition.broadcast()
@@ -194,32 +175,54 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
         session.invalidateAndCancel()
     }
 
-    // MARK: Request handling (call with `condition` locked)
+    // MARK: Range requests (call with `condition` locked)
 
-    private func open(at offset: Int64) {
-        task?.cancel()
-        generation += 1
-        chunks.removeAll()
-        headOffset = 0
-        buffered = 0
-        finished = false
-        failed = false
-        suspended = false
-        gotResponse = false
+    private var atEnd: Bool { gotSize && totalSize >= 0 && position >= totalSize }
+
+    /// Starts the next range if nothing is in flight and the read-ahead window has room.
+    private func fillAhead() {
+        guard !closed, active == nil, !failed, buffered < readAhead else { return }
+        if gotSize, totalSize >= 0, fetchOffset >= totalSize { return }
+        var end = fetchOffset + Int64(segmentSize) - 1
+        if gotSize, totalSize > 0 { end = min(end, totalSize - 1) }
         var request = URLRequest(url: url)
-        request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range")
+        request.setValue("bytes=\(fetchOffset)-\(end)", forHTTPHeaderField: "Range")
         for (k, v) in headers { request.setValue(v, forHTTPHeaderField: k) }
         let t = session.dataTask(with: request)
         t.taskDescription = String(generation)
-        task = t
+        active = t
+        activeLength = end - fetchOffset + 1
+        activeReceived = 0
         t.resume()
     }
 
-    private func waitForResponse() {
+    /// Seek outside the buffer: drop it and start a small range at the new offset. The range
+    /// in flight is left to complete (its connection then goes back to the pool) unless a lot
+    /// of it is still coming.
+    private func restart(at offset: Int64) {
+        if let old = active, activeLength - activeReceived > abandonCancelThreshold { old.cancel() }
+        generation += 1
+        active = nil
+        chunks.removeAll()
+        headOffset = 0
+        buffered = 0
+        failed = false
+        retries = 0
+        position = offset
+        fetchOffset = offset
+        segmentSize = minSegment
+        fillAhead()
+    }
+
+    private func waitForSize() {
         let deadline = Date().addingTimeInterval(readTimeout)
-        while !gotResponse && !failed && !closed {
+        while !gotSize && !failed && !closed {
             if !condition.wait(until: deadline) { break }
         }
+    }
+
+    private func isCurrent(_ t: URLSessionTask) -> Bool {
+        t.taskDescription == String(generation) && !closed
     }
 
     private func log(_ message: @autoclosure () -> String) {
@@ -228,34 +231,45 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
 #endif
     }
 
-    private func isCurrent(_ t: URLSessionTask) -> Bool {
-        t.taskDescription == String(generation) && !closed
+#if DEBUG
+    private var statIn = 0, statOut = 0, statReads = 0
+    private var statStart = Date()
+    private func stat() {
+        let dt = Date().timeIntervalSince(statStart)
+        guard dt >= 2 else { return }
+        log(String(format: "in %.2f MB/s  out %.2f MB/s  reads %d  buffered %.1f MB  segment %d KB",
+                   Double(statIn) / dt / 1e6, Double(statOut) / dt / 1e6, statReads,
+                   Double(buffered) / 1e6, segmentSize / 1024))
+        statIn = 0; statOut = 0; statReads = 0; statStart = Date()
     }
+#endif
 
     // MARK: URLSession callbacks (delegate queue)
 
     fileprivate func didReceive(response: URLResponse, task t: URLSessionTask) -> Bool {
         condition.lock()
         defer { condition.broadcast(); condition.unlock() }
-        guard isCurrent(t) else { return false }
-        gotResponse = true
+        guard isCurrent(t) else { return true }   // superseded: let it drain, keep connection
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             failed = true
+            active = nil
             log("bad response \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return false
         }
-        log("response \(http.statusCode) range=\(http.value(forHTTPHeaderField: "Content-Range") ?? "-")")
         if let range = http.value(forHTTPHeaderField: "Content-Range"),
            let total = range.split(separator: "/").last.flatMap({ Int64($0) }) {
             totalSize = total
-        } else if http.statusCode == 200, http.expectedContentLength > 0 {
-            // Server ignored Range: it sends the whole file from byte 0.
-            totalSize = http.expectedContentLength
-            if position != 0 {
-                // Can't serve this offset; let FFmpeg see an error rather than wrong bytes.
+            gotSize = true
+        } else if http.statusCode == 200 {
+            // Server ignored Range and sends the whole file: only usable from byte 0.
+            if http.expectedContentLength > 0 { totalSize = http.expectedContentLength; gotSize = true }
+            if fetchOffset != 0 {
                 failed = true
+                active = nil
+                log("server ignored Range")
                 return false
             }
+            activeLength = .max
         }
         return true
     }
@@ -266,26 +280,27 @@ nonisolated final class URLSessionAVIOContext: AbstractAVIOContext, @unchecked S
         guard isCurrent(t) else { return }
         chunks.append(data)
         buffered += data.count
+        fetchOffset += Int64(data.count)
+        activeReceived += Int64(data.count)
 #if DEBUG
         statIn += data.count; stat()
 #endif
-        if buffered >= highWater && !suspended {
-            suspended = true
-            t.suspend()
-            log("suspend at \(buffered) buffered")
-        }
         condition.broadcast()
     }
 
     fileprivate func didComplete(task t: URLSessionTask, error: Error?) {
         condition.lock()
         defer { condition.broadcast(); condition.unlock() }
-        guard isCurrent(t) else { return }
+        guard isCurrent(t), t === active else { return }
+        active = nil
         if let error, (error as NSError).code != NSURLErrorCancelled {
             failed = true
-            log("request failed: \((error as NSError).code) \(error.localizedDescription)")
+            log("range failed at \(fetchOffset): \((error as NSError).code)")
+            return
         }
-        finished = true
+        // Sequential reading continues: grow the next range.
+        segmentSize = min(segmentSize * 2, maxSegment)
+        fillAhead()
     }
 }
 
@@ -308,7 +323,7 @@ nonisolated private final class SessionDelegate: NSObject, URLSessionDataDelegat
 #if DEBUG
     func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
         for m in metrics.transactionMetrics {
-            print("[AVIO] protocol=\(m.networkProtocolName ?? "?") reused=\(m.isReusedConnection) remote=\(m.remoteAddress ?? "?") multipath=\(m.isMultipath) iface cellular=\(m.isCellular) expensive=\(m.isExpensive)")
+            print("[AVIO] range done protocol=\(m.networkProtocolName ?? "?") reused=\(m.isReusedConnection)")
         }
     }
 #endif

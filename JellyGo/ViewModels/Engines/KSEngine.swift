@@ -93,10 +93,9 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
             let skipAVPlayer = container.split(separator: ",").contains { avPlayerCannotOpen.contains(String($0)) }
             KSOptions.firstPlayerType = skipAVPlayer ? KSMEPlayer.self : KSAVPlayer.self
             KSOptions.secondPlayerType = KSMEPlayer.self
-            // URLSessionAVIOContext (system TLS instead of FFmpeg's software gnutls) is kept
-            // off for now: on a slow link it reopened a connection for every seek and
-            // playback stalled more. Revisit with connection reuse before enabling.
-            ksOptions.useSystemNetworking = false
+            // KSMEPlayer reads progressive HTTPS through URLSession (system TLS, hardware AES)
+            // in reusable byte ranges; see URLSessionAVIOContext.
+            ksOptions.useSystemNetworking = true
             var headers: [String: String] = [:]
             if let ua = options["httpUserAgent"] as? String, !ua.isEmpty { headers["User-Agent"] = ua }
             if let ref = options["httpReferrer"] as? String, !ref.isEmpty { headers["Referer"] = ref }
@@ -614,6 +613,7 @@ extension KSEngine: KSPlayerLayerDelegate {
         }
         var stats = EngineStats()
         stats.videoInfo = decodedVideoInfo(layer: layer)
+        stats.audioInfo = decodedAudioInfo(layer: layer)
         stats.bufferedSeconds = layer.player.playableTime
         if let info = layer.player.dynamicInfo {
             // KSMEPlayer path — full stats from FFmpeg
@@ -629,6 +629,45 @@ extension KSEngine: KSPlayerLayerDelegate {
             stats.fps = event.indicatedBitrate > 0 ? 0 : 0  // no FPS from accessLog
         }
         delegate?.engineStatsUpdated(stats)
+    }
+
+    /// Codec + channel layout of the audio track being played ("AAC 2.0", "EAC3 5.1").
+    private func decodedAudioInfo(layer: KSPlayerLayer) -> String {
+        let tracks = layer.player.tracks(mediaType: .audio)
+        guard let track = tracks.first(where: { $0.isEnabled }) ?? tracks.first else { return "" }
+        var codec = ""
+        var channels = 0
+        if let ffmpegTrack = track as? FFmpegAssetTrack {
+            codec = ffmpegTrack.codecName.components(separatedBy: " (").first?.uppercased() ?? ""
+        }
+        if let desc = track.formatDescription,
+           let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc)?.pointee {
+            channels = Int(asbd.mChannelsPerFrame)
+            if codec.isEmpty {
+                switch asbd.mFormatID {
+                case kAudioFormatMPEG4AAC, kAudioFormatMPEG4AAC_HE, kAudioFormatMPEG4AAC_HE_V2: codec = "AAC"
+                case kAudioFormatAC3: codec = "AC3"
+                case kAudioFormatEnhancedAC3: codec = "EAC3"
+                case kAudioFormatMPEGLayer3: codec = "MP3"
+                case kAudioFormatOpus: codec = "OPUS"
+                case kAudioFormatFLAC: codec = "FLAC"
+                case kAudioFormatAppleLossless: codec = "ALAC"
+                case kAudioFormatLinearPCM: codec = "PCM"
+                default: codec = ""
+                }
+            }
+        }
+        guard !codec.isEmpty else { return "" }
+        let layout: String
+        switch channels {
+        case 1: layout = "1.0"
+        case 2: layout = "2.0"
+        case 6: layout = "5.1"
+        case 8: layout = "7.1"
+        case 0: layout = ""
+        default: layout = "\(channels)ch"
+        }
+        return layout.isEmpty ? codec : "\(codec) \(layout)"
     }
 
     private func decodedVideoInfo(layer: KSPlayerLayer) -> EngineVideoInfo? {
@@ -675,6 +714,7 @@ extension KSEngine: KSPlayerLayerDelegate {
 #endif
         var stats = EngineStats()
         stats.videoInfo = decodedVideoInfo(layer: layer)
+        stats.audioInfo = decodedAudioInfo(layer: layer)
         stats.bufferedSeconds = layer.player.playableTime
         if let info = layer.player.dynamicInfo {
             stats.inputBitrateMbps = Double(info.videoBitrate + info.audioBitrate) / 1_000_000

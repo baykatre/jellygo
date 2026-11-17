@@ -1,4 +1,5 @@
 import Foundation
+import VideoToolbox
 
 /// Single place that builds Jellyfin media / image / avatar / subtitle / download URLs
 /// and decides how the access token travels with them.
@@ -15,9 +16,19 @@ import Foundation
 /// that point at the configured Jellyfin server (same origin and base path).
 nonisolated enum JellyfinMediaRequestBuilder {
 
-    /// Ordered output codecs supported by our playback engines. Jellyfin selects
-    /// among them using its encoding settings; HEVC and H.265 are the same codec.
-    static let preferredTranscodingVideoCodecs = "av1,hevc,h264"
+    /// AV1 decodes in hardware only on A17 Pro / M3 and newer; elsewhere it is software.
+    static let deviceDecodesAV1InHardware: Bool = VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1)
+
+    /// Ordered output codecs to ask Jellyfin to transcode to (it picks using its encoding
+    /// settings; HEVC and H.265 are the same codec). AV1 is offered only when this device
+    /// decodes it in hardware and the engine can use that: VLCKit's VideoToolbox decoder has
+    /// no AV1 (VLC 3.0.x and VLC 4 alike), so VLC would decode it in software (~50 % CPU).
+    static func transcodingVideoCodecs(allowAV1: Bool) -> String {
+        allowAV1 && deviceDecodesAV1InHardware ? "av1,hevc,h264" : "hevc,h264"
+    }
+
+    /// Default for the KSPlayer engine (AVPlayer/VideoToolbox decode AV1 in hardware).
+    static var preferredTranscodingVideoCodecs: String { transcodingVideoCodecs(allowAV1: true) }
 
     /// Query parameter Jellyfin 12 reads without legacy authorization.
     static let tokenQueryName = "ApiKey"
