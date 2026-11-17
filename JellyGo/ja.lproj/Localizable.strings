@@ -457,3 +457,9 @@
 "Connection" = "接続";
 "App" = "アプリ";
 "Add Account" = "アカウントを追加";
+
+/* Ambient light */
+"Ambient Light" = "アンビエントライト";
+"Subtle" = "弱";
+"Strong" = "強";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "動画の横の黒帯を映像の端の色で満たします。動画を画面に合わせて表示しているときに表示されます。";

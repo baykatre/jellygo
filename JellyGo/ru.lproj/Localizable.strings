@@ -457,3 +457,9 @@
 "Connection" = "Подключение";
 "App" = "Приложение";
 "Add Account" = "Добавить аккаунт";
+
+/* Ambient light */
+"Ambient Light" = "Фоновая подсветка";
+"Subtle" = "Слабая";
+"Strong" = "Сильная";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "Заполняет чёрные полосы по бокам видео цветами краёв изображения. Работает, когда видео вписано в экран.";

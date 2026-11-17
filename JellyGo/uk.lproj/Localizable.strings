@@ -457,3 +457,9 @@
 "Connection" = "Підключення";
 "App" = "Застосунок";
 "Add Account" = "Додати обліковий запис";
+
+/* Ambient light */
+"Ambient Light" = "Фонове підсвічування";
+"Subtle" = "Слабке";
+"Strong" = "Сильне";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "Заповнює чорні смуги поруч із відео кольорами країв зображення. Працює, коли відео вписане в екран.";

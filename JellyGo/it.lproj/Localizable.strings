@@ -457,3 +457,9 @@
 "Connection" = "Connessione";
 "App" = "App";
 "Add Account" = "Aggiungi account";
+
+/* Ambient light */
+"Ambient Light" = "Luce ambientale";
+"Subtle" = "Leggera";
+"Strong" = "Intensa";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "Riempie le bande nere accanto al video con i colori ai bordi dell’immagine. Visibile quando il video è adattato allo schermo.";

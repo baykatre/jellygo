@@ -457,3 +457,9 @@
 "Connection" = "الاتصال";
 "App" = "التطبيق";
 "Add Account" = "إضافة حساب";
+
+/* Ambient light */
+"Ambient Light" = "الإضاءة المحيطة";
+"Subtle" = "خفيفة";
+"Strong" = "قوية";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "تملأ الأشرطة السوداء بجانب الفيديو بألوان حواف الصورة. تظهر عند ملاءمة الفيديو للشاشة.";

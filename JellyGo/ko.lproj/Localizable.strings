@@ -457,3 +457,9 @@
 "Connection" = "연결";
 "App" = "앱";
 "Add Account" = "계정 추가";
+
+/* Ambient light */
+"Ambient Light" = "앰비언트 라이트";
+"Subtle" = "약하게";
+"Strong" = "강하게";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "영상 옆의 검은 여백을 화면 가장자리 색으로 채웁니다. 영상을 화면에 맞췄을 때 표시됩니다.";

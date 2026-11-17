@@ -461,3 +461,9 @@
 "Connection" = "Bağlantı";
 "App" = "Uygulama";
 "Add Account" = "Hesap Ekle";
+
+/* Ambient light */
+"Ambient Light" = "Ortam Işığı";
+"Subtle" = "Hafif";
+"Strong" = "Güçlü";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "Videonun yanındaki siyah boşlukları görüntünün kenar renkleriyle doldurur. Video ekrana sığdırıldığında görünür.";

@@ -145,6 +145,13 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(playerEngine.rawValue, forKey: "jellygo.playerEngine") }
     }
 
+    /// Glow from the picture's edges in the black bars beside the video (KSPlayer only).
+    @Published var ambientLight: AmbientLightMode = AmbientLightMode(
+        rawValue: UserDefaults.standard.string(forKey: "jellygo.ambientLight") ?? ""
+    ) ?? .subtle {
+        didSet { UserDefaults.standard.set(ambientLight.rawValue, forKey: "jellygo.ambientLight") }
+    }
+
     @Published var defaultVideoQuality: VideoQuality = VideoQuality(
         rawValue: UserDefaults.standard.string(forKey: "jellygo.defaultQuality") ?? ""
     ) ?? .direct {

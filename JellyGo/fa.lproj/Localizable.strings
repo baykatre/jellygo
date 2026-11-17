@@ -457,3 +457,9 @@
 "Connection" = "اتصال";
 "App" = "برنامه";
 "Add Account" = "افزودن حساب";
+
+/* Ambient light */
+"Ambient Light" = "نور محیطی";
+"Subtle" = "ملایم";
+"Strong" = "قوی";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "نوارهای سیاه کنار ویدیو را با رنگ‌های لبه‌های تصویر پر می‌کند. وقتی ویدیو در صفحه جا شده باشد نمایش داده می‌شود.";

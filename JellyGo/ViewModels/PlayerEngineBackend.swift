@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreVideo
 
 // MARK: - Player Engine Backend Protocol
 
@@ -93,6 +94,10 @@ protocol PlayerEngineBackend: AnyObject {
 
     /// Update the PiP subtitle text. Empty string hides the layer.
     func updatePipSubtitleText(_ text: String)
+
+    /// Current video frame for the ambient light (see extension for the default).
+    func ambientFrame() -> CVPixelBuffer?
+    var supportsAmbientFrames: Bool { get }
 }
 
 // MARK: - Player Engine Delegate
@@ -126,4 +131,13 @@ struct EngineStats {
     var lostAudioBuffers: Int32 = 0
     var fps: Double = 0
     var bufferedSeconds: Double = 0  // how far ahead the buffer extends
+}
+
+// MARK: - Ambient light frames
+
+extension PlayerEngineBackend {
+    /// The frame on screen right now, for the ambient light behind the video.
+    /// Engines that cannot hand out frames cheaply return nil (no ambient light).
+    func ambientFrame() -> CVPixelBuffer? { nil }
+    var supportsAmbientFrames: Bool { false }
 }

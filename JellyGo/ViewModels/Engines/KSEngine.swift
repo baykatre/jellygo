@@ -140,7 +140,61 @@ final class KSEngine: NSObject, PlayerEngineBackend, @unchecked Sendable {
         layer.play()
     }
 
+    // MARK: - Ambient light frames
+
+    /// Video output attached to KSAVPlayer's current item (re-attached when the item changes).
+    private var ambientOutput: AVPlayerItemVideoOutput?
+    private weak var ambientOutputItem: AVPlayerItem?
+    private var lastAmbientBuffer: ObjectIdentifier?
+    private let ambientScaler = AmbientFrameScaler()
+
+    var supportsAmbientFrames: Bool { true }
+
+    /// The frame on screen now. KSAVPlayer: read from an `AVPlayerItemVideoOutput`
+    /// (works for HLS, unlike KSPlayer's image-generator thumbnail). KSMEPlayer: the last
+    /// frame its Metal view drew (set on the main thread by its display link).
+    func ambientFrame() -> CVPixelBuffer? {
+        guard let player = playerLayer?.player else { return nil }
+        if let me = player as? KSMEPlayer {
+            guard let buffer = me.videoOutput?.pixelBuffer else { return nil }
+            // Same frame as last time (paused / between frames): nothing new to sample.
+            let ref = ObjectIdentifier(buffer as AnyObject)
+            if ref == lastAmbientBuffer { return nil }
+            lastAmbientBuffer = ref
+            // Hardware-decoded frame: scale it down in hardware. Software-decoded frames
+            // (rare codecs) have no CVPixelBuffer and get no ambient light.
+            guard let cv = buffer.cvPixelBuffer else { return nil }
+            return ambientScaler.scale(cv)
+        }
+        if let av = player as? KSAVPlayer {
+            guard let item = av.player.currentItem else { return nil }
+            if ambientOutputItem !== item {
+                if let old = ambientOutput, let oldItem = ambientOutputItem { oldItem.remove(old) }
+                // Ask for a tiny frame: AVFoundation scales it in hardware, so we never
+                // touch a full-size picture.
+                let output = AVPlayerItemVideoOutput(pixelBufferAttributes: [
+                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                    kCVPixelBufferWidthKey as String: 160,
+                    kCVPixelBufferHeightKey as String: 90,
+                ])
+                item.add(output)
+                ambientOutput = output
+                ambientOutputItem = item
+            }
+            guard let output = ambientOutput else { return nil }
+            let time = output.itemTime(forHostTime: CACurrentMediaTime())
+            guard output.hasNewPixelBuffer(forItemTime: time),
+                  let cv = output.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil)
+            else { return nil }
+            return cv
+        }
+        return nil
+    }
+
     func stop() {
+        if let output = ambientOutput, let item = ambientOutputItem { item.remove(output) }
+        ambientOutput = nil
+        ambientOutputItem = nil
         liveStatsTimer?.invalidate()
         liveStatsTimer = nil
         removePipSubtitleLayer()
@@ -454,6 +508,7 @@ extension KSEngine: KSPlayerLayerDelegate {
                 if shouldDisableSubs && !isPipActive {
                     disableEngineSubtitles()
                 }
+                containerView.makeTransparent()
                 let size = layer.player.naturalSize
                 if size.width > 0 {
                     _videoSize = size
@@ -633,7 +688,9 @@ struct KSVideoSurface: UIViewRepresentable {
     let containerView: KSPassthroughView
 
     func makeUIView(context: Context) -> KSPassthroughView {
-        containerView.backgroundColor = .black
+        // Transparent: the SwiftUI layer behind already paints black, and the ambient light
+        // has to show through the letterbox area around the picture.
+        containerView.makeTransparent()
         return containerView
     }
 
@@ -643,6 +700,28 @@ struct KSVideoSurface: UIViewRepresentable {
 /// Passes all touches through to SwiftUI so gesture modifiers on the ZStack work correctly.
 final class KSPassthroughView: UIView {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+
+    /// Clears the background of this view and the player views inside it. KSMEPlayer draws
+    /// into a CAMetalLayer, which is opaque by default and turns its clear colour into black.
+    func makeTransparent() {
+        func clear(_ view: UIView) {
+            view.backgroundColor = .clear
+            view.isOpaque = false
+            clearLayers(view.layer)
+            view.subviews.forEach(clear)
+        }
+        func clearLayers(_ layer: CALayer) {
+            layer.isOpaque = false
+            layer.backgroundColor = nil
+            layer.sublayers?.forEach(clearLayers)
+        }
+        clear(self)
+    }
+
+    override func didAddSubview(_ subview: UIView) {
+        super.didAddSubview(subview)
+        makeTransparent()
+    }
 }
 
 // MARK: - Custom KSOptions (force HW decode, skip rotation SW fallback)

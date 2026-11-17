@@ -457,3 +457,9 @@
 "Connection" = "连接";
 "App" = "应用";
 "Add Account" = "添加账户";
+
+/* Ambient light */
+"Ambient Light" = "环境光";
+"Subtle" = "柔和";
+"Strong" = "强烈";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "用画面边缘的颜色填充视频两侧的黑边。视频适应屏幕显示时可见。";

@@ -457,3 +457,9 @@
 "Connection" = "Anslutning";
 "App" = "App";
 "Add Account" = "Lägg till konto";
+
+/* Ambient light */
+"Ambient Light" = "Omgivningsljus";
+"Subtle" = "Diskret";
+"Strong" = "Starkt";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "Fyller de svarta fälten bredvid videon med färgerna i bildens kanter. Visas när videon är anpassad till skärmen.";

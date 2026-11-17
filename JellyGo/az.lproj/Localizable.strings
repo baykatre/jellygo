@@ -457,3 +457,9 @@
 "Connection" = "Bağlantı";
 "App" = "Tətbiq";
 "Add Account" = "Hesab əlavə et";
+
+/* Ambient light */
+"Ambient Light" = "Ətraf işığı";
+"Subtle" = "Zəif";
+"Strong" = "Güclü";
+"Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen." = "Videonun yanındakı qara zolaqları görüntünün kənar rəngləri ilə doldurur. Video ekrana sığdırıldıqda görünür.";

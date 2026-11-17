@@ -1249,6 +1249,21 @@ struct PlaybackSettingsView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             }
+            if appState.playerEngine == .ksplayer {
+                Section {
+                    Picker(String(localized: "Ambient Light", bundle: AppState.currentBundle),
+                           selection: $appState.ambientLight) {
+                        ForEach(AmbientLightMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text(String(localized: "Ambient Light", bundle: AppState.currentBundle))
+                } footer: {
+                    Text(String(localized: "Fills the black bars beside the video with the colours at the edges of the picture. Shown when the video is fitted to the screen.", bundle: AppState.currentBundle))
+                }
+            }
             Section(String(localized: "Default Quality", bundle: AppState.currentBundle)) {
                 Picker(String(localized: "Default Quality", bundle: AppState.currentBundle), selection: $appState.defaultVideoQuality) {
                     ForEach(VideoQuality.allCases) { quality in
