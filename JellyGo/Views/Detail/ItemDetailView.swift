@@ -54,6 +54,8 @@ struct ItemDetailView: View {
     private var displayItem: JellyfinItem { vm.fullItem ?? activeItem }
 
     @State private var detailScrollProxy: ScrollViewProxy?
+    /// Season chosen while prefetching (see `DetailPrefetchStore`).
+    @State private var prefetchedSeasonId: String?
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -94,6 +96,11 @@ struct ItemDetailView: View {
                 if let cached = DownloadManager.loadItemDetails(itemId: item.id) {
                     vm.fullItem = cached
                 }
+            } else if let snap = DetailPrefetchStore.shared.snapshot(for: item.id, appState: appState) {
+                // Fetched ahead on Home: show it now, refresh quietly in the background.
+                vm.apply(snap, item: item)
+                prefetchedSeasonId = snap.bestSeasonId
+                Task { await vm.load(item: item, appState: appState) }
             } else {
                 await vm.load(item: item, appState: appState)
                 if item.isSeries && vm.seasons.isEmpty {
@@ -118,7 +125,8 @@ struct ItemDetailView: View {
                     selectedSeason = targetSeason
                 } else if !isOffline {
                     // Show first season immediately so the page isn't blank while bestSeasonToOpen searches
-                    selectedSeason = vm.seasons.first
+                    // (or the season prefetching already picked).
+                    selectedSeason = vm.seasons.first(where: { $0.id == prefetchedSeasonId }) ?? vm.seasons.first
                     let season = await vm.bestSeasonToOpen(appState: appState)
                     if let season, season.id != selectedSeason?.id {
                         selectedSeason = season
@@ -1813,6 +1821,18 @@ struct LogoTitleView: View {
     private func loadLogo() {
         guard let url = logoURL, url != loadedURL else { return }
         loadedURL = url
+        // Remote logos go through ImageCache: Home already warms the hero items' logos there,
+        // so the detail page shows them at once instead of downloading again.
+        if !url.isFileURL {
+            if let cached = ImageCache.shared.memoryCachedImage(for: url) {
+                logoImage = cached
+                return
+            }
+            Task {
+                if let img = await ImageCache.shared.fetch(url: url) { logoImage = img } else { logoFailed = true }
+            }
+            return
+        }
         Task.detached(priority: .utility) {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)

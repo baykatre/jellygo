@@ -91,6 +91,9 @@ final class HomeViewModel: ObservableObject {
              JellyfinAPI.shared.logoURL(serverURL: url, itemId: $0.id)]
         })
 
+        // Fetch the hero items' detail pages in the background so "info" opens them filled.
+        DetailPrefetchStore.shared.prefetch(featuredItems, appState: appState)
+
         // Server became unreachable mid-session → try fallback
         if networkFailed {
             await appState.validateAndFallback()

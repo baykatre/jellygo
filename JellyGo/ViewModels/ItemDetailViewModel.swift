@@ -12,7 +12,9 @@ final class ItemDetailViewModel: ObservableObject {
     @Published var isWatched = false
     @Published var similarItems: [JellyfinItem] = []
 
-    func load(item: JellyfinItem, appState: AppState) async {
+    /// `isPrefetch`: fetching ahead for `DetailPrefetchStore` — skips the side effects that
+    /// belong to actually opening the page (offline caching, server metadata refresh).
+    func load(item: JellyfinItem, appState: AppState, isPrefetch: Bool = false) async {
         isLoading = true
         isFavorite = item.userData?.isFavorite ?? false
         isWatched = item.userData?.played ?? false
@@ -99,7 +101,7 @@ final class ItemDetailViewModel: ObservableObject {
         }
 
         // Cache details + people photos + missing subtitles for offline
-        if let details = fullItem {
+        if !isPrefetch, let details = fullItem {
             let dm = DownloadManager.shared
             let isDownloaded = dm.isDownloaded(item.id)
                 || dm.downloads.contains(where: { $0.seriesId == item.id })
@@ -144,7 +146,7 @@ final class ItemDetailViewModel: ObservableObject {
         }
 
         // If no community rating, trigger metadata refresh and reload
-        if fullItem?.communityRating == nil && !item.isEpisode {
+        if !isPrefetch, fullItem?.communityRating == nil && !item.isEpisode {
             await JellyfinAPI.shared.refreshItemMetadata(
                 serverURL: appState.serverURL,
                 itemId: item.id,
@@ -163,6 +165,17 @@ final class ItemDetailViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Fills the page from data fetched ahead of time (see `DetailPrefetchStore`).
+    func apply(_ snapshot: DetailPrefetchStore.Snapshot, item: JellyfinItem) {
+        fullItem = snapshot.fullItem
+        seasons = snapshot.seasons
+        episodes = snapshot.episodes
+        similarItems = snapshot.similarItems
+        isFavorite = snapshot.fullItem?.userData?.isFavorite ?? item.userData?.isFavorite ?? false
+        isWatched = snapshot.fullItem?.userData?.played ?? item.userData?.played ?? false
+        isLoading = false
     }
 
     func reloadAfterPlayback(item: JellyfinItem, appState: AppState) async {
